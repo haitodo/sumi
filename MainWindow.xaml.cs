@@ -79,6 +79,13 @@ namespace sumi
             WindowId windowId = Win32Interop.GetWindowIdFromWindow(_hWnd);
             _appWindow = AppWindow.GetFromWindowId(windowId);
 
+            // アプリケーションアイコンの設定
+            try
+            {
+                _appWindow.SetIcon(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "AppIcon.ico"));
+            }
+            catch (Exception) { }
+
             // ダークモードと起動アニメーション（配置変更による移動）の一時無効化を適用
             try
             {
