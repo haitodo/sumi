@@ -25,6 +25,9 @@ namespace sumi
         private SUBCLASSPROC? _subclassProc;
         private bool _isQuitting = false;
 
+        // 起動時テキスト遅延適用用: Loaded イベントで RichEditBox に流し込む
+        private NoteData? _pendingNote = null;
+
         // 競合防止用のリビジョン番号
         private long _revision = 0;
         private long _savedRevision = 0;
@@ -127,9 +130,13 @@ namespace sumi
                 currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId);
             }
 
+            // TTFP最適化: テキストを直接 RichEditBox に設定するとレイアウト計算がブロックされるため、
+            // MemoTextBox.Loaded（初回描画完了の直後）で適用するよう保留しておく。
+            _pendingNote = currentNote;
+
+            // タイトルと文字数は軽量なので先行設定してもコストは無視できる
             if (currentNote != null)
             {
-                MemoText = currentNote.Content;
                 TitleTextBlock.Text = currentNote.Title;
                 UpdateCharCount(currentNote.CharCount);
             }
@@ -169,7 +176,11 @@ namespace sumi
             // 10. ウィンドウサイズ変更イベントの登録（Flyoutの高さ調整用）
             RootGrid.SizeChanged += RootGrid_SizeChanged;
 
-            InitializeTrayAndHotKeys();
+            // TTFP最適化: トレイアイコン・ホットキーの登録は描画クリティカルパス外で実行。
+            // Low 優先度でキューイングし、最初のフレームを描画した後に処理させる。
+            this.DispatcherQueue.TryEnqueue(
+                Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                () => InitializeTrayAndHotKeys());
 
             _isInitializing = false;
         }
@@ -1072,6 +1083,14 @@ namespace sumi
             {
                 // ScrollViewer の PointerWheelChanged イベントにハンドラーを追加
                 _memoScrollViewer.PointerWheelChanged += ScrollViewer_PointerWheelChanged;
+            }
+
+            // TTFP最適化: コンストラクタ内で保留されていたテキストを、初回描画完了後に適用する。
+            // ここで SetText/ApplyLineSpacing を実行してもウィンドウ表示はブロックされない。
+            if (_pendingNote != null)
+            {
+                MemoText = _pendingNote.Content;
+                _pendingNote = null;
             }
         }
 
