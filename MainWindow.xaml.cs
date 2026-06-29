@@ -87,6 +87,9 @@ namespace sumi
             // 9. グローバルショートカットキーの登録
             this.Content.AddHandler(UIElement.KeyDownEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler(Global_KeyDown), true);
 
+            // 10. ウィンドウサイズ変更イベントの登録（Flyoutの高さ調整用）
+            RootGrid.SizeChanged += RootGrid_SizeChanged;
+
             _isInitializing = false;
         }
 
@@ -346,6 +349,7 @@ namespace sumi
 
         private void SettingsFlyout_Opened(object sender, object e)
         {
+            UpdateFlyoutMaxHeights();
             SettingsSearchBox.Text = string.Empty;
 
             // ComboBox/Slider初期値設定
@@ -553,6 +557,7 @@ namespace sumi
 
         private void NotesFlyout_Opened(object? sender, object? e)
         {
+            UpdateFlyoutMaxHeights();
             NoteSearchBox.Text = string.Empty;
             PopulateNotesList();
             NoteSearchBox.Focus(FocusState.Programmatic);
@@ -562,6 +567,29 @@ namespace sumi
         {
             PinnedListView.ItemsSource = null;
             NotesListView.ItemsSource = null;
+        }
+
+        private void RootGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            UpdateFlyoutMaxHeights();
+        }
+
+        private void UpdateFlyoutMaxHeights()
+        {
+            if (RootGrid == null) return;
+            double windowHeight = RootGrid.ActualHeight;
+
+            // ウィンドウサイズに応じた最大高さを算出（余白マージンとして120pxを確保、最小は100px）
+            double maxScrollHeight = Math.Max(100, windowHeight - 120);
+
+            if (NotesScrollViewer != null)
+            {
+                NotesScrollViewer.MaxHeight = maxScrollHeight;
+            }
+            if (SettingsScrollViewer != null)
+            {
+                SettingsScrollViewer.MaxHeight = maxScrollHeight;
+            }
         }
 
         private void NoteSearchBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -847,7 +875,7 @@ namespace sumi
         public string Subtitle { get; }
         public bool IsPinned { get; }
         public bool IsCurrent { get; }
-        public string PinIcon => IsPinned ? "\uE842" : "\uE718";
+        public string PinIcon => IsPinned ? "\uE841" : "\uE718";
         public string PinToolTip => IsPinned ? "ピン留め解除" : "ピン留め";
         public Microsoft.UI.Xaml.Media.Brush PinForeground => IsPinned
             ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 255, 176, 0))

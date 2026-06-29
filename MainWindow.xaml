@@ -147,7 +147,7 @@
                                     </TextBox.Resources>
                                 </TextBox>
                                 
-                                <ScrollViewer Grid.Row="1" MaxHeight="320" VerticalScrollBarVisibility="Auto">
+                                <ScrollViewer x:Name="SettingsScrollViewer" Grid.Row="1" MaxHeight="320" VerticalScrollBarVisibility="Auto">
                                     <StackPanel Spacing="4">
                                         <!-- Font -->
                                         <Grid x:Name="FontItem" Padding="6,6" CornerRadius="4" Background="Transparent"
@@ -278,7 +278,7 @@
                                 </Style>
                             </Flyout.FlyoutPresenterStyle>
                             
-                            <Grid RowSpacing="8" Width="260" Height="340">
+                            <Grid RowSpacing="8" Width="260">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" /> <!-- 検索ボックス -->
                                     <RowDefinition Height="*" />    <!-- メモ一覧スクロール領域 -->
@@ -310,7 +310,7 @@
                                 </TextBox>
                                 
                                 <!-- 一覧スクロール領域 -->
-                                <ScrollViewer Grid.Row="1" Height="300" VerticalScrollBarVisibility="Auto">
+                                <ScrollViewer x:Name="NotesScrollViewer" Grid.Row="1" MaxHeight="300" VerticalScrollBarVisibility="Auto">
                                     <StackPanel x:Name="NotesListContainer" Spacing="8">
                                         <!-- Pinned セクション -->
                                         <StackPanel x:Name="PinnedSection" Spacing="4">
