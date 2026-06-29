@@ -175,8 +175,11 @@ impl eframe::App for SumiApp {
             self.save_scheduler.on_saved();
         }
         
-        // 6. テキストエディタUIの描画 (egui 0.35のshowを使用)
-        egui::CentralPanel::default().show(ui, |ui| {
+        // 6. テキストエディタUIの描画 (二重のCentralPanelを避け、シンプルなFrameと余白で描画)
+        let frame_style = egui::Frame::new()
+            .inner_margin(egui::Margin::same(8));
+            
+        frame_style.show(ui, |ui| {
             let response = crate::ui::editor::draw_editor(
                 ui,
                 &mut self.app_state,

@@ -9,9 +9,12 @@ pub fn draw_editor(
     should_request_focus: bool,
 ) -> egui::Response {
     // 画面全体を占有し、枠線や背景を持たないプレーンなテキストエリアを定義
+    // フォントファミリーに Proportional を指定し、サイズを 15.0 に設定することで、
+    // Windowsシステムフォント(Yu Gothic UIやMeiryo等)に完全対応し、カーソルの見た目のズレを防ぎます。
     let editor = egui::TextEdit::multiline(&mut app_state.text)
-        .frame(egui::Frame::new()) // egui 0.35 互換の枠線なしフレーム設定
-        .desired_width(f32::INFINITY);
+        .frame(egui::Frame::new()) // 枠線や背景色を完全に非表示にする
+        .desired_width(f32::INFINITY)
+        .font(egui::FontId::new(15.0, egui::FontFamily::Proportional));
         
     let response = ui.add_sized(ui.available_size(), editor);
 
