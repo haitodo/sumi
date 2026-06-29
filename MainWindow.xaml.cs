@@ -24,6 +24,7 @@ namespace sumi
         private bool _isTrayIconAdded = false;
         private SUBCLASSPROC? _subclassProc;
         private bool _isQuitting = false;
+        private bool _isShutdownCalled = false; // OnShutdown の二重呼び出し防止フラグ
 
         // 起動時テキスト遅延適用用: Loaded イベントで RichEditBox に流し込む
         private NoteData? _pendingNote = null;
@@ -117,9 +118,11 @@ namespace sumi
             // 3. ウィンドウ配置の復元（マルチモニター・作業領域クランプ付き）
             RestoreWindowPlacement();
 
-            // 4. メモ一覧の初期化と読込
-            MemoStorage.InitializeNotes();
+            // 4. 設定の読込（LastNoteId を InitializeNotes より先にロードする必要があるため先行実行）
             MemoStorage.LoadSettings();
+
+            // 5. メモ一覧の初期化と読込（LastNoteId を参照してカレントメモを決定）
+            MemoStorage.InitializeNotes();
 
             // 初期設定の適用
             ApplySettings();
@@ -432,6 +435,10 @@ namespace sumi
                     MemoStorage.SaveWindowPlacementAtomic(pos.X, pos.Y, size.Width, size.Height);
                 }
 
+                // 現在表示しているメモIDを記録して設定に保存
+                MemoStorage.LastNoteId = MemoStorage.CurrentNoteId;
+                MemoStorage.SaveSettings();
+
                 args.Cancel = true;
                 _appWindow.Hide();
             }
@@ -475,6 +482,10 @@ namespace sumi
 
         private void OnShutdown()
         {
+            // 二重呼び出しを防止（AppWindow_Closing が複数回発火するケースへの対策）
+            if (_isShutdownCalled) return;
+            _isShutdownCalled = true;
+
             _scheduler.Cancel();
             _scheduler.Dispose();
 
@@ -502,6 +513,12 @@ namespace sumi
             if (_isDirty)
             {
                 MemoStorage.SaveMemoTextAtomicSync(MemoText);
+            }
+
+            // 終了直前に「現在表示しているメモ」の最終閲覧日時を最新に更新し、確実に記録する
+            if (!string.IsNullOrEmpty(MemoStorage.CurrentNoteId))
+            {
+                MemoStorage.SetCurrentNote(MemoStorage.CurrentNoteId, updateLastOpened: true);
             }
 
             // 保留中の設定変更を即座に書き込み
@@ -1397,6 +1414,8 @@ namespace sumi
                     // Quitのホットキーを入力したとしても完全終了せず、右上のバツボタンと同じ動作（Hide）にする
                     if (string.IsNullOrEmpty(MemoStorage.LaunchHotKey))
                     {
+                        _isQuitting = true;
+                        OnShutdown();
                         Close();
                     }
                     else
@@ -1408,6 +1427,9 @@ namespace sumi
                         {
                             MemoStorage.SaveWindowPlacementAtomic(pos.X, pos.Y, size.Width, size.Height);
                         }
+                        // 現在表示しているメモIDを記録して設定に保存
+                        MemoStorage.LastNoteId = MemoStorage.CurrentNoteId;
+                        MemoStorage.SaveSettings();
                         _appWindow.Hide();
                     }
                     return IntPtr.Zero;
@@ -1484,6 +1506,7 @@ namespace sumi
             else if (selected == 2)
             {
                 _isQuitting = true;
+                OnShutdown();
                 Close();
             }
         }

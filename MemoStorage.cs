@@ -50,6 +50,10 @@ namespace sumi
         public static string FontWeight { get; set; } = "Medium";
         public static string QuitHotKey { get; set; } = "Alt+Q";
         public static string LaunchHotKey { get; set; } = string.Empty;
+        /// <summary>
+        /// 前回終了時に表示していたメモのID（再起動後の復元用）。
+        /// </summary>
+        public static string LastNoteId { get; set; } = string.Empty;
 
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT
@@ -205,16 +209,29 @@ namespace sumi
                     }
                     else
                     {
-                        // 最も新しく開いたメモをカレントに設定
+                        // 前回終了時に表示していたメモ（LastNoteId）を優先し、
+                        // 存在しない場合は LastOpened が最新のメモをカレントに設定
                         NoteData latest;
                         lock (Notes)
                         {
-                            latest = Notes[0];
-                            foreach (var note in Notes)
+                            NoteData? lastNote = string.IsNullOrEmpty(LastNoteId)
+                                ? null
+                                : Notes.Find(n => n.Id == LastNoteId);
+
+                            if (lastNote != null)
                             {
-                                if (note.LastOpened > latest.LastOpened)
+                                latest = lastNote;
+                            }
+                            else
+                            {
+                                // フォールバック: LastOpened が最も新しいメモを選択
+                                latest = Notes[0];
+                                foreach (var note in Notes)
                                 {
-                                    latest = note;
+                                    if (note.LastOpened > latest.LastOpened)
+                                    {
+                                        latest = note;
+                                    }
                                 }
                             }
                             CurrentNoteId = latest.Id;
@@ -729,6 +746,9 @@ namespace sumi
                                 case "LaunchHotKey":
                                     LaunchHotKey = val;
                                     break;
+                                case "LastNoteId":
+                                    LastNoteId = val;
+                                    break;
                             }
                         }
                     }
@@ -747,6 +767,13 @@ namespace sumi
         {
             try
             {
+                // CurrentNoteId が確定している場合は LastNoteId を常に最新に保つ
+                // （タイマー経由の呼び出しでも確実に現在のメモIDが保存されるようにする）
+                if (!string.IsNullOrEmpty(CurrentNoteId))
+                {
+                    LastNoteId = CurrentNoteId;
+                }
+
                 var sb = new StringBuilder();
                 sb.AppendLine($"FontFamily={FontFamily}");
                 sb.AppendLine($"FontWeight={FontWeight}");
@@ -755,6 +782,7 @@ namespace sumi
                 sb.AppendLine($"Opacity={Opacity}");
                 sb.AppendLine($"QuitHotKey={QuitHotKey}");
                 sb.AppendLine($"LaunchHotKey={LaunchHotKey}");
+                sb.AppendLine($"LastNoteId={LastNoteId}");
                 byte[] bytes = Utf8NoBom.GetBytes(sb.ToString());
 
                 string tempPath = SettingsPath + ".tmp";
