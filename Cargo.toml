@@ -1,0 +1,23 @@
+[package]
+name = "sumi"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+eframe = { version = "0.35.0", default-features = false, features = ["glow"] }
+egui = "0.35.0"
+winit = "0.30"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+windows-sys = { version = "0.52", features = ["Win32_Storage_FileSystem", "Win32_Foundation"] }
+directories = "5.0"
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+lto = true
+panic = "abort"
+strip = true
+incremental = false
+overflow-checks = false
+debug = false
