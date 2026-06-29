@@ -101,6 +101,7 @@ namespace sumi
             // 6. ライフサイクルイベント監視
             this.Activated += MainWindow_Activated;
             _appWindow.Closing += AppWindow_Closing;
+            _appWindow.Changed += AppWindow_Changed;
 
             // 7. メモ一覧 Flyout の初期イベントフック
             NotesFlyout.Opened += NotesFlyout_Opened;
@@ -341,8 +342,32 @@ namespace sumi
             }
             else
             {
+                // 非表示にする前に、最新のウィンドウ配置を保存
+                var pos = _appWindow.Position;
+                var size = _appWindow.Size;
+                if (size.Width > 100 && size.Height > 100 && pos.X > -10000 && pos.Y > -10000)
+                {
+                    MemoStorage.SaveWindowPlacementAtomic(pos.X, pos.Y, size.Width, size.Height);
+                }
+
                 args.Cancel = true;
                 _appWindow.Hide();
+            }
+        }
+
+        private void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
+        {
+            if (args.DidPositionChange || args.DidSizeChange)
+            {
+                if (_appWindow.IsVisible)
+                {
+                    var pos = _appWindow.Position;
+                    var size = _appWindow.Size;
+                    if (size.Width > 100 && size.Height > 100 && pos.X > -10000 && pos.Y > -10000)
+                    {
+                        MemoStorage.SaveWindowPlacementAtomic(pos.X, pos.Y, size.Width, size.Height);
+                    }
+                }
             }
         }
 
@@ -1016,6 +1041,9 @@ namespace sumi
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
+        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+        private static extern uint RegisterWindowMessage(string lpString);
+
         [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, EntryPoint = "LoadImageW", SetLastError = true)]
         private static extern IntPtr LoadImage(IntPtr hInst, string lpszName, uint uType, int cxDesired, int cyDesired, uint fuLoad);
 
@@ -1054,6 +1082,7 @@ namespace sumi
         private const uint NIF_ICON = 2;
         private const uint NIF_TIP = 4;
         private const uint WM_TRAYICON = 0x8000 + 2048;
+        private static readonly uint WM_SHOWME = RegisterWindowMessage("SUMI_SHOW_ME_MESSAGE");
         private const uint MF_STRING = 0x00000000;
         private const uint TPM_RETURNCMD = 0x0100;
         private const uint TPM_LEFTALIGN = 0x0000;
@@ -1149,8 +1178,23 @@ namespace sumi
                 int id = wParam.ToInt32();
                 if (id == 1001) // Quit
                 {
-                    _isQuitting = true;
-                    Close();
+                    // Launchのホットキーが指定されている場合はタスクトレイに常駐するため、
+                    // Quitのホットキーを入力したとしても完全終了せず、右上のバツボタンと同じ動作（Hide）にする
+                    if (string.IsNullOrEmpty(MemoStorage.LaunchHotKey))
+                    {
+                        Close();
+                    }
+                    else
+                    {
+                        // 非表示にする前に最新のウィンドウ配置を保存
+                        var pos = _appWindow.Position;
+                        var size = _appWindow.Size;
+                        if (size.Width > 100 && size.Height > 100 && pos.X > -10000 && pos.Y > -10000)
+                        {
+                            MemoStorage.SaveWindowPlacementAtomic(pos.X, pos.Y, size.Width, size.Height);
+                        }
+                        _appWindow.Hide();
+                    }
                     return IntPtr.Zero;
                 }
                 else if (id == 1002) // Launch
@@ -1170,6 +1214,11 @@ namespace sumi
                 {
                     ShowTrayContextMenu();
                 }
+            }
+            else if (uMsg == WM_SHOWME)
+            {
+                ShowAndActivateWindow();
+                return IntPtr.Zero;
             }
 
             return DefSubclassProc(hWnd, uMsg, wParam, lParam);
