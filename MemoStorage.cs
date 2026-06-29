@@ -109,8 +109,11 @@ namespace sumi
         /// </summary>
         public static void InitializeNotes()
         {
-            Notes.Clear();
-            CurrentNoteId = string.Empty;
+            lock (Notes)
+            {
+                Notes.Clear();
+                CurrentNoteId = string.Empty;
+            }
 
             try
             {
@@ -132,8 +135,11 @@ namespace sumi
                             Title = GetTitleFromContent(content),
                             CharCount = content.Length
                         };
-                        Notes.Add(note);
-                        CurrentNoteId = id;
+                        lock (Notes)
+                        {
+                            Notes.Add(note);
+                            CurrentNoteId = id;
+                        }
 
                         // 物理ファイル保存
                         SaveNoteTextSync(id, content);
@@ -159,53 +165,76 @@ namespace sumi
                 {
                     // 2. メタデータファイルが存在する場合、読み込む
                     var lines = File.ReadAllLines(NotesDatPath, Utf8NoBom);
-                    foreach (var line in lines)
+                    lock (Notes)
                     {
-                        if (string.IsNullOrWhiteSpace(line)) continue;
-                        var parts = line.Split('|');
-                        if (parts.Length >= 3)
+                        foreach (var line in lines)
                         {
-                            string id = parts[0];
-                            bool isPinned = bool.Parse(parts[1]);
-                            long ticks = long.Parse(parts[2]);
-                            var lastOpened = new DateTime(ticks, DateTimeKind.Utc);
-
-                            string noteFile = Path.Combine(NotesFolderPath, $"note_{id}.txt");
-                            string content = string.Empty;
-                            if (File.Exists(noteFile))
+                            if (string.IsNullOrWhiteSpace(line)) continue;
+                            var parts = line.Split('|');
+                            if (parts.Length >= 3)
                             {
-                                content = File.ReadAllText(noteFile, Utf8NoBom);
+                                string id = parts[0];
+                                bool isPinned = bool.Parse(parts[1]);
+                                long ticks = long.Parse(parts[2]);
+                                var lastOpened = new DateTime(ticks, DateTimeKind.Utc);
+
+                                // 高速起動のためコンテンツは空で初期設定（バックグラウンドで遅延読み込み）
+                                Notes.Add(new NoteData
+                                {
+                                    Id = id,
+                                    IsPinned = isPinned,
+                                    LastOpened = lastOpened,
+                                    Content = string.Empty,
+                                    Title = "Loading...",
+                                    CharCount = 0
+                                });
                             }
-
-                            Notes.Add(new NoteData
-                            {
-                                Id = id,
-                                IsPinned = isPinned,
-                                LastOpened = lastOpened,
-                                Content = content,
-                                Title = GetTitleFromContent(content),
-                                CharCount = content.Length
-                            });
                         }
                     }
 
                     // 読み込んだ結果メモが空なら作成
-                    if (Notes.Count == 0)
+                    bool isEmpty;
+                    lock (Notes)
+                    {
+                        isEmpty = Notes.Count == 0;
+                    }
+
+                    if (isEmpty)
                     {
                         CreateNewNote();
                     }
                     else
                     {
                         // 最も新しく開いたメモをカレントに設定
-                        var latest = Notes[0];
-                        foreach (var note in Notes)
+                        NoteData latest;
+                        lock (Notes)
                         {
-                            if (note.LastOpened > latest.LastOpened)
+                            latest = Notes[0];
+                            foreach (var note in Notes)
                             {
-                                latest = note;
+                                if (note.LastOpened > latest.LastOpened)
+                                {
+                                    latest = note;
+                                }
+                            }
+                            CurrentNoteId = latest.Id;
+                        }
+
+                        // カレントのメモだけ同期でロード（起動時の表示遅延を防ぐ）
+                        string currentNoteFile = Path.Combine(NotesFolderPath, $"note_{latest.Id}.txt");
+                        if (File.Exists(currentNoteFile))
+                        {
+                            string content = File.ReadAllText(currentNoteFile, Utf8NoBom);
+                            lock (Notes)
+                            {
+                                latest.Content = content;
+                                latest.Title = GetTitleFromContent(content);
+                                latest.CharCount = content.Length;
                             }
                         }
-                        CurrentNoteId = latest.Id;
+
+                        // 残りのメモはバックグラウンドで非同期にロードする
+                        _ = Task.Run(() => LoadRemainingNotesBackground());
                     }
                 }
             }
@@ -213,10 +242,54 @@ namespace sumi
             {
                 Debug.WriteLine($"[InitializeNotes Error] {ex.Message}");
                 // 万一エラーが発生した場合は最低限の空メモを作成して動作継続
-                if (Notes.Count == 0)
+                bool isEmpty;
+                lock (Notes)
+                {
+                    isEmpty = Notes.Count == 0;
+                }
+                if (isEmpty)
                 {
                     CreateNewNote();
                 }
+            }
+        }
+
+        private static void LoadRemainingNotesBackground()
+        {
+            try
+            {
+                NoteData[] notesCopy;
+                string currentId;
+                lock (Notes)
+                {
+                    notesCopy = Notes.ToArray();
+                    currentId = CurrentNoteId;
+                }
+
+                foreach (var note in notesCopy)
+                {
+                    if (note.Id == currentId) continue;
+
+                    string noteFile = Path.Combine(NotesFolderPath, $"note_{note.Id}.txt");
+                    if (File.Exists(noteFile))
+                    {
+                        string content = File.ReadAllText(noteFile, Utf8NoBom);
+                        lock (Notes)
+                        {
+                            // 既に読み込み済みの場合はスキップ
+                            if (string.IsNullOrEmpty(note.Content))
+                            {
+                                note.Content = content;
+                                note.Title = GetTitleFromContent(content);
+                                note.CharCount = content.Length;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[LoadRemainingNotesBackground Error] {ex.Message}");
             }
         }
 
@@ -242,8 +315,11 @@ namespace sumi
         /// </summary>
         public static string LoadMemoText()
         {
-            var note = Notes.Find(n => n.Id == CurrentNoteId);
-            return note?.Content ?? string.Empty;
+            lock (Notes)
+            {
+                var note = Notes.Find(n => n.Id == CurrentNoteId);
+                return note?.Content ?? string.Empty;
+            }
         }
 
         /// <summary>
@@ -271,12 +347,15 @@ namespace sumi
         {
             try
             {
-                var note = Notes.Find(n => n.Id == id);
-                if (note != null)
+                lock (Notes)
                 {
-                    note.Content = text;
-                    note.Title = GetTitleFromContent(text);
-                    note.CharCount = text.Length;
+                    var note = Notes.Find(n => n.Id == id);
+                    if (note != null)
+                    {
+                        note.Content = text;
+                        note.Title = GetTitleFromContent(text);
+                        note.CharCount = text.Length;
+                    }
                 }
 
                 string noteFile = Path.Combine(NotesFolderPath, $"note_{id}.txt");
@@ -319,12 +398,15 @@ namespace sumi
         {
             try
             {
-                var note = Notes.Find(n => n.Id == id);
-                if (note != null)
+                lock (Notes)
                 {
-                    note.Content = text;
-                    note.Title = GetTitleFromContent(text);
-                    note.CharCount = text.Length;
+                    var note = Notes.Find(n => n.Id == id);
+                    if (note != null)
+                    {
+                        note.Content = text;
+                        note.Title = GetTitleFromContent(text);
+                        note.CharCount = text.Length;
+                    }
                 }
 
                 string noteFile = Path.Combine(NotesFolderPath, $"note_{id}.txt");
@@ -368,9 +450,12 @@ namespace sumi
             try
             {
                 var sb = new StringBuilder();
-                foreach (var note in Notes)
+                lock (Notes)
                 {
-                    sb.AppendLine($"{note.Id}|{note.IsPinned}|{note.LastOpened.Ticks}");
+                    foreach (var note in Notes)
+                    {
+                        sb.AppendLine($"{note.Id}|{note.IsPinned}|{note.LastOpened.Ticks}");
+                    }
                 }
                 byte[] bytes = Utf8NoBom.GetBytes(sb.ToString());
 
@@ -416,8 +501,11 @@ namespace sumi
                 CharCount = 0
             };
 
-            Notes.Add(note);
-            CurrentNoteId = id;
+            lock (Notes)
+            {
+                Notes.Add(note);
+                CurrentNoteId = id;
+            }
 
             // 物理保存
             SaveNoteTextSync(id, string.Empty);
@@ -431,11 +519,19 @@ namespace sumi
         /// </summary>
         public static void DeleteNote(string id)
         {
-            var note = Notes.Find(n => n.Id == id);
-            if (note != null)
+            bool removed = false;
+            lock (Notes)
             {
-                Notes.Remove(note);
-                
+                var note = Notes.Find(n => n.Id == id);
+                if (note != null)
+                {
+                    Notes.Remove(note);
+                    removed = true;
+                }
+            }
+
+            if (removed)
+            {
                 string noteFile = Path.Combine(NotesFolderPath, $"note_{id}.txt");
                 string tempFile = Path.Combine(NotesFolderPath, $"note_{id}.tmp");
 
@@ -458,13 +554,16 @@ namespace sumi
         /// </summary>
         public static void SetCurrentNote(string id)
         {
-            var note = Notes.Find(n => n.Id == id);
-            if (note != null)
+            lock (Notes)
             {
-                note.LastOpened = DateTime.UtcNow;
-                CurrentNoteId = id;
-                SaveMetadata();
+                var note = Notes.Find(n => n.Id == id);
+                if (note != null)
+                {
+                    note.LastOpened = DateTime.UtcNow;
+                    CurrentNoteId = id;
+                }
             }
+            SaveMetadata();
         }
 
         /// <summary>
