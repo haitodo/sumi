@@ -314,6 +314,16 @@ namespace sumi
                     SettingsFlyout.ShowAt(PlayButton);
                     e.Handled = true;
                 }
+                else if (e.Key == (Windows.System.VirtualKey)219) // '['
+                {
+                    NavigateToPreviousNote();
+                    e.Handled = true;
+                }
+                else if (e.Key == (Windows.System.VirtualKey)221) // ']'
+                {
+                    NavigateToNextNote();
+                    e.Handled = true;
+                }
             }
         }
 
@@ -944,7 +954,7 @@ namespace sumi
             }
         }
 
-        private void SwitchToNote(string id)
+        private void SwitchToNote(string id, bool updateLastOpened = true)
         {
             if (id == MemoStorage.CurrentNoteId) return;
 
@@ -954,7 +964,7 @@ namespace sumi
                 _isDirty = false;
             }
 
-            MemoStorage.SetCurrentNote(id);
+            MemoStorage.SetCurrentNote(id, updateLastOpened);
 
             NoteData? note = null;
             lock (MemoStorage.Notes)
@@ -968,6 +978,53 @@ namespace sumi
                 TitleTextBlock.Text = note.Title;
                 UpdateCharCount(note.CharCount);
             }
+        }
+
+        /// <summary>
+        /// Ctrl+[ で一つ前のメモに移動します（先頭の場合は移動しない）。
+        /// </summary>
+        private void NavigateToPreviousNote()
+        {
+            var ordered = GetOrderedNoteIds();
+            int idx = ordered.IndexOf(MemoStorage.CurrentNoteId);
+            if (idx > 0)
+            {
+                // ナビゲーションでは LastOpened を更新しない（順序が変わるとループするため）
+                SwitchToNote(ordered[idx - 1], updateLastOpened: false);
+            }
+        }
+
+        /// <summary>
+        /// Ctrl+] で一つ次のメモに移動します（末尾の場合は移動しない）。
+        /// </summary>
+        private void NavigateToNextNote()
+        {
+            var ordered = GetOrderedNoteIds();
+            int idx = ordered.IndexOf(MemoStorage.CurrentNoteId);
+            if (idx >= 0 && idx < ordered.Count - 1)
+            {
+                // ナビゲーションでは LastOpened を更新しない（順序が変わるとループするため）
+                SwitchToNote(ordered[idx + 1], updateLastOpened: false);
+            }
+        }
+
+        /// <summary>
+        /// ピン留め優先、LastOpened降順でソートしたメモIDリストを返します。
+        /// </summary>
+        private List<string> GetOrderedNoteIds()
+        {
+            List<NoteData> notes;
+            lock (MemoStorage.Notes)
+            {
+                notes = new List<NoteData>(MemoStorage.Notes);
+            }
+            // ピン留め→通常の順、各グループ内はLastOpened降順
+            notes.Sort((a, b) =>
+            {
+                if (a.IsPinned != b.IsPinned) return a.IsPinned ? -1 : 1;
+                return b.LastOpened.CompareTo(a.LastOpened);
+            });
+            return notes.ConvertAll(n => n.Id);
         }
 
         private void PopulateNotesList(string filter = "")
@@ -1091,6 +1148,16 @@ namespace sumi
             {
                 MemoText = _pendingNote.Content;
                 _pendingNote = null;
+
+                // テキスト設定完了後にフォーカスと末尾移動を行う
+                // （Activated より Loaded が後に来るため、ここで確実に設定する）
+                this.DispatcherQueue.TryEnqueue(
+                    Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal,
+                    () =>
+                    {
+                        MemoTextBox.Focus(FocusState.Programmatic);
+                        MemoTextBox.Document.Selection.SetRange(int.MaxValue, int.MaxValue);
+                    });
             }
         }
 
@@ -1391,6 +1458,8 @@ namespace sumi
             if (MemoTextBox != null)
             {
                 MemoTextBox.Focus(FocusState.Programmatic);
+                // テキスト末尾にカーソルを移動
+                MemoTextBox.Document.Selection.SetRange(int.MaxValue, int.MaxValue);
             }
         }
 

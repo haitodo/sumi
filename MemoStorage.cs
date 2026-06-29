@@ -552,14 +552,15 @@ namespace sumi
         /// <summary>
         /// アクティブなメモを切り替え、最終開封日時を更新します。
         /// </summary>
-        public static void SetCurrentNote(string id)
+        public static void SetCurrentNote(string id, bool updateLastOpened = true)
         {
             lock (Notes)
             {
                 var note = Notes.Find(n => n.Id == id);
                 if (note != null)
                 {
-                    note.LastOpened = DateTime.UtcNow;
+                    if (updateLastOpened)
+                        note.LastOpened = DateTime.UtcNow;
                     CurrentNoteId = id;
                 }
             }
