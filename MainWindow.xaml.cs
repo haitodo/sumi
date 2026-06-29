@@ -55,8 +55,8 @@ namespace sumi
             _highlightTimer.Tick += HighlightTimer_Tick;
 
             // 1. ウィンドウハンドルと AppWindow の解決
-            IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            WindowId windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
+            _hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            WindowId windowId = Win32Interop.GetWindowIdFromWindow(_hWnd);
             _appWindow = AppWindow.GetFromWindowId(windowId);
 
             // 2. タイトルバーをクライアント領域に拡張し、ドラッグ領域を設定
@@ -247,7 +247,7 @@ namespace sumi
 
         private void RestoreWindowPlacement()
         {
-            if (MemoStorage.LoadWindowPlacement(out int x, out int y, out int width, out int height))
+            if (MemoStorage.LoadWindowPlacement(_hWnd, out int x, out int y, out int width, out int height))
             {
                 _appWindow.MoveAndResize(new RectInt32(x, y, width, height));
             }

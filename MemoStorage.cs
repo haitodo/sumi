@@ -73,6 +73,12 @@ namespace sumi
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
 
+        [DllImport("user32.dll")]
+        private static extern uint GetDpiForWindow(IntPtr hwnd);
+
+        [DllImport("shcore.dll")]
+        private static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
+
         static MemoStorage()
         {
             string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -498,7 +504,7 @@ namespace sumi
         /// <summary>
         /// ウィンドウ座標の復元およびマルチモニターを考慮したクランプ処理を行います。
         /// </summary>
-        public static bool LoadWindowPlacement(out int x, out int y, out int width, out int height)
+        public static bool LoadWindowPlacement(IntPtr hWnd, out int x, out int y, out int width, out int height)
         {
             x = 0; y = 0; width = 360; height = 480; // デフォルト値
             try
@@ -528,6 +534,40 @@ namespace sumi
                                     info.cbSize = Marshal.SizeOf<MONITORINFO>();
                                     if (GetMonitorInfo(hMonitor, ref info))
                                     {
+                                        // 現在のウィンドウの初期DPIと、移動先モニターのDPIを取得して、DPI遷移によるサイズ変更を打ち消す調整を行う
+                                        uint initialDpi = 96;
+                                        try
+                                        {
+                                            initialDpi = GetDpiForWindow(hWnd);
+                                        }
+                                        catch (Exception)
+                                        {
+                                            initialDpi = 96;
+                                        }
+
+                                        uint targetDpi = 96;
+                                        try
+                                        {
+                                            if (GetDpiForMonitor(hMonitor, 0, out uint dpiX, out uint dpiY) == 0)
+                                            {
+                                                targetDpi = dpiX;
+                                            }
+                                        }
+                                        catch (Exception)
+                                        {
+                                            targetDpi = 96;
+                                        }
+
+                                        if (initialDpi == 0) initialDpi = 96;
+                                        if (targetDpi == 0) targetDpi = 96;
+
+                                        // DPI差分による自動スケーリングを相殺するようにサイズを補正
+                                        if (initialDpi != targetDpi)
+                                        {
+                                            lw = (int)Math.Round(lw * ((double)initialDpi / targetDpi));
+                                            lh = (int)Math.Round(lh * ((double)initialDpi / targetDpi));
+                                        }
+
                                         // 座標がワークエリアからはみ出ている場合は、安全にワークエリア内に収まるようクランプ
                                         x = Math.Clamp(lx, info.rcWork.Left, info.rcWork.Right - lw);
                                         y = Math.Clamp(ly, info.rcWork.Top, info.rcWork.Bottom - lh);
