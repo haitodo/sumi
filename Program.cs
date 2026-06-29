@@ -12,6 +12,15 @@ public static class Program
 {
     private static Mutex? _mutex;
 
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+    private static extern uint RegisterWindowMessage(string lpString);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+    private static readonly IntPtr HWND_BROADCAST = (IntPtr)0xffff;
+
     [STAThread]
     public static void Main(string[] args)
     {
@@ -23,7 +32,10 @@ public static class Program
 
             if (!createdNew)
             {
-                // 既にインスタンスが存在する場合は即座に終了
+                // 既にインスタンスが存在する場合は、起動済みのインスタンスを表示させてから終了
+                uint wmShowMe = RegisterWindowMessage("SUMI_SHOW_ME_MESSAGE");
+                PostMessage(HWND_BROADCAST, wmShowMe, IntPtr.Zero, IntPtr.Zero);
+
                 _mutex.Dispose();
                 return;
             }
