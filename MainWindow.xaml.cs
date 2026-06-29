@@ -26,9 +26,29 @@ namespace sumi
         private long _savedRevision = 0;
         private double _targetVerticalOffset = 0;
 
+        private string? _highlightedNoteId;
+        private readonly DispatcherTimer _highlightTimer;
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool GetCursorPos(out POINT lpPoint);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool ScreenToClient(IntPtr hWnd, ref POINT lpPoint);
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct POINT
+        {
+            public int X;
+            public int Y;
+        }
+
         public MainWindow()
         {
             this.InitializeComponent();
+
+            _highlightTimer = new DispatcherTimer();
+            _highlightTimer.Interval = TimeSpan.FromMilliseconds(1500);
+            _highlightTimer.Tick += HighlightTimer_Tick;
 
             // 1. ウィンドウハンドルと AppWindow の解決
             IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -592,6 +612,58 @@ namespace sumi
             }
         }
 
+        private void HighlightTimer_Tick(object? sender, object e)
+        {
+            _highlightTimer.Stop();
+            _highlightedNoteId = null;
+            PopulateNotesList(NoteSearchBox.Text);
+        }
+
+        private void NoteItemGrid_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is Grid grid)
+            {
+                CheckPointerOverGrid(grid);
+            }
+        }
+
+        private void NoteItemGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (sender is Grid grid)
+            {
+                CheckPointerOverGrid(grid);
+            }
+        }
+
+        private void CheckPointerOverGrid(Grid grid)
+        {
+            if (grid.ActualWidth == 0 || grid.ActualHeight == 0) return;
+            try
+            {
+                IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                POINT pt;
+                if (GetCursorPos(out pt))
+                {
+                    ScreenToClient(hWnd, ref pt);
+                    var transform = grid.TransformToVisual(this.Content);
+                    var bounds = transform.TransformBounds(new Windows.Foundation.Rect(0, 0, grid.ActualWidth, grid.ActualHeight));
+                    double scale = grid.XamlRoot?.RasterizationScale ?? 1.0;
+                    double mouseX = pt.X / scale;
+                    double mouseY = pt.Y / scale;
+
+                    if (bounds.Contains(new Windows.Foundation.Point(mouseX, mouseY)))
+                    {
+                        var actionsPanel = grid.FindName("ActionsPanel") as UIElement;
+                        if (actionsPanel != null)
+                        {
+                            actionsPanel.Visibility = Visibility.Visible;
+                        }
+                    }
+                }
+            }
+            catch (Exception) { /* 安全対策 */ }
+        }
+
         private void NoteSearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             PopulateNotesList(NoteSearchBox.Text);
@@ -663,6 +735,12 @@ namespace sumi
                 {
                     note.IsPinned = !note.IsPinned;
                     MemoStorage.SaveMetadata();
+
+                    // ハイライトの開始
+                    _highlightedNoteId = note.Id;
+                    _highlightTimer.Stop(); // 既に動いている場合は一旦停止
+                    _highlightTimer.Start();
+
                     PopulateNotesList(NoteSearchBox.Text);
                 }
             }
@@ -731,7 +809,8 @@ namespace sumi
                     ? $"Current • {note.CharCount} characters" 
                     : $"{GetRelativeTimeText(note.LastOpened)} • {note.CharCount} characters";
 
-                var vm = new NoteItemViewModel(note.Id, note.Title, subtitle, note.IsPinned, isCurrent);
+                bool isHighlighted = note.Id == _highlightedNoteId;
+                var vm = new NoteItemViewModel(note.Id, note.Title, subtitle, note.IsPinned, isCurrent, isHighlighted);
 
                 if (note.IsPinned) pinnedVMs.Add(vm);
                 else normalVMs.Add(vm);
@@ -875,20 +954,25 @@ namespace sumi
         public string Subtitle { get; }
         public bool IsPinned { get; }
         public bool IsCurrent { get; }
-        public string PinIcon => IsPinned ? "\uE841" : "\uE718";
+        public bool IsHighlighted { get; }
         public string PinToolTip => IsPinned ? "ピン留め解除" : "ピン留め";
         public Microsoft.UI.Xaml.Media.Brush PinForeground => IsPinned
             ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 255, 176, 0))
             : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 204, 204, 204));
         public Visibility CurrentIndicatorVisibility => IsCurrent ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility PinnedFillVisibility => IsPinned ? Visibility.Visible : Visibility.Collapsed;
+        public Microsoft.UI.Xaml.Media.Brush BackgroundBrush => IsHighlighted
+            ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(30, 255, 176, 0)) // ソフトなオレンジハイライト
+            : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
 
-        public NoteItemViewModel(string id, string title, string subtitle, bool isPinned, bool isCurrent)
+        public NoteItemViewModel(string id, string title, string subtitle, bool isPinned, bool isCurrent, bool isHighlighted)
         {
             Id = id;
             Title = title;
             Subtitle = subtitle;
             IsPinned = isPinned;
             IsCurrent = isCurrent;
+            IsHighlighted = isHighlighted;
         }
     }
 }

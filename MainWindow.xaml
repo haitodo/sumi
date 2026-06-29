@@ -38,7 +38,9 @@
 
             <!-- メモアイテムの表示テンプレート -->
             <DataTemplate x:Key="NoteItemTemplate" x:DataType="local:NoteItemViewModel">
-                <Grid Padding="4" Background="Transparent" CornerRadius="4" PointerEntered="NoteItemGrid_PointerEntered" PointerExited="NoteItemGrid_PointerExited">
+                <Grid Padding="4" Background="{x:Bind BackgroundBrush, Mode=OneTime}" CornerRadius="4" 
+                      PointerEntered="NoteItemGrid_PointerEntered" PointerExited="NoteItemGrid_PointerExited"
+                      Loaded="NoteItemGrid_Loaded" SizeChanged="NoteItemGrid_SizeChanged">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
@@ -72,10 +74,19 @@
                                 Width="28" Height="28"
                                 ToolTipService.ToolTip="{x:Bind PinToolTip}"
                                 Click="PinItem_Click">
-                            <FontIcon Glyph="{x:Bind PinIcon}" 
-                                      FontFamily="Segoe Fluent Icons" 
-                                      FontSize="11"
-                                      Foreground="{x:Bind PinForeground}" />
+                            <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <!-- Base outline pin (always visible, draws the needle) -->
+                                <FontIcon Glyph="&#xE718;" 
+                                          FontFamily="Segoe Fluent Icons" 
+                                          FontSize="12"
+                                          Foreground="{x:Bind PinForeground}" />
+                                <!-- Filled pin overlay (only visible when pinned, fills the head) -->
+                                <FontIcon Glyph="&#xE841;" 
+                                          FontFamily="Segoe Fluent Icons" 
+                                          FontSize="12"
+                                          Foreground="{x:Bind PinForeground}"
+                                          Visibility="{x:Bind PinnedFillVisibility}" />
+                            </Grid>
                         </Button>
                         <Button Content="&#xE74D;" 
                                 Style="{StaticResource IconButtonStyle}" 
