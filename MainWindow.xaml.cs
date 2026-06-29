@@ -2,6 +2,7 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Dispatching;
 using System;
 using Windows.Graphics;
 using WinRT;
@@ -17,7 +18,6 @@ namespace sumi
         private readonly AppWindow _appWindow;
         private bool _isRestoring = false;
         private bool _isDirty = false;
-        private bool _isAlwaysOnTopSet = false;
         private bool _isInitialFocusSet = false;
         private bool _isInitializing = true;
         private IntPtr _hWnd = IntPtr.Zero;
@@ -33,11 +33,21 @@ namespace sumi
         private string? _highlightedNoteId;
         private readonly DispatcherTimer _highlightTimer;
 
+        private ScrollViewer? _memoScrollViewer;
+        private readonly DispatcherQueueTimer _windowPlacementTimer;
+        private readonly DispatcherQueueTimer _settingsSaveTimer;
+
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern bool GetCursorPos(out POINT lpPoint);
 
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern bool ScreenToClient(IntPtr hWnd, ref POINT lpPoint);
+
+        [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+        private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+        private const int DWMWA_TRANSITIONS_FORCEDISABLED = 3;
 
         [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
         private struct POINT
@@ -54,10 +64,41 @@ namespace sumi
             _highlightTimer.Interval = TimeSpan.FromMilliseconds(1500);
             _highlightTimer.Tick += HighlightTimer_Tick;
 
+            // ウィンドウ配置保存のデバウンスタイマー (500ms)
+            _windowPlacementTimer = this.DispatcherQueue.CreateTimer();
+            _windowPlacementTimer.Interval = TimeSpan.FromMilliseconds(500);
+            _windowPlacementTimer.Tick += WindowPlacementTimer_Tick;
+
+            // 設定保存のデバウンスタイマー (500ms)
+            _settingsSaveTimer = this.DispatcherQueue.CreateTimer();
+            _settingsSaveTimer.Interval = TimeSpan.FromMilliseconds(500);
+            _settingsSaveTimer.Tick += SettingsSaveTimer_Tick;
+
             // 1. ウィンドウハンドルと AppWindow の解決
             _hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             WindowId windowId = Win32Interop.GetWindowIdFromWindow(_hWnd);
             _appWindow = AppWindow.GetFromWindowId(windowId);
+
+            // ダークモードと起動アニメーション（配置変更による移動）の一時無効化を適用
+            try
+            {
+                int useDarkMode = 1;
+                DwmSetWindowAttribute(_hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref useDarkMode, sizeof(int));
+                int disableTransitions = 1;
+                DwmSetWindowAttribute(_hWnd, DWMWA_TRANSITIONS_FORCEDISABLED, ref disableTransitions, sizeof(int));
+            }
+            catch (Exception) { }
+
+            // 1.5 アクティブ化（表示）の前に常に最前面を設定して、Z-orderの再計算ちらつきを防止
+            try
+            {
+                var presenter = _appWindow.Presenter.As<OverlappedPresenter>();
+                if (presenter != null)
+                {
+                    presenter.IsAlwaysOnTop = true;
+                }
+            }
+            catch (Exception) { }
 
             // 2. タイトルバーをクライアント領域に拡張し、ドラッグ領域を設定
             ExtendsContentIntoTitleBar = true;
@@ -73,7 +114,12 @@ namespace sumi
             // 初期設定の適用
             ApplySettings();
 
-            var currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId);
+            NoteData? currentNote = null;
+            lock (MemoStorage.Notes)
+            {
+                currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId);
+            }
+
             if (currentNote != null)
             {
                 MemoText = currentNote.Content;
@@ -106,8 +152,9 @@ namespace sumi
             // 7. メモ一覧 Flyout の初期イベントフック
             NotesFlyout.Opened += NotesFlyout_Opened;
 
-            // 8. テキストボックスのロードイベント (スクロールバー取得用)
+            // 8. テキストボックスのロード／アンロードイベント (スクロールバー取得／解除用)
             MemoTextBox.Loaded += MemoTextBox_Loaded;
+            MemoTextBox.Unloaded += MemoTextBox_Unloaded;
 
             // 9. グローバルショートカットキーの登録
             this.Content.AddHandler(UIElement.KeyDownEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler(Global_KeyDown), true);
@@ -166,7 +213,10 @@ namespace sumi
             MemoTextBox.FontWeight = fw;
             PlaceholderTextBlock.FontWeight = fw;
 
-            ApplyLineSpacingToTextBox(MemoStorage.LineSpacing);
+            if (!_isInitializing)
+            {
+                ApplyLineSpacingToTextBox(MemoStorage.LineSpacing);
+            }
 
             if (RootGrid != null && RootGrid.Background is Microsoft.UI.Xaml.Media.SolidColorBrush brush)
             {
@@ -196,7 +246,11 @@ namespace sumi
             if (string.IsNullOrEmpty(currentId)) return;
 
             string nextId = string.Empty;
-            var sorted = new List<NoteData>(MemoStorage.Notes);
+            List<NoteData> sorted;
+            lock (MemoStorage.Notes)
+            {
+                sorted = new List<NoteData>(MemoStorage.Notes);
+            }
             sorted.Sort((a, b) => b.LastOpened.CompareTo(a.LastOpened));
             foreach (var note in sorted)
             {
@@ -274,21 +328,13 @@ namespace sumi
 
         private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
         {
-            // アクティブ化が完全に確定した最初のタイミングで常に最前面を設定
-            if (!_isAlwaysOnTopSet)
+            // 起動時の配置変更に伴うアニメーション一時無効化を復元
+            try
             {
-                try
-                {
-                    // Native AOT 下で安全に WinRT 型変換を行うために .As<T>() を使用
-                    var presenter = _appWindow.Presenter.As<OverlappedPresenter>();
-                    if (presenter != null)
-                    {
-                        presenter.IsAlwaysOnTop = true;
-                    }
-                }
-                catch (Exception) { }
-                _isAlwaysOnTopSet = true;
+                int disableTransitions = 0;
+                DwmSetWindowAttribute(_hWnd, DWMWA_TRANSITIONS_FORCEDISABLED, ref disableTransitions, sizeof(int));
             }
+            catch (Exception) { }
 
             if (!_isInitialFocusSet)
             {
@@ -316,12 +362,19 @@ namespace sumi
             _scheduler.Schedule();
 
             // キャッシュデータとタイトル表示の更新
-            var currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId);
+            NoteData? currentNote = null;
+            lock (MemoStorage.Notes)
+            {
+                currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId);
+            }
             if (currentNote != null)
             {
-                currentNote.Content = text;
-                currentNote.Title = MemoStorage.GetTitleFromContent(text);
-                currentNote.CharCount = text.Length;
+                lock (MemoStorage.Notes)
+                {
+                    currentNote.Content = text;
+                    currentNote.Title = MemoStorage.GetTitleFromContent(text);
+                    currentNote.CharCount = text.Length;
+                }
                 TitleTextBlock.Text = currentNote.Title; // ヘッダータイトルをリアルタイム更新
             }
 
@@ -342,7 +395,8 @@ namespace sumi
             }
             else
             {
-                // 非表示にする前に、最新のウィンドウ配置を保存
+                // 非表示にする前に、デバウンス中の座標を確定して保存
+                _windowPlacementTimer.Stop();
                 var pos = _appWindow.Position;
                 var size = _appWindow.Size;
                 if (size.Width > 100 && size.Height > 100 && pos.X > -10000 && pos.Y > -10000)
@@ -359,27 +413,71 @@ namespace sumi
         {
             if (args.DidPositionChange || args.DidSizeChange)
             {
-                if (_appWindow.IsVisible)
+                // ウィンドウ移動・リサイズ中はタイマーをリセットしてデバウンス
+                _windowPlacementTimer.Stop();
+                _windowPlacementTimer.Start();
+            }
+        }
+
+        private void WindowPlacementTimer_Tick(DispatcherQueueTimer sender, object args)
+        {
+            _windowPlacementTimer.Stop();
+            if (_appWindow.IsVisible)
+            {
+                var pos = _appWindow.Position;
+                var size = _appWindow.Size;
+                if (size.Width > 100 && size.Height > 100 && pos.X > -10000 && pos.Y > -10000)
                 {
-                    var pos = _appWindow.Position;
-                    var size = _appWindow.Size;
-                    if (size.Width > 100 && size.Height > 100 && pos.X > -10000 && pos.Y > -10000)
-                    {
-                        MemoStorage.SaveWindowPlacementAtomic(pos.X, pos.Y, size.Width, size.Height);
-                    }
+                    MemoStorage.SaveWindowPlacementAtomic(pos.X, pos.Y, size.Width, size.Height);
                 }
             }
+        }
+
+        private void SettingsSaveTimer_Tick(DispatcherQueueTimer sender, object args)
+        {
+            _settingsSaveTimer.Stop();
+            MemoStorage.SaveSettings();
+        }
+
+        private void QueueSaveSettings()
+        {
+            _settingsSaveTimer.Stop();
+            _settingsSaveTimer.Start();
         }
 
         private void OnShutdown()
         {
             _scheduler.Cancel();
+            _scheduler.Dispose();
+
+            // デバウンスタイマーとイベント解除
+            _windowPlacementTimer.Stop();
+            _windowPlacementTimer.Tick -= WindowPlacementTimer_Tick;
+
+            _settingsSaveTimer.Stop();
+            _settingsSaveTimer.Tick -= SettingsSaveTimer_Tick;
+
+            // ハイライトタイマーのクリーンアップ
+            _highlightTimer.Stop();
+            _highlightTimer.Tick -= HighlightTimer_Tick;
+
+            // TextBox イベントの明示的な解除
+            MemoTextBox.Loaded -= MemoTextBox_Loaded;
+            MemoTextBox.Unloaded -= MemoTextBox_Unloaded;
+            if (_memoScrollViewer != null)
+            {
+                _memoScrollViewer.PointerWheelChanged -= ScrollViewer_PointerWheelChanged;
+                _memoScrollViewer = null;
+            }
 
             // 1. 未保存データを終了直前に同期的に安全にディスク永続化
             if (_isDirty)
             {
                 MemoStorage.SaveMemoTextAtomicSync(MemoText);
             }
+
+            // 保留中の設定変更を即座に書き込み
+            MemoStorage.SaveSettings();
 
             // 2. 終了座標をアトミックに保存
             var pos = _appWindow.Position;
@@ -508,7 +606,7 @@ namespace sumi
                 var fontFamily = new Microsoft.UI.Xaml.Media.FontFamily(font);
                 MemoTextBox.FontFamily = fontFamily;
                 PlaceholderTextBlock.FontFamily = fontFamily;
-                MemoStorage.SaveSettings();
+                QueueSaveSettings();
             }
         }
 
@@ -527,7 +625,7 @@ namespace sumi
                 {
                     PlaceholderTextBlock.FontWeight = fw;
                 }
-                MemoStorage.SaveSettings();
+                QueueSaveSettings();
             }
         }
 
@@ -592,7 +690,7 @@ namespace sumi
             {
                 PlaceholderTextBlock.FontSize = size;
             }
-            MemoStorage.SaveSettings();
+            QueueSaveSettings();
         }
 
         private void LineSpacingComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -602,7 +700,7 @@ namespace sumi
             {
                 MemoStorage.LineSpacing = ls;
                 ApplyLineSpacingToTextBox(ls);
-                MemoStorage.SaveSettings();
+                QueueSaveSettings();
             }
         }
 
@@ -619,7 +717,7 @@ namespace sumi
             {
                 brush.Opacity = opacity / 100.0;
             }
-            MemoStorage.SaveSettings();
+            QueueSaveSettings();
         }
 
         private void DeleteNoteItem_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
@@ -697,14 +795,13 @@ namespace sumi
 
         private void CheckPointerOverGrid(Grid grid)
         {
-            if (grid.ActualWidth == 0 || grid.ActualHeight == 0) return;
+            if (grid.ActualWidth == 0 || grid.ActualHeight == 0 || _hWnd == IntPtr.Zero) return;
             try
             {
-                IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
                 POINT pt;
                 if (GetCursorPos(out pt))
                 {
-                    ScreenToClient(hWnd, ref pt);
+                    ScreenToClient(_hWnd, ref pt);
                     var transform = grid.TransformToVisual(this.Content);
                     var bounds = transform.TransformBounds(new Windows.Foundation.Rect(0, 0, grid.ActualWidth, grid.ActualHeight));
                     double scale = grid.XamlRoot?.RasterizationScale ?? 1.0;
@@ -790,10 +887,17 @@ namespace sumi
         {
             if (sender is Button button && button.DataContext is NoteItemViewModel vm)
             {
-                var note = MemoStorage.Notes.Find(n => n.Id == vm.Id);
+                NoteData? note = null;
+                lock (MemoStorage.Notes)
+                {
+                    note = MemoStorage.Notes.Find(n => n.Id == vm.Id);
+                }
                 if (note != null)
                 {
-                    note.IsPinned = !note.IsPinned;
+                    lock (MemoStorage.Notes)
+                    {
+                        note.IsPinned = !note.IsPinned;
+                    }
                     MemoStorage.SaveMetadata();
 
                     // ハイライトの開始
@@ -834,7 +938,12 @@ namespace sumi
 
             MemoStorage.SetCurrentNote(id);
 
-            var note = MemoStorage.Notes.Find(n => n.Id == id);
+            NoteData? note = null;
+            lock (MemoStorage.Notes)
+            {
+                note = MemoStorage.Notes.Find(n => n.Id == id);
+            }
+
             if (note != null)
             {
                 MemoText = note.Content;
@@ -849,7 +958,11 @@ namespace sumi
             var pinnedVMs = new List<NoteItemViewModel>();
             var normalVMs = new List<NoteItemViewModel>();
 
-            var sortedNotes = new List<NoteData>(MemoStorage.Notes);
+            List<NoteData> sortedNotes;
+            lock (MemoStorage.Notes)
+            {
+                sortedNotes = new List<NoteData>(MemoStorage.Notes);
+            }
             sortedNotes.Sort((a, b) => b.LastOpened.CompareTo(a.LastOpened));
 
             foreach (var note in sortedNotes)
@@ -941,17 +1054,26 @@ namespace sumi
             MemoTextBox.TextWrapping = MemoTextBox.TextWrapping == TextWrapping.Wrap ? TextWrapping.NoWrap : TextWrapping.Wrap;
         }
 
-        /// <summary>
-        /// テキストボックスがロードされた際に、内部の ScrollViewer を取得して
-        /// ホイールイベントを滑らかなスクロール用にフックします。
-        /// </summary>
         private void MemoTextBox_Loaded(object sender, RoutedEventArgs e)
         {
-            var scrollViewer = FindScrollViewer(MemoTextBox);
-            if (scrollViewer != null)
+            if (_memoScrollViewer != null)
+            {
+                _memoScrollViewer.PointerWheelChanged -= ScrollViewer_PointerWheelChanged;
+            }
+            _memoScrollViewer = FindScrollViewer(MemoTextBox);
+            if (_memoScrollViewer != null)
             {
                 // ScrollViewer の PointerWheelChanged イベントにハンドラーを追加
-                scrollViewer.PointerWheelChanged += ScrollViewer_PointerWheelChanged;
+                _memoScrollViewer.PointerWheelChanged += ScrollViewer_PointerWheelChanged;
+            }
+        }
+
+        private void MemoTextBox_Unloaded(object sender, RoutedEventArgs e)
+        {
+            if (_memoScrollViewer != null)
+            {
+                _memoScrollViewer.PointerWheelChanged -= ScrollViewer_PointerWheelChanged;
+                _memoScrollViewer = null;
             }
         }
 
@@ -1483,6 +1605,11 @@ namespace sumi
     /// </summary>
     public class NoteItemViewModel
     {
+        private static readonly Microsoft.UI.Xaml.Media.Brush PinForegroundPinned = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 255, 176, 0));
+        private static readonly Microsoft.UI.Xaml.Media.Brush PinForegroundUnpinned = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 204, 204, 204));
+        private static readonly Microsoft.UI.Xaml.Media.Brush BackgroundBrushHighlighted = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(30, 255, 176, 0));
+        private static readonly Microsoft.UI.Xaml.Media.Brush BackgroundBrushTransparent = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+
         public string Id { get; }
         public string Title { get; }
         public string Subtitle { get; }
@@ -1490,14 +1617,10 @@ namespace sumi
         public bool IsCurrent { get; }
         public bool IsHighlighted { get; }
         public string PinToolTip => IsPinned ? "ピン留め解除" : "ピン留め";
-        public Microsoft.UI.Xaml.Media.Brush PinForeground => IsPinned
-            ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 255, 176, 0))
-            : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 204, 204, 204));
+        public Microsoft.UI.Xaml.Media.Brush PinForeground => IsPinned ? PinForegroundPinned : PinForegroundUnpinned;
         public Visibility CurrentIndicatorVisibility => IsCurrent ? Visibility.Visible : Visibility.Collapsed;
         public Visibility PinnedFillVisibility => IsPinned ? Visibility.Visible : Visibility.Collapsed;
-        public Microsoft.UI.Xaml.Media.Brush BackgroundBrush => IsHighlighted
-            ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(30, 255, 176, 0)) // ソフトなオレンジハイライト
-            : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        public Microsoft.UI.Xaml.Media.Brush BackgroundBrush => IsHighlighted ? BackgroundBrushHighlighted : BackgroundBrushTransparent;
 
         public NoteItemViewModel(string id, string title, string subtitle, bool isPinned, bool isCurrent, bool isHighlighted)
         {

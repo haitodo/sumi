@@ -7,7 +7,7 @@ namespace sumi
     /// <summary>
     /// DispatcherQueueTimer を使用し、アロケーションなしでキー入力の遅延保存（デバウンス）を制御するクラスです。
     /// </summary>
-    public class SaveScheduler
+    public class SaveScheduler : IDisposable
     {
         private readonly DispatcherQueueTimer _timer;
         private readonly Func<Task> _onSaveTriggered;
@@ -44,6 +44,15 @@ namespace sumi
         public void Cancel()
         {
             _timer.Stop();
+        }
+
+        /// <summary>
+        /// タイマーを停止し、イベント購読を解除してリソースを解放します。
+        /// </summary>
+        public void Dispose()
+        {
+            _timer.Stop();
+            _timer.Tick -= Timer_Tick;
         }
     }
 }
