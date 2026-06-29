@@ -46,7 +46,7 @@ namespace sumi
         public static string FontFamily { get; set; } = "Noto Sans JP";
         public static double FontSize { get; set; } = 14.0;
         public static double LineSpacing { get; set; } = 1.0;
-        public static double Opacity { get; set; } = 93.0; // 0 to 100
+        public static double Opacity { get; set; } = 20.0; // 0 to 100
         public static string FontWeight { get; set; } = "Medium";
 
         [StructLayout(LayoutKind.Sequential)]

@@ -19,6 +19,7 @@ namespace sumi
         private bool _isDirty = false;
         private bool _isAlwaysOnTopSet = false;
         private bool _isInitialFocusSet = false;
+        private bool _isInitializing = true;
 
         // 競合防止用のリビジョン番号
         private long _revision = 0;
@@ -85,6 +86,8 @@ namespace sumi
 
             // 9. グローバルショートカットキーの登録
             this.Content.AddHandler(UIElement.KeyDownEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler(Global_KeyDown), true);
+
+            _isInitializing = false;
         }
 
         private string MemoText
@@ -346,18 +349,18 @@ namespace sumi
             SettingsSearchBox.Text = string.Empty;
 
             // ComboBox/Slider初期値設定
-            foreach (ComboBoxItem item in FontComboBox.Items)
+            foreach (var item in FontComboBox.Items)
             {
-                if (item.Content is string s && s == MemoStorage.FontFamily)
+                if (item is string s && s == MemoStorage.FontFamily)
                 {
                     FontComboBox.SelectedItem = item;
                     break;
                 }
             }
 
-            foreach (ComboBoxItem item in FontWeightComboBox.Items)
+            foreach (var item in FontWeightComboBox.Items)
             {
-                if (item.Content is string s && s == MemoStorage.FontWeight)
+                if (item is string s && s == MemoStorage.FontWeight)
                 {
                     FontWeightComboBox.SelectedItem = item;
                     break;
@@ -368,9 +371,9 @@ namespace sumi
             FontSizeValueText.Text = MemoStorage.FontSize.ToString("0.0");
 
             string spacingStr = MemoStorage.LineSpacing.ToString("0.0");
-            foreach (ComboBoxItem item in LineSpacingComboBox.Items)
+            foreach (var item in LineSpacingComboBox.Items)
             {
-                if (item.Content is string s && s == spacingStr)
+                if (item is string s && s == spacingStr)
                 {
                     LineSpacingComboBox.SelectedItem = item;
                     break;
@@ -414,7 +417,8 @@ namespace sumi
 
         private void FontComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (FontComboBox.SelectedItem is ComboBoxItem item && item.Content is string font)
+            if (_isInitializing) return;
+            if (FontComboBox.SelectedItem is string font)
             {
                 MemoStorage.FontFamily = font;
                 var fontFamily = new Microsoft.UI.Xaml.Media.FontFamily(font);
@@ -426,7 +430,8 @@ namespace sumi
 
         private void FontWeightComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (FontWeightComboBox.SelectedItem is ComboBoxItem item && item.Content is string weight)
+            if (_isInitializing) return;
+            if (FontWeightComboBox.SelectedItem is string weight)
             {
                 MemoStorage.FontWeight = weight;
                 var fw = GetFontWeight(weight);
@@ -488,6 +493,7 @@ namespace sumi
 
         private void FontSizeSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
         {
+            if (_isInitializing) return;
             double size = FontSizeSlider.Value;
             if (FontSizeValueText != null)
             {
@@ -507,7 +513,8 @@ namespace sumi
 
         private void LineSpacingComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (LineSpacingComboBox.SelectedItem is ComboBoxItem item && item.Content is string val && double.TryParse(val, out double ls))
+            if (_isInitializing) return;
+            if (LineSpacingComboBox.SelectedItem is string val && double.TryParse(val, out double ls))
             {
                 MemoStorage.LineSpacing = ls;
                 ApplyLineSpacingToTextBox(ls);
@@ -517,6 +524,7 @@ namespace sumi
 
         private void OpacitySlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
         {
+            if (_isInitializing) return;
             double opacity = OpacitySlider.Value;
             if (OpacityValueText != null)
             {
@@ -839,8 +847,11 @@ namespace sumi
         public string Subtitle { get; }
         public bool IsPinned { get; }
         public bool IsCurrent { get; }
-        public string PinIcon => IsPinned ? "\uE898" : "\uE718";
+        public string PinIcon => IsPinned ? "\uE842" : "\uE718";
         public string PinToolTip => IsPinned ? "ピン留め解除" : "ピン留め";
+        public Microsoft.UI.Xaml.Media.Brush PinForeground => IsPinned
+            ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 255, 176, 0))
+            : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 204, 204, 204));
         public Visibility CurrentIndicatorVisibility => IsCurrent ? Visibility.Visible : Visibility.Collapsed;
 
         public NoteItemViewModel(string id, string title, string subtitle, bool isPinned, bool isCurrent)
