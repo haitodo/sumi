@@ -1,248 +1,540 @@
-# 「思考を中断させない」常駐型メモアプリケーション 設計書 (v1.0 確定版)
+# 超極限最適化・常時最前面メモアプリケーション 仕様書（プロダクション仕様・最終確定版）
 
-## 1. 開発理念
+## 1. システム概要と性能目標 (Performance KPI)
+本アプリケーションは、Windows 10/11環境において、起動・描画・ファイル永続化のすべてにおいて最速かつ省電力で動作するプレーンテキスト専用メモツールです。
 
-本アプリケーションは、単なるベンチマーク上の起動速度の速さではなく、**「ユーザーの思考を1ミリ秒も中断させず、保存やファイル管理の存在すら意識させない」**という最高の使い心地を提供することを究極の設計目標とします。
+### 1.1. 現実的な性能指標 (Realistic Performance KPI Targets)
+本アプリの設計および実装は、Windows Defender等の常駐セキュリティソフトや標準的なハードウェア性能を考慮した、以下の現実的かつ野心的な数値目標に基づいて評価されます。
 
-すべての技術選定（eframe + glowの採用、Stringによる全体上書き保存、非同期I/Oの非採用など）は、この一貫した哲学に基づいて決定されています。
-
----
-
-## 2. アーキテクチャ意思決定記録 (ADR: Architecture Decision Record)
-
-| 決定対象 (ADR) | 採用した技術・方針 | 意思決定の理由 |
+| 評価項目 | 目標値 | 測定方法 / 備考 |
 | :--- | :--- | :--- |
-| **GUI基盤** | `egui` + `eframe` | 保守・開発効率と、ユーザーが体感できる高水準な応答性を最もバランスよく両立できるため。 |
-| **描画システム** | `glow` (OpenGL) | 起動速度とメモリフットプリント、およびコンパイル後のバイナリサイズ低減を重視。 |
-| **永続化フォーマット** | プレーンテキスト（UTF-8） | メモ本体の可読性、破損時の手動復旧の容易さ、およびシリアライズ不要によるロードの最大速度化。 |
-| **設定保存形式** | JSON (`serde_json`) | 将来的なテーマ、不透明度、ホットキー設定などの拡張に対する保守性と下位互換性を最優先。 |
-| **データの格納構造** | Capacity付き `String` | 1万文字（約30KB）のバッファとしてはヒープ再確保を排除した平坦な `String` が最もシンプルかつ高速。 |
-| **保存方式** | 全体同期書き込み | 30KB程度であれば差分保存や別スレッド非同期I/Oはコードを複雑化させ、スタック破損のバグを増やすだけでメリットがないため。 |
-| **堅牢性確保** | Windows アトミック置換 | 保存中の停電や不意のフリーズでも元のデータを確実に保全するため。 |
+| **コールドスタート時間** | **200 〜 350 ms** | アプリ未起動状態から入力可能になるまで（セキュリティソフトの影響を加味） |
+| **ウォームスタート時間** | **80 〜 120 ms** | 2回目以降のOSキャッシュを活用した瞬時起動 |
+| **待機時（アイドル）CPU使用率** | **0.0 %** | タスクマネージャーによる観測（完全にイベント駆動） |
+| **待機時（アイドル）GPU使用率** | **0.0 〜 0.1 %** | ウィンドウ再描画要因（点滅カーソル等）を除き実質ゼロ |
+| **Working Set（物理メモリ）** | **50 〜 80 MB** | WinUI 3自体のフットプリントを極限までシェイプアップした状態（標準：80〜120MB） |
+| **Private Bytes（コミットサイズ）** | **60 〜 80 MB** | GC動的アロケーションを排除してヒープの肥大化を抑制 |
+| **GC 発生頻度 (Gen 0/sec)** | **ほぼ 0** | タイピング中、タイマーによるGCアロケーションの徹底排除 |
+| **GC 発生頻度 (Gen 1 / Gen 2)** | **0** | アプリライフサイクル中におけるUIスタッター（カクつき）を完全に防止 |
 
 ---
 
-## 3. ディレクトリ・モジュール構成 (Clean Architecture)
+## 2. 技術選定とシステム構成（ゼロ・ディペンデンシー方針）
 
-ドメインロジック、永続化、ウィンドウ管理、UIコントロールの各責務をフォルダー構成レベルで厳格に分離し、長期にわたり変更に強い構造を維持します。
+### 2.1. 動作・配置方針
+*   **ランタイム環境**: .NET 10 LTS（最新安定版）
+*   **配置構成方針**: 
+    **Native AOT (Ahead-Of-Time) コンパイル**を最優先で適用。ただし、Windows App SDK（CsWinRT）の今後の仕様・互換性への適合状況に応じて、サイズ・保守性・安全性を総合評価した上で、実用的な最適化構成として **ReadyToRun (R2R) + ILトリミング** を代替として選択します。
+*   **排他処理 (Local Mutex)**: データ破損を防ぐため、`Local\SimpleMemo_Instance_Mutex_9981` を使用して同一セッション内での単一インスタンス動作を保証します [1]。
 
-```
-src/
-├── main.rs                 # エントリポイント（初期化・起動）
-├── app/
-│   ├── mod.rs
-│   └── app.rs              # Appオーケストレータ（イベント連携・ライフサイクル）
-├── model/
-│   ├── mod.rs
-│   └── state.rs            # AppState（ドメインモデル：テキストバッファ、 dirtyフラグ）
-├── storage/
-│   ├── mod.rs
-│   ├── traits.rs           # 抽象 Storage<T> トレイト定義
-│   ├── memo.rs             # プレーンテキストアトミック保存の実装
-│   └── config.rs           # JSON形式の設定ファイル保存の実装
-├── ui/
-│   ├── mod.rs
-│   ├── editor.rs           # テキストエリア描画
-│   └── state.rs            # EditorUiState（UI専用状態：初回フォーカス判定等）
-├── service/
-│   ├── mod.rs
-│   └── scheduler.rs        # SaveScheduler（デバウンス制御・書き込み遅延時間管理）
-└── platform/
-    ├── mod.rs
-    ├── window.rs           # マルチモニター領域判定・座標クランプ
-    └── font.rs             # システムフォント解決
-```
+### 2.2. コントロールの選定
+*   **コントロール**: `TextBox`
+*   **理由**: 装飾テキスト（RichText）が不要なため、描画・レイアウト計算が軽いプレーンテキスト専用の `TextBox` を採用し、不要なOS連携スレッドを抑制します。
 
 ---
 
-## 4. 内部設計
+## 3. クラス設計と責務分離
+動的なアロケーションを完全に排除しつつ、保守性を高めるため、以下の3つのクラスに完全に責務を分離します。
 
-### 4.1 ドメインモデル (model/state.rs)
-UIやOSの設定から完全に隔離された、純粋なデータ構造のみを保持します。
-```rust
-pub struct AppState {
-    /// テキスト本体
-    pub text: String,
-    /// 未保存の変更が存在するかを示すフラグ
-    pub dirty: bool,
-    /// IMEが現在入力中・変換中（未確定）であるかを示すフラグ
-    pub ime_composing: bool,
-}
+```
+                     [ MainWindow ]
+                (UI配置 / 画面表示 / イベント)
+                     /            \
+                    /              \
+  [ SaveScheduler ] <-------------- [ MemoStorage ]
+   (非同期遅延トリガー)             (アトミック保存、window.dat制御)
+```
 
-impl AppState {
-    pub fn new(initial_text: String) -> Self {
-        // 1万字（日本語で約30KB相当）を想定し、初期生成時に予め十分な
-        // キャパシティを確保。これによりタイピング中の realloc と memcpy を完全に排除。
-        let mut text = String::with_capacity(16384);
-        text.push_str(&initial_text);
-        
-        Self {
-            text,
-            dirty: false,
-            ime_composing: false,
+1.  **`MainWindow` (UI層)**: テキスト入力イベント、ウィンドウライフサイクル（表示・最前面化・サイズ変更）の監視。
+2.  **`SaveScheduler` (制御層)**: `DispatcherQueueTimer` による、GCアロケーションがゼロの入力遅延（デバウンサー）管理。
+3.  **`MemoStorage` (データアクセス層)**: テキストおよびウィンドウ状態の、物理フラッシュと一時ファイル置換を用いたアトミックな保存。
+
+---
+
+## 4. 画面・UIコントロール設計
+
+### 4.1. XAML設計と入力抑制
+```xml
+<Window
+    x:Class="SimpleMemo.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2000/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2000/xaml"
+    Title="Memo">
+
+    <Grid>
+        <!-- レイアウトの明示、日本語用フォント固定、不要機能の無効化、MaxLengthを明示 -->
+        <TextBox 
+            x:Name="MemoTextBox"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch"
+            AcceptsReturn="True"
+            TextWrapping="Wrap"
+            BorderThickness="0"
+            Padding="12"
+            FontSize="14.5"
+            FontFamily="Yu Gothic UI"
+            MaxLength="10000"
+            IsSpellCheckEnabled="False"
+            TextPredictionEnabled="False"
+            TextChanged="MemoTextBox_TextChanged" />
+    </Grid>
+</Window>
+```
+
+*   **フォント指定**: 英数字・日本語ともにレンダリング品質とフォールバックが最も安定している `Yu Gothic UI` に固定します。
+*   **文字数制限（MaxLength="10000"）**:
+    *   WinUI 3の内部文字列表現は「UTF-16」であるため、本設定は **10,000 UTF-16コードユニット（Char単位）** として制限されます。
+    *   絵文字などのサロゲートペア（2コードユニット消費する文字）が含まれる場合、画面上の見た目の文字数と異なる場合がありますが、要件の「約1万字」をカバーするには十分であり、仕様と実装の整合性を図ります。
+    *   この制限は、クリップボードからの**ペースト（貼り付け）時にも自動適用**され、予期せぬ巨大データの挿入を防ぎます。
+*   **外部監視**: `FileSystemWatcher` 等による外部編集の監視は、余計な常時バックグラウンドスレッドを発生させるため、**一切実装しません**。
+
+---
+
+## 5. 内部ロジックと堅牢性設計
+
+### 5.1. メモデータの物理永続化アトミック書き込み（完全なデータ破損防止）
+`File.WriteAllText` による保存はOSのファイルキャッシュに留まる可能性があり、システム全体の急なシャットダウンやクラッシュにより、ファイル破損（0バイト化）のリスクが存在します。本アプリでは、以下のフローにより、**確実に物理ディスクにデータを物理フラッシュし、置換後さらにメタデータの更新を即時同期**します。
+
+1.  書き込み用の一時ファイル（`memo.tmp`）を開き、`FileStream` を用いて書き込み。
+2.  `StreamWriter.Flush()` 後、`FileStream.Flush(true)` を呼び出し、OSのファイルシステムキャッシュを超えて、**物理ディスク（SSD/HDD）にデータを強制永続化**します（Windows APIの `FlushFileBuffers` 相当）。
+3.  `File.Replace` を用い、安全に `memo.tmp` で `memo.txt` を置き換えます。
+4.  **【置換後のメタデータ物理書き込み】**: `File.Replace` を実行した直後、再生成された `memo.txt` を一度 `FileStream` で開き、再度 `Flush(true)` を呼び出します。これにより、NTFSのファイルシステム変更ジャーナル（メタデータ）の更新がOSキャッシュに留まるのを防ぎ、置換処理自体が即座に物理的かつ完全に永続化されることを保証します。
+
+### 5.2. アロケーションフリーな SaveScheduler (DispatcherQueueTimer)
+*   **非推奨**: キー入力（TextChanged）のたびに、`CancellationTokenSource` や `Task` などのインスタンスを毎回再生成すると、数千文字のタイピング時に何千ものゴミオブジェクトがヒープにアロケーションされ、GCプレッシャーを引き起こします。
+*   **採用（確定仕様）**: WinUI 3 が持つ `DispatcherQueueTimer` （`DispatcherQueue.CreateTimer()`）を1つだけインスタンス化して保持します。入力が発生するたびに `Stop()` と `Start()` を切り替えるだけで遅延判定がリセットされるため、**タイピングによる一時的なメモリ割り当てが完全に0（ゼロ・アロケーション）**になります。
+
+### 5.3. 保存完了と新規入力の競合防止（リビジョン管理）
+ユーザーが大量のテキストを入力している最中に非同期保存が開始された場合、保存処理中（Async I/O待ち）にさらに追加のキー入力（新規テキスト）が行われると、保存完了後にDirtyフラグを単純に `false` にリセットしてしまうと追加分のデータが「保存済み」と誤認され、以降保存されなくなってしまいます。
+*   **解決策**:
+    入力のたびにインクリメントされる `long _revision` と、保存完了時のバージョンを示す `long _savedRevision` を導入します。保存完了時、`_savedRevision == _revision` （保存開始時から新たに入力されていない）の場合のみ、`_isDirty = false` にリセットします。もし保存中に新しい文字が打ち込まれていた場合、Dirtyフラグは有効に維持され、次回の遅延保存スケジュールが自動的に保護されます。
+
+### 5.4. ウィンドウ配置の完全なスタックレス・アトミック保存
+*   保存先: `window.dat` (一時ファイル: `window.tmp`)
+*   最適化: 4つの 32bit整数（`X, Y, Width, Height` の計16バイト）の保存において、メモリ確保を伴う `BinaryWriter` の生成すら排除します。`stackalloc byte[16]` でスタック上にのみ領域を確保し、`BinaryPrimitives` でバイト列を詰め、`FileStream` に直接流し込みます。
+*   また、ウィンドウ位置情報は最悪失われても問題がないため、SSDの書き込み回数に配慮して `Flush(true)` による物理フラッシュは行わず、置換（`File.Replace`）のみを行います。
+
+### 5.5. マルチモニター・DPI変更を考慮した配置復元
+*   **課題**: 前回終了時と現在で外部モニターの状態や解像度、DPIが変わっていた場合、保存時の座標をそのまま適用するとウィンドウが画面外に消え去ってしまいます。
+*   **解決策**:
+    起動時に `window.dat` から座標を読み取った後、Win32 API（`MonitorFromRect` 等）や `GetMonitorInfo` を介して、現在接続されている有効なモニターのワークエリア（タスクバー等の除外領域）情報を取得します。
+    ウィンドウが現在の全画面領域から完全に外れている場合は、メインモニターのワークエリア中央に安全に配置をリセットします。また、部分的に画面からはみ出している場合は、現在のワークエリア内に適切にクリップ（収まるように補正）します。
+
+### 5.6. 最前面表示 (Always-on-top) の安定化
+*   **設定タイミング**: ウィンドウの `Activated` イベントを監視し、ウィンドウの表示とアクティブ化が完全に完了した最初のタイミングでのみ `IsAlwaysOnTop = true` を設定します。これにより、起動時に他のバックグラウンドウィンドウの裏に隠れる現象を確実に防ぎます。
+
+### 5.7. アプリケーション終了時
+*   **イベント**: `AppWindow.Closing` （ウィンドウ破棄開始の契機）。
+*   **振る舞い**: 進行中の非同期遅延保存（SaveScheduler）をキャンセルし、Dirty状態（`_isDirty == true`）の場合は、UIスレッドから同期的・強制的に最終テキストと現在のウィンドウ位置をアトミック保存します。
+
+---
+
+## 6. 主要クラスの実装（C#）
+
+### 6.1. データアクセス層: `MemoStorage`
+```csharp
+using System;
+using System.IO;
+using System.Text;
+using System.Diagnostics;
+using System.Threading.Tasks;
+using System.Runtime.InteropServices;
+using System.Buffers.Binary;
+
+namespace SimpleMemo
+{
+    public static class MemoStorage
+    {
+        private static readonly string FolderPath;
+        private static readonly string FilePath;
+        private static readonly string TempFilePath;
+        private static readonly string WindowDatPath;
+        private static readonly string WindowDatTempPath;
+
+        // 文字コードのキャッシュ (アロケーション排除)
+        private static readonly UTF8Encoding Utf8NoBom = new(false);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT
+        {
+            public int Left, Top, Right, Bottom;
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        private struct MONITORINFO
+        {
+            public int cbSize;
+            public RECT rcMonitor;
+            public RECT rcWork;
+            public int dwFlags;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr MonitorFromRect(ref RECT lprc, uint dwFlags);
+        private const uint MONITOR_DEFAULTTONULL = 0;
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+        static MemoStorage()
+        {
+            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            FolderPath = Path.Combine(localAppData, "SimpleMemo");
+            
+            // Directory.Existsによる事前確認をはさみ、Directory.CreateDirectory呼び出しのオーバーヘッドを削減
+            if (!Directory.Exists(FolderPath))
+            {
+                Directory.CreateDirectory(FolderPath);
+            }
+
+            FilePath = Path.Combine(FolderPath, "memo.txt");
+            TempFilePath = Path.Combine(FolderPath, "memo.tmp");
+            WindowDatPath = Path.Combine(FolderPath, "window.dat");
+            WindowDatTempPath = Path.Combine(FolderPath, "window.tmp");
+        }
+
+        // 起動速度優先のため、同期で読み込む (UTF-8)
+        public static string LoadMemoText()
+        {
+            try
+            {
+                if (File.Exists(FilePath))
+                {
+                    return File.ReadAllText(FilePath, Utf8NoBom);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Load Error] {ex.Message}"); // Debugビルド時のみコンパイル・実行されます
+            }
+            return string.Empty;
+        }
+
+        // 物理ディスクへのフラッシュおよび置換後のジャーナル同期までカバーするアトミック非同期保存
+        public static async Task<bool> SaveMemoTextAtomicAsync(string text)
+        {
+            try
+            {
+                // UIスレッドをフリーズさせない非同期書き出し (UTF-8 BOMなし)
+                using (var fs = new FileStream(TempFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true))
+                using (var writer = new StreamWriter(fs, Utf8NoBom))
+                {
+                    await writer.WriteAsync(text);
+                    await writer.FlushAsync();
+                    
+                    // 1. 物理SSD/HDDの書き込み完了を確認
+                    fs.Flush(true);
+                }
+
+                if (File.Exists(FilePath))
+                {
+                    // 2. 一時ファイルで実ファイルを置換
+                    File.Replace(TempFilePath, FilePath, null);
+
+                    // 3. 置換したファイルのメタデータ（NTFSジャーナル）更新を物理フラッシュ
+                    using (var fs = new FileStream(FilePath, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
+                    {
+                        fs.Flush(true);
+                    }
+                }
+                else
+                {
+                    File.Move(TempFilePath, FilePath);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Save Error] {ex.Message}");
+                return false;
+            }
+        }
+
+        // アプリ終了時にUIスレッドを止めずに即座に物理保存を行うための同期版
+        public static bool SaveMemoTextAtomicSync(string text)
+        {
+            try
+            {
+                using (var fs = new FileStream(TempFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: false))
+                using (var writer = new StreamWriter(fs, Utf8NoBom))
+                {
+                    writer.Write(text);
+                    writer.Flush();
+                    fs.Flush(true);
+                }
+
+                if (File.Exists(FilePath))
+                {
+                    File.Replace(TempFilePath, FilePath, null);
+                    using (var fs = new FileStream(FilePath, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
+                    {
+                        fs.Flush(true);
+                    }
+                }
+                else
+                {
+                    File.Move(TempFilePath, FilePath);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Sync Save Error] {ex.Message}");
+                return false;
+            }
+        }
+
+        // 完全にアロケーションフリーなウィンドウ座標保存 (スタック上で処理)
+        public static void SaveWindowPlacementAtomic(int x, int y, int width, int height)
+        {
+            try
+            {
+                // BinaryWriterなどのオブジェクト確保を完全に排したスタック配列書き込み
+                Span<byte> buffer = stackalloc byte[16];
+                BinaryPrimitives.WriteInt32LittleEndian(buffer.Slice(0, 4), x);
+                BinaryPrimitives.WriteInt32LittleEndian(buffer.Slice(4, 4), y);
+                BinaryPrimitives.WriteInt32LittleEndian(buffer.Slice(8, 4), width);
+                BinaryPrimitives.WriteInt32LittleEndian(buffer.Slice(12, 4), height);
+
+                using (var fs = new FileStream(WindowDatTempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    fs.Write(buffer);
+                }
+
+                if (File.Exists(WindowDatPath))
+                {
+                    File.Replace(WindowDatTempPath, WindowDatPath, null);
+                }
+                else
+                {
+                    File.Move(WindowDatTempPath, WindowDatPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Window Save Error] {ex.Message}");
+            }
+        }
+
+        // ウィンドウ座標復元およびマルチモニターを考慮したクランプ処理
+        public static bool LoadWindowPlacement(out int x, out int y, out int width, out int height)
+        {
+            x = 0; y = 0; width = 360; height = 480; // デフォルト値
+            try
+            {
+                if (File.Exists(WindowDatPath))
+                {
+                    Span<byte> buffer = stackalloc byte[16];
+                    using (var fs = new FileStream(WindowDatPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    {
+                        if (fs.Length >= 16)
+                        {
+                            int read = fs.Read(buffer);
+                            if (read >= 16)
+                            {
+                                int lx = BinaryPrimitives.ReadInt32LittleEndian(buffer.Slice(0, 4));
+                                int ly = BinaryPrimitives.ReadInt32LittleEndian(buffer.Slice(4, 4));
+                                int lw = BinaryPrimitives.ReadInt32LittleEndian(buffer.Slice(8, 4));
+                                int lh = BinaryPrimitives.ReadInt32LittleEndian(buffer.Slice(12, 4));
+
+                                RECT rect = new RECT { Left = lx, Top = ly, Right = lx + lw, Bottom = ly + lh };
+                                IntPtr hMonitor = MonitorFromRect(ref rect, MONITOR_DEFAULTTONULL);
+
+                                if (hMonitor != IntPtr.Zero)
+                                {
+                                    // ワークエリア情報（タスクバーを除いた領域）の取得
+                                    MONITORINFO info = new MONITORINFO();
+                                    info.cbSize = Marshal.SizeOf(typeof(MONITORINFO));
+                                    if (GetMonitorInfo(hMonitor, ref info))
+                                    {
+                                        // 座標がワークエリアからはみ出ている場合は、安全にワークエリア内に収まるようクランプ
+                                        x = Math.Clamp(lx, info.rcWork.Left, info.rcWork.Right - lw);
+                                        y = Math.Clamp(ly, info.rcWork.Top, info.rcWork.Bottom - lh);
+                                        width = lw;
+                                        height = lh;
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Window Load Error] {ex.Message}");
+            }
+            return false;
         }
     }
 }
 ```
 
-### 4.2 永続化設計 (storage/traits.rs)
-ジェネリクスを用い、アプリが扱う様々な設定やデータを画一的にロード／セーブできるようにトレイト化します。
+#### 2. 遅延制御層: `SaveScheduler`
+```csharp
+using Microsoft.UI.Dispatching;
+using System;
+using System.Threading.Tasks;
 
-```rust
-pub trait Storage<T> {
-    /// データの読み込み
-    fn load(&self) -> Result<T, std::io::Error>;
-    
-    /// データの保存
-    fn save(&self, value: &T) -> Result<(), std::io::Error>;
-}
-```
+namespace SimpleMemo
+{
+    public class SaveScheduler
+    {
+        private readonly DispatcherQueueTimer _timer;
+        private readonly Func<Task> _onSaveTriggered;
 
-#### Windows環境における完全なるアトミック置換実装方針
-* 保存中のクラッシュや電源喪失時、0バイトデータになる破損を防ぐため、ファイルを一時ファイル（`.tmp`）に書き込みます。
-* その後、Windows環境における最も堅牢なファイル置換である **Win32 APIの `ReplaceFileW` 相当の挙動**（または `std::fs::rename`、必要に応じて `windows` クレート経由の呼び出し）を使用し、元のファイルのセキュリティ記述子（ACL）、作成日付などのメタデータを完全に維持したまま安全に置き換えます。
+        // キー入力ごとに一切のCTS/Taskをアロケーションしない、単一DispatcherQueueTimer構成
+        public SaveScheduler(DispatcherQueue queue, Func<Task> onSaveTriggered)
+        {
+            _onSaveTriggered = onSaveTriggered;
+            _timer = queue.CreateTimer();
+            _timer.Interval = TimeSpan.FromSeconds(2); // 遅延を2秒に設定
+            _timer.Tick += Timer_Tick;
+        }
 
-### 4.3 構成情報およびPreferences (storage/config.rs)
-設定ファイルは階層構造化されたJSONとしてパースされ、不透明度やテーマなど今後のニーズに柔軟に対応します。
+        private async void Timer_Tick(DispatcherQueueTimer sender, object args)
+        {
+            _timer.Stop();
+            await _onSaveTriggered(); // 2秒間追加入力がなかった際のアクション
+        }
 
-```rust
-use serde::{Deserialize, Serialize};
+        public void Schedule()
+        {
+            // タイマーの停止と再開始により、ヒープへのオブジェクト割り当てを発生させずにリセット
+            _timer.Stop();
+            _timer.Start();
+        }
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct AppConfig {
-    pub window: WindowState,
-    pub preferences: Preferences,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct WindowState {
-    pub x: i32,
-    pub y: i32,
-    pub width: u32,
-    pub height: u32,
-    pub scale_factor: f64,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct Preferences {
-    pub theme: String,
-    pub opacity: f32,
-    pub always_on_top: bool,
-}
-```
-
-### 4.4 自動保存スケジューラー (service/scheduler.rs)
-アプリケーションの状態管理から「いつ保存すべきか」というスケジューリングロジックを分離します。
-
-```rust
-use std::time::{Duration, Instant};
-
-pub struct SaveScheduler {
-    pub debounce_duration: Duration,
-    pub last_edit: Option<Instant>,
-}
-
-impl SaveScheduler {
-    pub fn new(debounce_millis: u64) -> Self {
-        Self {
-            debounce_duration: Duration::from_millis(debounce_millis),
-            last_edit: None,
+        public void Cancel()
+        {
+            _timer.Stop();
         }
     }
+}
+```
 
-    /// タイピング等による時間更新
-    pub fn trigger_edit(&mut self) {
-        self.last_edit = Some(Instant::now());
-    }
+#### 3. UI表示層: `MainWindow`
+```csharp
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using System;
 
-    /// 保存を実行すべきデッドライン（時間）に達したかを判定
-    pub fn should_save(&self, ime_composing: bool) -> bool {
-        if ime_composing {
-            return false; // IME変換中は絶対に保存を保留する
+namespace SimpleMemo
+{
+    public sealed partial class MainWindow : Window
+    {
+        private readonly SaveScheduler _scheduler;
+        private readonly AppWindow _appWindow;
+        private bool _isRestoring = false;
+        private bool _isDirty = false;
+        private bool _isAlwaysOnTopSet = false;
+
+        // 競合防止用のリビジョン番号
+        private long _revision = 0;
+        private long _savedRevision = 0;
+
+        public MainWindow()
+        {
+            this.InitializeComponent();
+
+            // 1. ウィンドウハンドルとAppWindowの解決
+            IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            WindowId windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
+            _appWindow = AppWindow.GetFromWindowId(windowId);
+
+            // 2. ウィンドウ配置の復元（マルチモニター・作業領域クランプ付き）
+            RestoreWindowPlacement();
+
+            // 3. テキストロード
+            _isRestoring = true;
+            MemoTextBox.Text = MemoStorage.LoadMemoText();
+            _isRestoring = false;
+
+            // 4. スケジューラ初期化 (DispatcherQueueを渡し、タイマー内のアロケーションをゼロ化)
+            _scheduler = new SaveScheduler(this.DispatcherQueue, async () =>
+            {
+                long currentRevision = _revision;
+                string textToSave = MemoTextBox.Text; // 保存を実行するその瞬間の状態を読み取る
+
+                bool success = await MemoStorage.SaveMemoTextAtomicAsync(textToSave);
+                if (success)
+                {
+                    _savedRevision = currentRevision;
+                    // 保存実行中に追加入力（TextChanged）があった場合は、Dirtyフラグのリセットをガードする
+                    if (_savedRevision == _revision)
+                    {
+                        _isDirty = false;
+                    }
+                }
+            });
+
+            // 5. ライフサイクルイベント監視
+            this.Activated += MainWindow_Activated;
+            _appWindow.Closing += AppWindow_Closing;
         }
-        if let Some(last_edit) = self.last_edit {
-            last_edit.elapsed() >= self.debounce_duration
-        } else {
-            false
+
+        private void RestoreWindowPlacement()
+        {
+            if (MemoStorage.LoadWindowPlacement(out int x, out int y, out int width, out int height))
+            {
+                _appWindow.MoveAndResize(new Graphics.RectInt32(x, y, width, height));
+            }
+        }
+
+        private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
+        {
+            // アクティブ化が完全に確定した最初のタイミングで常に最前面を設定
+            if (!_isAlwaysOnTopSet)
+            {
+                if (_appWindow.Presenter is OverlappedPresenter presenter)
+                {
+                    presenter.IsAlwaysOnTop = true;
+                }
+                _isAlwaysOnTopSet = true;
+            }
+        }
+
+        private void MemoTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_isRestoring) return;
+
+            _isDirty = true;
+            _revision++; // 入力ごとにリビジョンを更新
+            _scheduler.Schedule();
+        }
+
+        private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
+        {
+            _scheduler.Cancel();
+
+            // 1. 未保存データを終了直前に同期的に安全にディスク永続化
+            if (_isDirty)
+            {
+                MemoStorage.SaveMemoTextAtomicSync(MemoTextBox.Text);
+            }
+
+            // 2. 終了座標をアトミックに保存
+            var pos = _appWindow.Position;
+            var size = _appWindow.Size;
+            MemoStorage.SaveWindowPlacementAtomic(pos.X, pos.Y, size.Width, size.Height);
         }
     }
-
-    /// 保存が完了したことを通知しタイマーをクリア
-    pub fn on_saved(&mut self) {
-        self.last_edit = None;
-    }
-}
-```
-
-### 4.5 UI依存状態の完全分離 (ui/state.rs)
-```rust
-pub struct EditorUiState {
-    /// 初回フレームを正確に判定してエディタにフォーカスを与えるフラグ
-    pub first_frame: bool,
-}
-
-impl Default for EditorUiState {
-    fn default() -> Self {
-        Self { first_frame: true }
-    }
 }
 ```
 
 ---
 
-## 5. ウィンドウ制御とイベントハンドリングの洗練
+## 7. 品質保証・テスト要件
+アプリリリースに向け、以下の機能テストおよびパフォーマンステストを実施します。
 
-### 5.1 ウィンドウリサイズ・移動時のConfig即時保存
-ユーザーがウィンドウを閉じる（正常終了する）タイミング以外にも、**「ウィンドウの移動を終えた瞬間」「サイズ変更を完了した瞬間（Windowsメッセージ `WM_EXITSIZEMOVE` に対応するwinitイベント等）」**に、現在のサイズと配置情報を `AppConfig` を通じて即時保存します。これにより、突然のOSクラッシュ時でも、次回起動時の表示位置が期待通りに復元されます。
-
-### 5.2 フォント検索の優先解決（フォールバック優先順位）
-Windows環境に特化し、英語のみのフォントファミリーによる文字化けや不自然な描画を防ぐため、以下の順序でシステム内の日本語フォントをクエリして解決します。
-
-1. **`Yu Gothic UI`**: Windows 10/11 のUIで標準とされる最も可読性が高い等幅ベースのデザイン。
-2. **`Meiryo` (メイリオ)**: クリアで柔らかな定番日本語UIフォント。
-3. **`Yu Gothic` (遊ゴシック)**: 標準の美しいレンダリング。
-4. **`MS Gothic` (ＭＳ ゴシック)**: 最低限のセーフティ用等幅フォールバック。
-
----
-
-## 6. 非機能要件・制約事項
-
-### 非機能要件
-* **保存保証（耐久性）**: アトミックな置換により、万一の書き込み途中の中断であっても元のファイルを100%保護します。
-* **CRLF / LF 互換**: Windows標準エディタなど外部ツールでメモファイル（`memo.txt`）が開かれた際に混入する `\r\n` (CRLF) を、読み込み時に内部的に `\n` (LF) へ正規化します。
-* **アクセシビリティ**: `egui` が標準で提供するスクリーンリーダー等の支援技術のフックに対応します。
-
-### 制約事項
-* **動作環境**: Windows 10 / 11 専用
-* **実行環境**: OpenGL（OpenGL ES 3.0 or GL 3.3）動作ドライバが必要
-* **配布パッケージ**: 単一バイナリによるインストーラ不要の配布（管理者権限不要）
-
----
-
-## 7. テストマトリクス（検証計画）
-
-| テストID | 検証カテゴリ | シナリオ・手順 | 期待される動作 |
-| :--- | :--- | :--- | :--- |
-| **TC-001** | **起動＆境界値** | 初回起動（ファイル未存在） | 空白かつ16,384バイト確保されたバッファで正常起動すること。 |
-| **TC-002** | **自動保存タイミング** | 日本語IMEで文字を入力・変換している最中に500msが経過 | 入力中・変換中はディスク保存が一切発生せず、**Enterキーで確定し、500msが経過した瞬間**にアトミック保存されること。 |
-| **TC-003** | **フォーカス再復帰** | 他アプリに切り替えた後、Alt+Tab等で再度メモ帳を選択 | `winit` の `WindowEvent::Focused(true)` イベントをトリガーに、UI上のエディタへのフォーカス（キャレット表示）が即座に復旧すること。 |
-| **TC-004** | **アトミック検証** | 大量の文字入力中にPCの電源を強制的に切断する（検証環境にてシミュレート） | 元のデータが完全に維持されているか、新データが書き換わっているかのどちらかであり、空データに破損しないこと。 |
-| **TC-005** | **マルチモニター** | 外部モニター側でサイズ変更・移動を行い、外部モニターを外して再起動 | `monitor.position()` と `monitor.size()` から得た表示バウンディングボックス内に無い位置情報を検知し、プライマリの安全な中央位置にクランプ（再計算）されて起動すること。 |
-
----
-
-## 8. ビルド最適化 (Cargo.toml リリース設定)
-
-リリースビルド時の最適化設定。オーバーフローチェックを無効にし、デバッグメタデータも完全にストリップすることで、限界までフットプリントを削ぎ落とします。
-
-```toml
-[profile.release]
-opt-level = 3
-codegen-units = 1
-lto = true
-panic = "abort"
-strip = true
-incremental = false
-overflow-checks = false  # リリースビルド用の最適化
-debug = false            # デバッグ情報を完全排除
-```
+### 7.1. 機能・堅牢性テストケース
+1.  **アトミック上書き検証**:
+    キーボード連打中にタスクマネージャーからプロセスを「強制終了」し、`memo.txt` が白紙化（0バイト化）せず、直前（2秒前）のデータが保持されていることを確認。
+2.  **マルチモニター・解像度変更テスト**:
+    ノートPCと外部ディスプレイを繋いだマルチモニター環境において、外部画面上でアプリを終了する。その後、外部ディスプレイを物理的に切断し、本体モニター単体の状態で再起動した際、ウィンドウが画面外に消えずメインモニター中央に復元されることを検証。
+3.  **ペースト＆境界文字数制限確認**:
+    クリップボードから20,000文字のテキストを貼り付けた際、`MaxLength` が正しく作動し、10,000 UTF-16コードユニット（Char）の境界でカットされることを確認。
+4.  **編集補助機能（Undo / Redo / Ctrl+Z）動作試験**:
+    文字入力およびペースト後、`Ctrl+Z` (元に戻す) と `Ctrl+Y` (やり直し) が正常に機能することを確認。その際、各編集履歴アクションによる `TextChanged` 発火時に無駄な過負荷（過剰なI/Oアロケーション）が生じないことを検証。

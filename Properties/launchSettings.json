@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "sumi (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "sumi (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
