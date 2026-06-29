@@ -20,6 +20,10 @@ namespace sumi
         private bool _isAlwaysOnTopSet = false;
         private bool _isInitialFocusSet = false;
         private bool _isInitializing = true;
+        private IntPtr _hWnd = IntPtr.Zero;
+        private bool _isTrayIconAdded = false;
+        private SUBCLASSPROC? _subclassProc;
+        private bool _isQuitting = false;
 
         // 競合防止用のリビジョン番号
         private long _revision = 0;
@@ -109,6 +113,8 @@ namespace sumi
 
             // 10. ウィンドウサイズ変更イベントの登録（Flyoutの高さ調整用）
             RootGrid.SizeChanged += RootGrid_SizeChanged;
+
+            InitializeTrayAndHotKeys();
 
             _isInitializing = false;
         }
@@ -329,7 +335,15 @@ namespace sumi
 
         private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
         {
-            OnShutdown();
+            if (_isQuitting || string.IsNullOrEmpty(MemoStorage.LaunchHotKey))
+            {
+                OnShutdown();
+            }
+            else
+            {
+                args.Cancel = true;
+                _appWindow.Hide();
+            }
         }
 
         private void OnShutdown()
@@ -346,6 +360,18 @@ namespace sumi
             var pos = _appWindow.Position;
             var size = _appWindow.Size;
             MemoStorage.SaveWindowPlacementAtomic(pos.X, pos.Y, size.Width, size.Height);
+
+            // 3. トレイアイコン、ホットキー、サブクラスの解除
+            RemoveTrayIcon();
+            if (_hWnd != IntPtr.Zero)
+            {
+                UnregisterHotKey(_hWnd, 1001);
+                UnregisterHotKey(_hWnd, 1002);
+                if (_subclassProc != null)
+                {
+                    RemoveWindowSubclass(_hWnd, _subclassProc, 1);
+                }
+            }
         }
 
         private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush SettingItemHoverBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 0x2d, 0x2d, 0x2d));
@@ -407,11 +433,16 @@ namespace sumi
             OpacitySlider.Value = MemoStorage.Opacity;
             OpacityValueText.Text = $"{(int)MemoStorage.Opacity}%";
 
+            QuitHotKeyButton.Content = MemoStorage.QuitHotKey;
+            LaunchHotKeyButton.Content = MemoStorage.LaunchHotKey;
+
             FontItem.Visibility = Visibility.Visible;
             FontWeightItem.Visibility = Visibility.Visible;
             FontSizeItem.Visibility = Visibility.Visible;
             LineSpacingItem.Visibility = Visibility.Visible;
             OpacityItem.Visibility = Visibility.Visible;
+            LaunchHotKeyItem.Visibility = Visibility.Visible;
+            QuitHotKeyItem.Visibility = Visibility.Visible;
             DeleteNoteItem.Visibility = Visibility.Visible;
 
             SettingsSearchBox.Focus(FocusState.Programmatic);
@@ -427,6 +458,8 @@ namespace sumi
                 FontSizeItem.Visibility = Visibility.Visible;
                 LineSpacingItem.Visibility = Visibility.Visible;
                 OpacityItem.Visibility = Visibility.Visible;
+                LaunchHotKeyItem.Visibility = Visibility.Visible;
+                QuitHotKeyItem.Visibility = Visibility.Visible;
                 DeleteNoteItem.Visibility = Visibility.Visible;
                 return;
             }
@@ -436,6 +469,8 @@ namespace sumi
             FontSizeItem.Visibility = "font size フォントサイズ 大きさ サイズ 文字".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
             LineSpacingItem.Visibility = "line spacing 行間 行の高さ 高さ".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
             OpacityItem.Visibility = "opacity 不透明度 透明度 背景 透け".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
+            LaunchHotKeyItem.Visibility = "launch hotkey ショートカット キーボード 起動 ホットキー ランチ".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
+            QuitHotKeyItem.Visibility = "quit hotkey ショートカット キーボード 終了 ホットキー クイック".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
             DeleteNoteItem.Visibility = "delete note メモを削除 削除 ゴミ箱".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
         }
 
@@ -942,6 +977,456 @@ namespace sumi
 
             e.Handled = true;
         }
+
+        #region Win32 P/Invoke & HotKey/Tray Icon Management
+
+        [System.Runtime.InteropServices.DllImport("comctl32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern bool SetWindowSubclass(IntPtr hWnd, SUBCLASSPROC pfnSubclass, IntPtr uIdSubclass, IntPtr dwRefData);
+
+        [System.Runtime.InteropServices.DllImport("comctl32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern bool RemoveWindowSubclass(IntPtr hWnd, SUBCLASSPROC pfnSubclass, IntPtr uIdSubclass);
+
+        [System.Runtime.InteropServices.DllImport("comctl32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern IntPtr DefSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+        [System.Runtime.InteropServices.DllImport("shell32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, EntryPoint = "Shell_NotifyIconW")]
+        private static extern bool Shell_NotifyIcon(uint dwMessage, ref NOTIFYICONDATA lpData);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern IntPtr CreatePopupMenu();
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, EntryPoint = "AppendMenuW")]
+        private static extern bool AppendMenu(IntPtr hMenu, uint uFlags, IntPtr uIDNewItem, string lpNewItem);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool DestroyMenu(IntPtr hMenu);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern int TrackPopupMenu(IntPtr hMenu, uint uFlags, int x, int y, int nReserved, IntPtr hWnd, IntPtr prcRect);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, EntryPoint = "LoadImageW", SetLastError = true)]
+        private static extern IntPtr LoadImage(IntPtr hInst, string lpszName, uint uType, int cxDesired, int cyDesired, uint fuLoad);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, EntryPoint = "LoadIconW")]
+        private static extern IntPtr LoadIcon(IntPtr hInstance, IntPtr lpIconName);
+
+        private delegate IntPtr SUBCLASSPROC(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, IntPtr uIdSubclass, IntPtr dwRefData);
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private struct NOTIFYICONDATA
+        {
+            public uint cbSize;
+            public IntPtr hWnd;
+            public uint uID;
+            public uint uFlags;
+            public uint uCallbackMessage;
+            public IntPtr hIcon;
+            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 128)]
+            public string szTip;
+            public uint dwState;
+            public uint dwStateMask;
+            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 256)]
+            public string szInfo;
+            public uint uVersion;
+            [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 64)]
+            public string szInfoTitle;
+            public uint dwInfoFlags;
+            public Guid guidItem;
+            public IntPtr hBalloonIcon;
+        }
+
+        private const uint NIM_ADD = 0;
+        private const uint NIM_MODIFY = 1;
+        private const uint NIM_DELETE = 2;
+        private const uint NIF_MESSAGE = 1;
+        private const uint NIF_ICON = 2;
+        private const uint NIF_TIP = 4;
+        private const uint WM_TRAYICON = 0x8000 + 2048;
+        private const uint MF_STRING = 0x00000000;
+        private const uint TPM_RETURNCMD = 0x0100;
+        private const uint TPM_LEFTALIGN = 0x0000;
+
+        private void InitializeTrayAndHotKeys()
+        {
+            _hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            
+            _subclassProc = new SUBCLASSPROC(WindowSubclassProc);
+            SetWindowSubclass(_hWnd, _subclassProc, 1, IntPtr.Zero);
+
+            UpdateTrayIconAndHotKeys();
+        }
+
+        private void UpdateTrayIconAndHotKeys()
+        {
+            UnregisterHotKey(_hWnd, 1001);
+            UnregisterHotKey(_hWnd, 1002);
+
+            if (TryParseHotKey(MemoStorage.QuitHotKey, out uint quitMod, out uint quitVk))
+            {
+                RegisterHotKey(_hWnd, 1001, quitMod, quitVk);
+            }
+
+            if (TryParseHotKey(MemoStorage.LaunchHotKey, out uint launchMod, out uint launchVk))
+            {
+                RegisterHotKey(_hWnd, 1002, launchMod, launchVk);
+            }
+
+            bool needTray = !string.IsNullOrEmpty(MemoStorage.LaunchHotKey);
+            if (needTray)
+            {
+                AddOrModifyTrayIcon();
+            }
+            else
+            {
+                RemoveTrayIcon();
+            }
+        }
+
+        private void AddOrModifyTrayIcon()
+        {
+            var nid = new NOTIFYICONDATA();
+            nid.cbSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf<NOTIFYICONDATA>();
+            nid.hWnd = _hWnd;
+            nid.uID = 1;
+            nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+            nid.uCallbackMessage = WM_TRAYICON;
+
+            string iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "AppIcon.ico");
+            IntPtr hIcon = IntPtr.Zero;
+            if (System.IO.File.Exists(iconPath))
+            {
+                hIcon = LoadImage(IntPtr.Zero, iconPath, 1, 16, 16, 0x00000010);
+            }
+            if (hIcon == IntPtr.Zero)
+            {
+                hIcon = LoadIcon(IntPtr.Zero, (IntPtr)32512);
+            }
+            nid.hIcon = hIcon;
+            nid.szTip = "Sumi Memo";
+
+            if (_isTrayIconAdded)
+            {
+                Shell_NotifyIcon(NIM_MODIFY, ref nid);
+            }
+            else
+            {
+                if (Shell_NotifyIcon(NIM_ADD, ref nid))
+                {
+                    _isTrayIconAdded = true;
+                }
+            }
+        }
+
+        private void RemoveTrayIcon()
+        {
+            if (_isTrayIconAdded)
+            {
+                var nid = new NOTIFYICONDATA();
+                nid.cbSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf<NOTIFYICONDATA>();
+                nid.hWnd = _hWnd;
+                nid.uID = 1;
+                Shell_NotifyIcon(NIM_DELETE, ref nid);
+                _isTrayIconAdded = false;
+            }
+        }
+
+        private IntPtr WindowSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, IntPtr uIdSubclass, IntPtr dwRefData)
+        {
+            if (uMsg == 0x0312) // WM_HOTKEY
+            {
+                int id = wParam.ToInt32();
+                if (id == 1001) // Quit
+                {
+                    _isQuitting = true;
+                    Close();
+                    return IntPtr.Zero;
+                }
+                else if (id == 1002) // Launch
+                {
+                    ShowAndActivateWindow();
+                    return IntPtr.Zero;
+                }
+            }
+            else if (uMsg == WM_TRAYICON)
+            {
+                uint mouseMsg = (uint)lParam.ToInt32();
+                if (mouseMsg == 0x0202 /* WM_LBUTTONUP */ || mouseMsg == 0x0203 /* WM_LBUTTONDBLCLK */)
+                {
+                    ShowAndActivateWindow();
+                }
+                else if (mouseMsg == 0x0205 /* WM_RBUTTONUP */)
+                {
+                    ShowTrayContextMenu();
+                }
+            }
+
+            return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+        }
+
+        private void ShowAndActivateWindow()
+        {
+            _appWindow.Show();
+            
+            try
+            {
+                var presenter = _appWindow.Presenter.As<OverlappedPresenter>();
+                if (presenter != null)
+                {
+                    presenter.Restore();
+                }
+            }
+            catch { }
+
+            SetForegroundWindow(_hWnd);
+
+            if (MemoTextBox != null)
+            {
+                MemoTextBox.Focus(FocusState.Programmatic);
+            }
+        }
+
+        private void ShowTrayContextMenu()
+        {
+            POINT pos;
+            GetCursorPos(out pos);
+
+            IntPtr hMenu = CreatePopupMenu();
+            AppendMenu(hMenu, MF_STRING, (IntPtr)1, "Show");
+            AppendMenu(hMenu, MF_STRING, (IntPtr)2, "Quit");
+
+            SetForegroundWindow(_hWnd);
+            int selected = TrackPopupMenu(hMenu, TPM_RETURNCMD | TPM_LEFTALIGN, pos.X, pos.Y, 0, _hWnd, IntPtr.Zero);
+            PostMessage(_hWnd, 0, IntPtr.Zero, IntPtr.Zero);
+            DestroyMenu(hMenu);
+
+            if (selected == 1)
+            {
+                ShowAndActivateWindow();
+            }
+            else if (selected == 2)
+            {
+                _isQuitting = true;
+                Close();
+            }
+        }
+
+        private static bool TryParseHotKey(string hotkeyStr, out uint fsModifiers, out uint vk)
+        {
+            fsModifiers = 0;
+            vk = 0;
+            if (string.IsNullOrWhiteSpace(hotkeyStr))
+            {
+                return false;
+            }
+
+            var parts = hotkeyStr.Split('+');
+            for (int i = 0; i < parts.Length; i++)
+            {
+                string part = parts[i].Trim();
+                if (i == parts.Length - 1)
+                {
+                    if (Enum.TryParse<Windows.System.VirtualKey>(part, true, out var virtualKey))
+                    {
+                        vk = (uint)virtualKey;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    if (part.Equals("Ctrl", StringComparison.OrdinalIgnoreCase) || part.Equals("Control", StringComparison.OrdinalIgnoreCase))
+                    {
+                        fsModifiers |= 0x0002;
+                    }
+                    else if (part.Equals("Alt", StringComparison.OrdinalIgnoreCase))
+                    {
+                        fsModifiers |= 0x0001;
+                    }
+                    else if (part.Equals("Shift", StringComparison.OrdinalIgnoreCase))
+                    {
+                        fsModifiers |= 0x0004;
+                    }
+                    else if (part.Equals("Win", StringComparison.OrdinalIgnoreCase) || part.Equals("Windows", StringComparison.OrdinalIgnoreCase))
+                    {
+                        fsModifiers |= 0x0008;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return vk != 0;
+        }
+
+        private void HotKeyFlyout_Opened(object sender, object e)
+        {
+            // 一時的にグローバルホットキーを無効化
+            UnregisterHotKey(_hWnd, 1001);
+            UnregisterHotKey(_hWnd, 1002);
+
+            if (sender is Flyout flyout)
+            {
+                if (flyout == LaunchHotKeyFlyout)
+                {
+                    LaunchHotKeyInput.Text = MemoStorage.LaunchHotKey;
+                    LaunchHotKeyInput.Focus(FocusState.Programmatic);
+                }
+                else if (flyout == QuitHotKeyFlyout)
+                {
+                    QuitHotKeyInput.Text = MemoStorage.QuitHotKey;
+                    QuitHotKeyInput.Focus(FocusState.Programmatic);
+                }
+            }
+        }
+
+        private void HotKeyFlyout_Closed(object sender, object e)
+        {
+            UpdateTrayIconAndHotKeys();
+        }
+
+        private void HotKeyInput_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (sender is not TextBox textBox) return;
+            var key = e.Key;
+
+            var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
+            var altState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Menu);
+            var shiftState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift);
+            var winState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.LeftWindows) | 
+                           Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.RightWindows);
+
+            bool ctrl = (ctrlState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+            bool alt = (altState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+            bool shift = (shiftState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+            bool win = (winState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+
+            e.Handled = true;
+
+            if (key == Windows.System.VirtualKey.Enter)
+            {
+                if (textBox == LaunchHotKeyInput)
+                {
+                    SaveLaunchHotKey();
+                }
+                else if (textBox == QuitHotKeyInput)
+                {
+                    SaveQuitHotKey();
+                }
+                return;
+            }
+
+            if (key == Windows.System.VirtualKey.Escape)
+            {
+                if (textBox == LaunchHotKeyInput)
+                {
+                    LaunchHotKeyFlyout.Hide();
+                }
+                else if (textBox == QuitHotKeyInput)
+                {
+                    QuitHotKeyFlyout.Hide();
+                }
+                return;
+            }
+
+            if (key == Windows.System.VirtualKey.Back || key == Windows.System.VirtualKey.Delete)
+            {
+                textBox.Text = string.Empty;
+                return;
+            }
+
+            // Ignore modifier keys themselves
+            if (key == Windows.System.VirtualKey.Control || 
+                key == Windows.System.VirtualKey.Menu || 
+                key == Windows.System.VirtualKey.Shift || 
+                key == Windows.System.VirtualKey.LeftWindows || 
+                key == Windows.System.VirtualKey.RightWindows)
+            {
+                var sbTemp = new System.Text.StringBuilder();
+                if (ctrl) sbTemp.Append("Ctrl+");
+                if (alt) sbTemp.Append("Alt+");
+                if (shift) sbTemp.Append("Shift+");
+                if (win) sbTemp.Append("Win+");
+                textBox.Text = sbTemp.ToString();
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            if (ctrl) sb.Append("Ctrl+");
+            if (alt) sb.Append("Alt+");
+            if (shift) sb.Append("Shift+");
+            if (win) sb.Append("Win+");
+            sb.Append(key.ToString());
+
+            textBox.Text = sb.ToString();
+        }
+
+        private void SaveLaunchHotKey_Click(object sender, RoutedEventArgs e)
+        {
+            SaveLaunchHotKey();
+        }
+
+        private void ClearLaunchHotKey_Click(object sender, RoutedEventArgs e)
+        {
+            LaunchHotKeyInput.Text = string.Empty;
+            SaveLaunchHotKey();
+        }
+
+        private void CancelLaunchHotKey_Click(object sender, RoutedEventArgs e)
+        {
+            LaunchHotKeyFlyout.Hide();
+        }
+
+        private void SaveQuitHotKey_Click(object sender, RoutedEventArgs e)
+        {
+            SaveQuitHotKey();
+        }
+
+        private void ClearQuitHotKey_Click(object sender, RoutedEventArgs e)
+        {
+            QuitHotKeyInput.Text = string.Empty;
+            SaveQuitHotKey();
+        }
+
+        private void CancelQuitHotKey_Click(object sender, RoutedEventArgs e)
+        {
+            QuitHotKeyFlyout.Hide();
+        }
+
+        private void SaveLaunchHotKey()
+        {
+            string val = LaunchHotKeyInput.Text;
+            MemoStorage.LaunchHotKey = val;
+            MemoStorage.SaveSettings();
+            LaunchHotKeyButton.Content = val;
+            LaunchHotKeyFlyout.Hide();
+        }
+
+        private void SaveQuitHotKey()
+        {
+            string val = QuitHotKeyInput.Text;
+            MemoStorage.QuitHotKey = val;
+            MemoStorage.SaveSettings();
+            QuitHotKeyButton.Content = val;
+            QuitHotKeyFlyout.Hide();
+        }
+
+        #endregion
     }
 
     /// <summary>
