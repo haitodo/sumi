@@ -252,6 +252,134 @@
                                             </StackPanel>
                                         </Grid>
                                         
+                                        <!-- Launch Hotkey -->
+                                        <Grid x:Name="LaunchHotKeyItem" Padding="6,6" CornerRadius="4" Background="Transparent"
+                                              PointerEntered="SettingItem_PointerEntered" PointerExited="SettingItem_PointerExited">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="&#xE765;" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="#cccccc" VerticalAlignment="Center" Margin="4,0,10,0" />
+                                            <TextBlock Grid.Column="1" Text="Launch Hotkey" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                                            <Button Grid.Column="2" x:Name="LaunchHotKeyButton" Width="100" Height="28" Padding="8,0" FontSize="12"
+                                                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                                    BorderThickness="1" BorderBrush="#333333" Background="#252525" Foreground="#ffffff" CornerRadius="4">
+                                                <Button.Resources>
+                                                    <SolidColorBrush x:Key="ButtonBackground" Color="#252525" />
+                                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#2d2d2d" />
+                                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3d3d3d" />
+                                                    <SolidColorBrush x:Key="ButtonBorderBrush" Color="#333333" />
+                                                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#444444" />
+                                                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#0078d4" />
+                                                    <SolidColorBrush x:Key="ButtonForeground" Color="#ffffff" />
+                                                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#ffffff" />
+                                                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#ffffff" />
+                                                </Button.Resources>
+                                                <Button.Flyout>
+                                                    <Flyout x:Name="LaunchHotKeyFlyout" Opened="HotKeyFlyout_Opened" Closed="HotKeyFlyout_Closed">
+                                                        <Flyout.FlyoutPresenterStyle>
+                                                            <Style TargetType="FlyoutPresenter">
+                                                                <Setter Property="Background" Value="#ee1f1f1f" />
+                                                                <Setter Property="BorderBrush" Value="#333333" />
+                                                                <Setter Property="BorderThickness" Value="1" />
+                                                                <Setter Property="CornerRadius" Value="8" />
+                                                                <Setter Property="Padding" Value="10" />
+                                                            </Style>
+                                                        </Flyout.FlyoutPresenterStyle>
+                                                        <StackPanel Spacing="8" Width="180">
+                                                            <TextBlock Text="Press key combination:" FontSize="11" Foreground="#cccccc" />
+                                                            <TextBox x:Name="LaunchHotKeyInput" Height="28" IsReadOnly="True" KeyDown="HotKeyInput_KeyDown" TextAlignment="Center" FontSize="12" VerticalContentAlignment="Center" Background="#252525" BorderThickness="1" BorderBrush="#333333" CornerRadius="4">
+                                                                <TextBox.Resources>
+                                                                    <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
+                                                                    <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#2d2d2d" />
+                                                                    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
+                                                                    <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
+                                                                    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#444444" />
+                                                                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
+                                                                    <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                                                                </TextBox.Resources>
+                                                            </TextBox>
+                                                            <Grid ColumnSpacing="4">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <Button Grid.Column="0" Content="Save" Click="SaveLaunchHotKey_Click" HorizontalAlignment="Stretch" Height="24" Padding="0" FontSize="11" CornerRadius="4" />
+                                                                <Button Grid.Column="1" Content="Clear" Click="ClearLaunchHotKey_Click" HorizontalAlignment="Stretch" Height="24" Padding="0" FontSize="11" CornerRadius="4" />
+                                                                <Button Grid.Column="2" Content="Cancel" Click="CancelLaunchHotKey_Click" HorizontalAlignment="Stretch" Height="24" Padding="0" FontSize="11" CornerRadius="4" />
+                                                            </Grid>
+                                                        </StackPanel>
+                                                    </Flyout>
+                                                </Button.Flyout>
+                                            </Button>
+                                        </Grid>
+
+                                        <!-- Quit Hotkey -->
+                                        <Grid x:Name="QuitHotKeyItem" Padding="6,6" CornerRadius="4" Background="Transparent"
+                                              PointerEntered="SettingItem_PointerEntered" PointerExited="SettingItem_PointerExited">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="&#xE106;" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="#cccccc" VerticalAlignment="Center" Margin="4,0,10,0" />
+                                            <TextBlock Grid.Column="1" Text="Quit Hotkey" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                                            <Button Grid.Column="2" x:Name="QuitHotKeyButton" Width="100" Height="28" Padding="8,0" FontSize="12"
+                                                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                                    BorderThickness="1" BorderBrush="#333333" Background="#252525" Foreground="#ffffff" CornerRadius="4">
+                                                <Button.Resources>
+                                                    <SolidColorBrush x:Key="ButtonBackground" Color="#252525" />
+                                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#2d2d2d" />
+                                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3d3d3d" />
+                                                    <SolidColorBrush x:Key="ButtonBorderBrush" Color="#333333" />
+                                                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#444444" />
+                                                    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#0078d4" />
+                                                    <SolidColorBrush x:Key="ButtonForeground" Color="#ffffff" />
+                                                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#ffffff" />
+                                                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#ffffff" />
+                                                </Button.Resources>
+                                                <Button.Flyout>
+                                                    <Flyout x:Name="QuitHotKeyFlyout" Opened="HotKeyFlyout_Opened" Closed="HotKeyFlyout_Closed">
+                                                        <Flyout.FlyoutPresenterStyle>
+                                                            <Style TargetType="FlyoutPresenter">
+                                                                <Setter Property="Background" Value="#ee1f1f1f" />
+                                                                <Setter Property="BorderBrush" Value="#333333" />
+                                                                <Setter Property="BorderThickness" Value="1" />
+                                                                <Setter Property="CornerRadius" Value="8" />
+                                                                <Setter Property="Padding" Value="10" />
+                                                            </Style>
+                                                        </Flyout.FlyoutPresenterStyle>
+                                                        <StackPanel Spacing="8" Width="180">
+                                                            <TextBlock Text="Press key combination:" FontSize="11" Foreground="#cccccc" />
+                                                            <TextBox x:Name="QuitHotKeyInput" Height="28" IsReadOnly="True" KeyDown="HotKeyInput_KeyDown" TextAlignment="Center" FontSize="12" VerticalContentAlignment="Center" Background="#252525" BorderThickness="1" BorderBrush="#333333" CornerRadius="4">
+                                                                <TextBox.Resources>
+                                                                    <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
+                                                                    <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#2d2d2d" />
+                                                                    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
+                                                                    <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
+                                                                    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#444444" />
+                                                                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
+                                                                    <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                                                                </TextBox.Resources>
+                                                            </TextBox>
+                                                            <Grid ColumnSpacing="4">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <Button Grid.Column="0" Content="Save" Click="SaveQuitHotKey_Click" HorizontalAlignment="Stretch" Height="24" Padding="0" FontSize="11" CornerRadius="4" />
+                                                                <Button Grid.Column="1" Content="Clear" Click="ClearQuitHotKey_Click" HorizontalAlignment="Stretch" Height="24" Padding="0" FontSize="11" CornerRadius="4" />
+                                                                <Button Grid.Column="2" Content="Cancel" Click="CancelQuitHotKey_Click" HorizontalAlignment="Stretch" Height="24" Padding="0" FontSize="11" CornerRadius="4" />
+                                                            </Grid>
+                                                        </StackPanel>
+                                                    </Flyout>
+                                                </Button.Flyout>
+                                            </Button>
+                                        </Grid>
+                                        
                                         <!-- Delete Note -->
                                         <Grid x:Name="DeleteNoteItem" Padding="6,6" CornerRadius="4" Background="Transparent"
                                               PointerEntered="SettingItem_PointerEntered" PointerExited="SettingItem_PointerExited"

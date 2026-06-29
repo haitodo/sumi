@@ -48,6 +48,8 @@ namespace sumi
         public static double LineSpacing { get; set; } = 1.0;
         public static double Opacity { get; set; } = 20.0; // 0 to 100
         public static string FontWeight { get; set; } = "Medium";
+        public static string QuitHotKey { get; set; } = "Alt+Q";
+        public static string LaunchHotKey { get; set; } = string.Empty;
 
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT
@@ -581,6 +583,12 @@ namespace sumi
                                 case "Opacity":
                                     if (double.TryParse(val, out double op)) Opacity = op;
                                     break;
+                                case "QuitHotKey":
+                                    QuitHotKey = val;
+                                    break;
+                                case "LaunchHotKey":
+                                    LaunchHotKey = val;
+                                    break;
                             }
                         }
                     }
@@ -605,6 +613,8 @@ namespace sumi
                 sb.AppendLine($"FontSize={FontSize}");
                 sb.AppendLine($"LineSpacing={LineSpacing}");
                 sb.AppendLine($"Opacity={Opacity}");
+                sb.AppendLine($"QuitHotKey={QuitHotKey}");
+                sb.AppendLine($"LaunchHotKey={LaunchHotKey}");
                 byte[] bytes = Utf8NoBom.GetBytes(sb.ToString());
 
                 string tempPath = SettingsPath + ".tmp";
