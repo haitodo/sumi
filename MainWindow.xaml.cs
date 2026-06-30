@@ -53,6 +53,15 @@ namespace sumi
         private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
         private const int DWMWA_TRANSITIONS_FORCEDISABLED = 3;
 
+        private const int HOTKEY_ID_QUIT = 1001;
+        private const int HOTKEY_ID_LAUNCH = 1002;
+        private const uint WM_HOTKEY = 0x0312;
+        private const uint WM_LBUTTONUP = 0x0202;
+        private const uint WM_LBUTTONDBLCLK = 0x0203;
+        private const uint WM_RBUTTONUP = 0x0205;
+        private const uint TRAY_ICON_ID = 1;
+        private const int SUBCLASS_ID = 1;
+
         [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
         private struct POINT
         {
@@ -88,7 +97,7 @@ namespace sumi
             {
                 _appWindow.SetIcon(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "AppIcon.ico"));
             }
-            catch (Exception) { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[AppIcon Setup Error] {ex.Message}"); }
 
             // ダークモードと起動アニメーション（配置変更による移動）の一時無効化を適用
             try
@@ -98,7 +107,7 @@ namespace sumi
                 int disableTransitions = 1;
                 DwmSetWindowAttribute(_hWnd, DWMWA_TRANSITIONS_FORCEDISABLED, ref disableTransitions, sizeof(int));
             }
-            catch (Exception) { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[DwmSetWindowAttribute Error] {ex.Message}"); }
 
             // 1.5 アクティブ化（表示）の前に常に最前面を設定して、Z-orderの再計算ちらつきを防止
             try
@@ -109,7 +118,7 @@ namespace sumi
                     presenter.IsAlwaysOnTop = true;
                 }
             }
-            catch (Exception) { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[AlwaysOnTop Setup Error] {ex.Message}"); }
 
             // 2. タイトルバーをクライアント領域に拡張し、ドラッグ領域を設定
             ExtendsContentIntoTitleBar = true;
@@ -365,7 +374,7 @@ namespace sumi
                 int disableTransitions = 0;
                 DwmSetWindowAttribute(_hWnd, DWMWA_TRANSITIONS_FORCEDISABLED, ref disableTransitions, sizeof(int));
             }
-            catch (Exception) { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Restore Transitions Error] {ex.Message}"); }
 
             if (!_isInitialFocusSet)
             {
@@ -512,7 +521,10 @@ namespace sumi
             // 1. 未保存データを終了直前に同期的に安全にディスク永続化
             if (_isDirty)
             {
-                MemoStorage.SaveMemoTextAtomicSync(MemoText);
+                // 修正: 破棄プロセス中のUIコントロール(MemoText)から直接取得するのではなく、
+                // リアルタイムに同期されている安全なインメモリキャッシュから取得して保存する
+                string safeText = MemoStorage.LoadMemoText();
+                MemoStorage.SaveMemoTextAtomicSync(safeText);
             }
 
             // 終了直前に「現在表示しているメモ」の最終閲覧日時を最新に更新し、確実に記録する
@@ -533,11 +545,11 @@ namespace sumi
             RemoveTrayIcon();
             if (_hWnd != IntPtr.Zero)
             {
-                UnregisterHotKey(_hWnd, 1001);
-                UnregisterHotKey(_hWnd, 1002);
+                UnregisterHotKey(_hWnd, HOTKEY_ID_QUIT);
+                UnregisterHotKey(_hWnd, HOTKEY_ID_LAUNCH);
                 if (_subclassProc != null)
                 {
-                    RemoveWindowSubclass(_hWnd, _subclassProc, 1);
+                    RemoveWindowSubclass(_hWnd, _subclassProc, SUBCLASS_ID);
                 }
             }
         }
@@ -863,7 +875,7 @@ namespace sumi
                     }
                 }
             }
-            catch (Exception) { /* 安全対策 */ }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[PointerOver Check Error] {ex.Message}"); }
         }
 
         private void NoteSearchBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -1324,24 +1336,22 @@ namespace sumi
             _hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             
             _subclassProc = new SUBCLASSPROC(WindowSubclassProc);
-            SetWindowSubclass(_hWnd, _subclassProc, 1, IntPtr.Zero);
+            SetWindowSubclass(_hWnd, _subclassProc, SUBCLASS_ID, IntPtr.Zero);
 
             UpdateTrayIconAndHotKeys();
         }
 
         private void UpdateTrayIconAndHotKeys()
         {
-            UnregisterHotKey(_hWnd, 1001);
-            UnregisterHotKey(_hWnd, 1002);
-
+            UnregisterHotKey(_hWnd, HOTKEY_ID_QUIT);
+            UnregisterHotKey(_hWnd, HOTKEY_ID_LAUNCH);
             if (TryParseHotKey(MemoStorage.QuitHotKey, out uint quitMod, out uint quitVk))
             {
-                RegisterHotKey(_hWnd, 1001, quitMod, quitVk);
+                RegisterHotKey(_hWnd, HOTKEY_ID_QUIT, quitMod, quitVk);
             }
-
             if (TryParseHotKey(MemoStorage.LaunchHotKey, out uint launchMod, out uint launchVk))
             {
-                RegisterHotKey(_hWnd, 1002, launchMod, launchVk);
+                RegisterHotKey(_hWnd, HOTKEY_ID_LAUNCH, launchMod, launchVk);
             }
 
             bool needTray = !string.IsNullOrEmpty(MemoStorage.LaunchHotKey);
@@ -1360,7 +1370,7 @@ namespace sumi
             var nid = new NOTIFYICONDATA();
             nid.cbSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf<NOTIFYICONDATA>();
             nid.hWnd = _hWnd;
-            nid.uID = 1;
+            nid.uID = TRAY_ICON_ID;
             nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
             nid.uCallbackMessage = WM_TRAYICON;
 
@@ -1397,7 +1407,7 @@ namespace sumi
                 var nid = new NOTIFYICONDATA();
                 nid.cbSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf<NOTIFYICONDATA>();
                 nid.hWnd = _hWnd;
-                nid.uID = 1;
+                nid.uID = TRAY_ICON_ID;
                 Shell_NotifyIcon(NIM_DELETE, ref nid);
                 _isTrayIconAdded = false;
             }
@@ -1405,10 +1415,10 @@ namespace sumi
 
         private IntPtr WindowSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, IntPtr uIdSubclass, IntPtr dwRefData)
         {
-            if (uMsg == 0x0312) // WM_HOTKEY
+            if (uMsg == WM_HOTKEY) // WM_HOTKEY
             {
                 int id = wParam.ToInt32();
-                if (id == 1001) // Quit
+                if (id == HOTKEY_ID_QUIT) // Quit
                 {
                     // Launchのホットキーが指定されている場合はタスクトレイに常駐するため、
                     // Quitのホットキーを入力したとしても完全終了せず、右上のバツボタンと同じ動作（Hide）にする
@@ -1434,7 +1444,7 @@ namespace sumi
                     }
                     return IntPtr.Zero;
                 }
-                else if (id == 1002) // Launch
+                else if (id == HOTKEY_ID_LAUNCH) // Launch
                 {
                     ShowAndActivateWindow();
                     return IntPtr.Zero;
@@ -1443,11 +1453,11 @@ namespace sumi
             else if (uMsg == WM_TRAYICON)
             {
                 uint mouseMsg = (uint)lParam.ToInt32();
-                if (mouseMsg == 0x0202 /* WM_LBUTTONUP */ || mouseMsg == 0x0203 /* WM_LBUTTONDBLCLK */)
+                if (mouseMsg == WM_LBUTTONUP /* WM_LBUTTONUP */ || mouseMsg == WM_LBUTTONDBLCLK /* WM_LBUTTONDBLCLK */)
                 {
                     ShowAndActivateWindow();
                 }
-                else if (mouseMsg == 0x0205 /* WM_RBUTTONUP */)
+                else if (mouseMsg == WM_RBUTTONUP /* WM_RBUTTONUP */)
                 {
                     ShowTrayContextMenu();
                 }
@@ -1473,7 +1483,7 @@ namespace sumi
                     presenter.Restore();
                 }
             }
-            catch { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Window Restore Error] {ex.Message}"); }
 
             SetForegroundWindow(_hWnd);
 
