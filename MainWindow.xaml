@@ -541,6 +541,27 @@
                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
                 TextChanged="MemoTextBox_TextChanged"
                 PreviewKeyDown="MemoTextBox_PreviewKeyDown">
+                <RichEditBox.SelectionFlyout>
+                    <TextCommandBarFlyout>
+                        <AppBarButton Label="ハイライト" ToolTipService.ToolTip="ハイライト (Ctrl+H)" Click="FormatHighlight_Click">
+                            <AppBarButton.Icon>
+                                <FontIcon Glyph="&#xE7E6;" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                        
+                        <AppBarButton Label="取り消し線" ToolTipService.ToolTip="取り消し線 (Ctrl+T)" Click="FormatStrikethrough_Click">
+                            <AppBarButton.Icon>
+                                <FontIcon Glyph="&#xEDE0;" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+
+                        <AppBarButton Label="クリア" ToolTipService.ToolTip="装飾をクリア (Ctrl+Space)" Click="FormatClear_Click">
+                            <AppBarButton.Icon>
+                                <FontIcon Glyph="&#xE894;" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                    </TextCommandBarFlyout>
+                </RichEditBox.SelectionFlyout>
                 
                 <RichEditBox.Resources>
                     <!-- ホバーやフォーカスによる背景色変化と下部アクセント線を完全に無効化する軽量スタイル -->
