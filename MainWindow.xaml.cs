@@ -231,12 +231,22 @@ namespace sumi
 
         private void ApplyGlobalThemeToEditor()
         {
-            if (MemoTextBox == null || _isRestoring) return;
+            if (MemoTextBox == null) return;
 
             var doc = MemoTextBox.Document;
             doc.BatchDisplayUpdates(); // 描画を一時停止し、パフォーマンスを最大化
             try
             {
+                // デフォルトの文字フォーマットを設定 (空ドキュメントや新規テキスト入力用)
+                var defaultFormat = doc.GetDefaultCharacterFormat();
+                if (defaultFormat != null)
+                {
+                    defaultFormat.Name = MemoStorage.FontFamily;
+                    defaultFormat.Size = (float)MemoStorage.FontSize;
+                    defaultFormat.Weight = GetDefaultFontWeight();
+                    doc.SetDefaultCharacterFormat(defaultFormat);
+                }
+
                 // 全テキストを選択
                 var range = doc.GetRange(0, int.MaxValue);
 
@@ -728,6 +738,21 @@ namespace sumi
             return GetDefaultFontWeight() >= Microsoft.UI.Text.FontWeights.Bold.Weight 
                 ? Microsoft.UI.Text.FormatEffect.On 
                 : Microsoft.UI.Text.FormatEffect.Off;
+        }
+
+        private ushort GetBoldFontWeight()
+        {
+            var defaultWeight = GetDefaultFontWeight();
+            if (defaultWeight == Microsoft.UI.Text.FontWeights.Light.Weight)
+                return Microsoft.UI.Text.FontWeights.Normal.Weight;
+            if (defaultWeight == Microsoft.UI.Text.FontWeights.Normal.Weight)
+                return Microsoft.UI.Text.FontWeights.Medium.Weight;
+            if (defaultWeight == Microsoft.UI.Text.FontWeights.Medium.Weight)
+                return Microsoft.UI.Text.FontWeights.SemiBold.Weight;
+            if (defaultWeight == Microsoft.UI.Text.FontWeights.SemiBold.Weight)
+                return Microsoft.UI.Text.FontWeights.Bold.Weight;
+            
+            return Microsoft.UI.Text.FontWeights.Bold.Weight;
         }
 
         private void FontSizeDecreaseButton_Click(object sender, RoutedEventArgs e)
@@ -1410,7 +1435,7 @@ namespace sumi
             var format = range.CharacterFormat;
 
             // カーソル位置の書式に応じて ToggleButton の状態を同期
-            FormatBoldBtn.IsChecked = format.Bold == Microsoft.UI.Text.FormatEffect.On;
+            FormatBoldBtn.IsChecked = (format.Bold == Microsoft.UI.Text.FormatEffect.On || format.Weight >= GetBoldFontWeight());
             FormatItalicBtn.IsChecked = format.Italic == Microsoft.UI.Text.FormatEffect.On;
             FormatUnderlineBtn.IsChecked = format.Underline != Microsoft.UI.Text.UnderlineType.None;
             FormatStrikethroughBtn.IsChecked = format.Strikethrough == Microsoft.UI.Text.FormatEffect.On;
@@ -1424,8 +1449,8 @@ namespace sumi
             FormatNumberListBtn.IsChecked = (listType == Microsoft.UI.Text.MarkerType.Arabic);
 
             // 見出し状態の同期（基準サイズと太字で判定）
-            FormatHeading1Btn.IsChecked = (format.Size == 24 && (format.Bold == Microsoft.UI.Text.FormatEffect.On || format.Weight >= Microsoft.UI.Text.FontWeights.Bold.Weight));
-            FormatHeading2Btn.IsChecked = (format.Size == 18 && (format.Bold == Microsoft.UI.Text.FormatEffect.On || format.Weight >= Microsoft.UI.Text.FontWeights.Bold.Weight));
+            FormatHeading1Btn.IsChecked = (format.Size == 24 && (format.Bold == Microsoft.UI.Text.FormatEffect.On || format.Weight >= GetBoldFontWeight()));
+            FormatHeading2Btn.IsChecked = (format.Size == 18 && (format.Bold == Microsoft.UI.Text.FormatEffect.On || format.Weight >= GetBoldFontWeight()));
         }
 
         private void MemoTextBox_PreviewKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
@@ -1485,15 +1510,16 @@ namespace sumi
         private void FormatBold_Click(object sender, RoutedEventArgs e)
         {
             var format = MemoTextBox.Document.Selection.CharacterFormat;
-            if (format.Bold == Microsoft.UI.Text.FormatEffect.On)
+            bool isBold = format.Bold == Microsoft.UI.Text.FormatEffect.On || format.Weight >= GetBoldFontWeight();
+            if (isBold)
             {
                 format.Bold = Microsoft.UI.Text.FormatEffect.Off;
-                format.Weight = Microsoft.UI.Text.FontWeights.Normal.Weight;
+                format.Weight = GetDefaultFontWeight();
             }
             else
             {
                 format.Bold = Microsoft.UI.Text.FormatEffect.On;
-                format.Weight = Microsoft.UI.Text.FontWeights.Bold.Weight;
+                format.Weight = GetBoldFontWeight();
             }
             UpdateFormatButtonStates();
         }
@@ -1562,7 +1588,7 @@ namespace sumi
 
             selection.CharacterFormat.Size = isCurrentlyH1 ? (float)MemoStorage.FontSize : 24;
             selection.CharacterFormat.Bold = isCurrentlyH1 ? GetDefaultBoldEffect() : Microsoft.UI.Text.FormatEffect.On;
-            selection.CharacterFormat.Weight = isCurrentlyH1 ? GetDefaultFontWeight() : Microsoft.UI.Text.FontWeights.Bold.Weight;
+            selection.CharacterFormat.Weight = isCurrentlyH1 ? GetDefaultFontWeight() : GetBoldFontWeight();
             
             MemoTextBox.Focus(FocusState.Programmatic);
             UpdateFormatButtonStates();
@@ -1575,7 +1601,7 @@ namespace sumi
 
             selection.CharacterFormat.Size = isCurrentlyH2 ? (float)MemoStorage.FontSize : 18;
             selection.CharacterFormat.Bold = isCurrentlyH2 ? GetDefaultBoldEffect() : Microsoft.UI.Text.FormatEffect.On;
-            selection.CharacterFormat.Weight = isCurrentlyH2 ? GetDefaultFontWeight() : Microsoft.UI.Text.FontWeights.Bold.Weight;
+            selection.CharacterFormat.Weight = isCurrentlyH2 ? GetDefaultFontWeight() : GetBoldFontWeight();
             
             MemoTextBox.Focus(FocusState.Programmatic);
             UpdateFormatButtonStates();
