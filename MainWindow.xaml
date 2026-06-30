@@ -234,6 +234,26 @@
                                             </ComboBox>
                                         </Grid>
                                         
+                                        <!-- Paragraph Spacing -->
+                                        <Grid x:Name="ParagraphSpacingItem" Padding="6,6" CornerRadius="4" Background="Transparent"
+                                              PointerEntered="SettingItem_PointerEntered" PointerExited="SettingItem_PointerExited">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="&#xE8A5;" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="#cccccc" VerticalAlignment="Center" Margin="4,0,10,0" />
+                                            <TextBlock Grid.Column="1" Text="Paragraph Spacing" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                                            <ComboBox Grid.Column="2" x:Name="ParagraphSpacingComboBox" FontSize="12" Height="28" Padding="8,0,24,0" SelectionChanged="ParagraphSpacingComboBox_SelectionChanged" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4">
+                                                <x:String>0</x:String>
+                                                <x:String>4</x:String>
+                                                <x:String>8</x:String>
+                                                <x:String>12</x:String>
+                                                <x:String>16</x:String>
+                                                <x:String>24</x:String>
+                                            </ComboBox>
+                                        </Grid>
+                                        
                                         <!-- Opacity -->
                                         <Grid x:Name="OpacityItem" Padding="6,6" CornerRadius="4" Background="Transparent"
                                               PointerEntered="SettingItem_PointerEntered" PointerExited="SettingItem_PointerExited">
