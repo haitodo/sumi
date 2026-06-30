@@ -605,7 +605,7 @@ namespace sumi
             if (!foundLS)
             {
                 LineSpacingComboBox.SelectedItem = null;
-                LineSpacingComboBox.Text = currentLS.ToString("0.0");
+                LineSpacingComboBox.Text = currentLS.ToString("0.##");
             }
 
             // 段落スペース ComboBox の初期値設定
@@ -787,8 +787,8 @@ namespace sumi
             if (_isInitializing) return;
             if (double.TryParse(LineSpacingComboBox.Text, out double ls))
             {
-                // 負数や極端な値を防ぐバリデーション（例: 0.5 〜 4.0）
-                ls = Math.Clamp(ls, 0.5, 4.0);
+                // 0.8 〜 1.0 に制限
+                ls = Math.Clamp(ls, 0.8, 1.0);
                 if (Math.Abs(MemoStorage.LineSpacing - ls) > 0.01)
                 {
                     MemoStorage.LineSpacing = ls;
@@ -796,8 +796,8 @@ namespace sumi
                     QueueSaveSettings();
                 }
 
-                // UIの表示を入力・クランプ後の値に同期
-                string targetText = ls.ToString("0.0");
+                // 0.95などが丸められないよう "0.##" に変更
+                string targetText = ls.ToString("0.##");
                 bool found = false;
                 foreach (var item in LineSpacingComboBox.Items)
                 {
@@ -842,7 +842,7 @@ namespace sumi
             if (!found)
             {
                 LineSpacingComboBox.SelectedItem = null;
-                LineSpacingComboBox.Text = MemoStorage.LineSpacing.ToString("0.0");
+                LineSpacingComboBox.Text = MemoStorage.LineSpacing.ToString("0.##");
             }
         }
 
@@ -862,8 +862,8 @@ namespace sumi
             if (_isInitializing) return;
             if (double.TryParse(ParagraphSpacingComboBox.Text, out double ps))
             {
-                // 負数を防ぐバリデーション（例: 0 〜 100ピクセル）
-                ps = Math.Clamp(ps, 0.0, 100.0);
+                // 0 〜 12 に制限
+                ps = Math.Clamp(ps, 0.0, 12.0);
                 if (Math.Abs(MemoStorage.ParagraphSpacing - ps) > 0.1)
                 {
                     MemoStorage.ParagraphSpacing = ps;
