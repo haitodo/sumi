@@ -12,7 +12,7 @@ namespace sumi
     /// <summary>
     /// メモの入力 UI と、ウィンドウのアクティベーション・ライフサイクル制御を行うメインウィンドウクラスです。
     /// </summary>
-    public sealed partial class MainWindow : Window
+    public sealed partial class MainWindow : Window, IDisposable
     {
         private readonly SaveScheduler _scheduler;
         private readonly AppWindow _appWindow;
@@ -495,34 +495,10 @@ namespace sumi
             if (_isShutdownCalled) return;
             _isShutdownCalled = true;
 
-            _scheduler.Cancel();
-            _scheduler.Dispose();
-
-            // デバウンスタイマーとイベント解除
-            _windowPlacementTimer.Stop();
-            _windowPlacementTimer.Tick -= WindowPlacementTimer_Tick;
-
-            _settingsSaveTimer.Stop();
-            _settingsSaveTimer.Tick -= SettingsSaveTimer_Tick;
-
-            // ハイライトタイマーのクリーンアップ
-            _highlightTimer.Stop();
-            _highlightTimer.Tick -= HighlightTimer_Tick;
-
-            // TextBox イベントの明示的な解除
-            MemoTextBox.Loaded -= MemoTextBox_Loaded;
-            MemoTextBox.Unloaded -= MemoTextBox_Unloaded;
-            if (_memoScrollViewer != null)
-            {
-                _memoScrollViewer.PointerWheelChanged -= ScrollViewer_PointerWheelChanged;
-                _memoScrollViewer = null;
-            }
-
             // 1. 未保存データを終了直前に同期的に安全にディスク永続化
             if (_isDirty)
             {
-                // 修正: 破棄プロセス中のUIコントロール(MemoText)から直接取得するのではなく、
-                // リアルタイムに同期されている安全なインメモリキャッシュから取得して保存する
+                // ★修正: 破棄プロセス中のUIからではなく、安全なインメモリキャッシュから取得
                 string safeText = MemoStorage.LoadMemoText();
                 MemoStorage.SaveMemoTextAtomicSync(safeText);
             }
@@ -541,17 +517,8 @@ namespace sumi
             var size = _appWindow.Size;
             MemoStorage.SaveWindowPlacementAtomic(pos.X, pos.Y, size.Width, size.Height);
 
-            // 3. トレイアイコン、ホットキー、サブクラスの解除
-            RemoveTrayIcon();
-            if (_hWnd != IntPtr.Zero)
-            {
-                UnregisterHotKey(_hWnd, HOTKEY_ID_QUIT);
-                UnregisterHotKey(_hWnd, HOTKEY_ID_LAUNCH);
-                if (_subclassProc != null)
-                {
-                    RemoveWindowSubclass(_hWnd, _subclassProc, SUBCLASS_ID);
-                }
-            }
+            // 3. 全てのリソース解放（タイマー・イベント・Win32APIフック）を実行
+            Dispose();
         }
 
         private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush SettingItemHoverBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 0x2d, 0x2d, 0x2d));
@@ -1723,6 +1690,77 @@ namespace sumi
             MemoStorage.SaveSettings();
             QuitHotKeyButton.Content = val;
             QuitHotKeyFlyout.Hide();
+        }
+
+        #endregion
+
+        #region IDisposable Implementation
+
+        private bool _disposedValue;
+
+        private void Dispose(bool disposing)
+        {
+            if (!_disposedValue)
+            {
+                if (disposing)
+                {
+                    // マネージドリソースの解放
+                    _scheduler?.Cancel();
+                    _scheduler?.Dispose();
+
+                    if (_windowPlacementTimer != null)
+                    {
+                        _windowPlacementTimer.Stop();
+                        _windowPlacementTimer.Tick -= WindowPlacementTimer_Tick;
+                    }
+
+                    if (_settingsSaveTimer != null)
+                    {
+                        _settingsSaveTimer.Stop();
+                        _settingsSaveTimer.Tick -= SettingsSaveTimer_Tick;
+                    }
+
+                    if (_highlightTimer != null)
+                    {
+                        _highlightTimer.Stop();
+                        _highlightTimer.Tick -= HighlightTimer_Tick;
+                    }
+
+                    if (_memoScrollViewer != null)
+                    {
+                        _memoScrollViewer.PointerWheelChanged -= ScrollViewer_PointerWheelChanged;
+                        _memoScrollViewer = null;
+                    }
+
+                    if (MemoTextBox != null)
+                    {
+                        MemoTextBox.Loaded -= MemoTextBox_Loaded;
+                        MemoTextBox.Unloaded -= MemoTextBox_Unloaded;
+                    }
+                }
+
+                // アンマネージドリソース（トレイアイコン、ホットキー、サブクラスなど）の解放
+                RemoveTrayIcon();
+                if (_hWnd != IntPtr.Zero)
+                {
+                    UnregisterHotKey(_hWnd, 1001); // 元のコード通りマジックナンバーを使用
+                    UnregisterHotKey(_hWnd, 1002);
+                    if (_subclassProc != null)
+                    {
+                        RemoveWindowSubclass(_hWnd, _subclassProc, 1);
+                        _subclassProc = null;
+                    }
+                    _hWnd = IntPtr.Zero;
+                }
+
+                _disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
 
         #endregion
