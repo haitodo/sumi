@@ -618,7 +618,7 @@
                 Foreground="#666666"
                 TextTrimming="CharacterEllipsis" />
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0" Spacing="4">
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0" Spacing="2">
                 
                 <ToggleButton x:Name="FormatBoldBtn" Content="&#xE19B;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="太字 (Ctrl+B)" Click="FormatBold_Click" />
                 <ToggleButton x:Name="FormatItalicBtn" Content="&#xE199;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="斜体 (Ctrl+I)" Click="FormatItalic_Click" />
@@ -626,6 +626,14 @@
                 <ToggleButton x:Name="FormatStrikethroughBtn" Content="&#xEDE0;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="取り消し線 (Ctrl+T)" Click="FormatStrikethrough_Click" />
                 <ToggleButton x:Name="FormatHighlightBtn" Content="&#xE7E6;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="ハイライト (Ctrl+H)" Click="FormatHighlight_Click" />
                 
+                <ToggleButton x:Name="FormatBulletListBtn" Content="&#xE8FD;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="箇条書き (Ctrl+Shift+L)" Click="FormatBulletList_Click" />
+                <ToggleButton x:Name="FormatNumberListBtn" Content="&#xE8EA;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="番号付きリスト (Ctrl+Shift+N)" Click="FormatNumberList_Click" />
+
+                <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
+
+                <ToggleButton x:Name="FormatHeading1Btn" Content="H1" Style="{StaticResource IconToggleButtonStyle}" FontFamily="Georgia" FontSize="13" FontWeight="Bold" AllowFocusOnInteraction="False" ToolTipService.ToolTip="見出し 1 (Ctrl+1)" Click="FormatHeading1_Click" />
+                <ToggleButton x:Name="FormatHeading2Btn" Content="H2" Style="{StaticResource IconToggleButtonStyle}" FontFamily="Georgia" FontSize="12" FontWeight="Bold" AllowFocusOnInteraction="False" ToolTipService.ToolTip="見出し 2 (Ctrl+2)" Click="FormatHeading2_Click" />
+
                 <Button Content="&#xE894;" Style="{StaticResource IconButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="装飾をクリア (Ctrl+Space)" Click="FormatClear_Click" />
                 
                 <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
