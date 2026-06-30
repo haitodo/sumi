@@ -1200,6 +1200,7 @@ namespace sumi
 
                 TitleTextBlock.Text = note.Title;
                 UpdateCharCount(note.CharCount);
+                UpdateFormatButtonStates();
 
                 if (PlaceholderTextBlock != null)
                 {
@@ -1354,6 +1355,7 @@ namespace sumi
 
             TitleTextBlock.Text = newNote.Title;
             UpdateCharCount(0);
+            UpdateFormatButtonStates();
 
             if (PlaceholderTextBlock != null)
             {
@@ -1372,6 +1374,36 @@ namespace sumi
         }
 
         #region テキスト装飾 (Formatting)
+
+        private void MemoTextBox_SelectionChanged(object sender, RoutedEventArgs e)
+        {
+            if (_isRestoring || _isInitializing) return;
+            UpdateFormatButtonStates();
+        }
+
+        private void UpdateFormatButtonStates()
+        {
+            if (MemoTextBox == null || FormatBoldBtn == null || FormatItalicBtn == null ||
+                FormatUnderlineBtn == null || FormatStrikethroughBtn == null || FormatHighlightBtn == null)
+            {
+                return;
+            }
+
+            // 「文字選択は加味しない」要件を満たすため、選択範囲全体ではなく
+            // カーソルの開始位置（キャレット位置）ピンポイントの書式を取得する
+            int cursorPos = MemoTextBox.Document.Selection.StartPosition;
+            var range = MemoTextBox.Document.GetRange(cursorPos, cursorPos);
+            var format = range.CharacterFormat;
+
+            // カーソル位置の書式に応じて ToggleButton の状態を同期
+            FormatBoldBtn.IsChecked = format.Bold == Microsoft.UI.Text.FormatEffect.On;
+            FormatItalicBtn.IsChecked = format.Italic == Microsoft.UI.Text.FormatEffect.On;
+            FormatUnderlineBtn.IsChecked = format.Underline != Microsoft.UI.Text.UnderlineType.None;
+            FormatStrikethroughBtn.IsChecked = format.Strikethrough == Microsoft.UI.Text.FormatEffect.On;
+            
+            var highlightColor = Microsoft.UI.ColorHelper.FromArgb(255, 120, 100, 0);
+            FormatHighlightBtn.IsChecked = format.BackgroundColor == highlightColor;
+        }
 
         private void MemoTextBox_PreviewKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
@@ -1403,18 +1435,21 @@ namespace sumi
         {
             var format = MemoTextBox.Document.Selection.CharacterFormat;
             format.Bold = format.Bold == Microsoft.UI.Text.FormatEffect.On ? Microsoft.UI.Text.FormatEffect.Off : Microsoft.UI.Text.FormatEffect.On;
+            UpdateFormatButtonStates();
         }
 
         private void FormatItalic_Click(object sender, RoutedEventArgs e)
         {
             var format = MemoTextBox.Document.Selection.CharacterFormat;
             format.Italic = format.Italic == Microsoft.UI.Text.FormatEffect.On ? Microsoft.UI.Text.FormatEffect.Off : Microsoft.UI.Text.FormatEffect.On;
+            UpdateFormatButtonStates();
         }
 
         private void FormatUnderline_Click(object sender, RoutedEventArgs e)
         {
             var format = MemoTextBox.Document.Selection.CharacterFormat;
             format.Underline = format.Underline == Microsoft.UI.Text.UnderlineType.None ? Microsoft.UI.Text.UnderlineType.Single : Microsoft.UI.Text.UnderlineType.None;
+            UpdateFormatButtonStates();
         }
 
         private void FormatStrikethrough_Click(object sender, RoutedEventArgs e)
@@ -1448,12 +1483,14 @@ namespace sumi
             {
                 format.BackgroundColor = highlightColor; // ハイライトを適用
             }
+            UpdateFormatButtonStates();
         }
 
         private void ToggleStrikethrough()
         {
             var format = MemoTextBox.Document.Selection.CharacterFormat;
             format.Strikethrough = format.Strikethrough == Microsoft.UI.Text.FormatEffect.On ? Microsoft.UI.Text.FormatEffect.Off : Microsoft.UI.Text.FormatEffect.On;
+            UpdateFormatButtonStates();
         }
 
         private void ClearFormatting()
@@ -1464,6 +1501,7 @@ namespace sumi
             format.Underline = Microsoft.UI.Text.UnderlineType.None;
             format.Strikethrough = Microsoft.UI.Text.FormatEffect.Off;
             format.BackgroundColor = Microsoft.UI.Colors.Transparent;
+            UpdateFormatButtonStates();
         }
 
         #endregion
@@ -1529,6 +1567,7 @@ namespace sumi
                     {
                         MemoTextBox.Focus(FocusState.Programmatic);
                         MemoTextBox.Document.Selection.SetRange(int.MaxValue, int.MaxValue);
+                        UpdateFormatButtonStates();
                     });
             }
         }
