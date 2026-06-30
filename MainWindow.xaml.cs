@@ -1371,6 +1371,103 @@ namespace sumi
             MemoTextBox.TextWrapping = MemoTextBox.TextWrapping == TextWrapping.Wrap ? TextWrapping.NoWrap : TextWrapping.Wrap;
         }
 
+        #region テキスト装飾 (Formatting)
+
+        private void MemoTextBox_PreviewKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
+            bool isCtrlDown = (ctrlState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+
+            // RichEditBox は Ctrl+B/I/U を標準で処理するため、追加分のみハンドルします
+            if (isCtrlDown)
+            {
+                switch (e.Key)
+                {
+                    case Windows.System.VirtualKey.H: // Ctrl + H でハイライト
+                        ToggleHighlight();
+                        e.Handled = true;
+                        break;
+                    case Windows.System.VirtualKey.T: // Ctrl + T で取り消し線
+                        ToggleStrikethrough();
+                        e.Handled = true;
+                        break;
+                    case Windows.System.VirtualKey.Space: // Ctrl + Space で装飾クリア
+                        ClearFormatting();
+                        e.Handled = true;
+                        break;
+                }
+            }
+        }
+
+        private void FormatBold_Click(object sender, RoutedEventArgs e)
+        {
+            var format = MemoTextBox.Document.Selection.CharacterFormat;
+            format.Bold = format.Bold == Microsoft.UI.Text.FormatEffect.On ? Microsoft.UI.Text.FormatEffect.Off : Microsoft.UI.Text.FormatEffect.On;
+        }
+
+        private void FormatItalic_Click(object sender, RoutedEventArgs e)
+        {
+            var format = MemoTextBox.Document.Selection.CharacterFormat;
+            format.Italic = format.Italic == Microsoft.UI.Text.FormatEffect.On ? Microsoft.UI.Text.FormatEffect.Off : Microsoft.UI.Text.FormatEffect.On;
+        }
+
+        private void FormatUnderline_Click(object sender, RoutedEventArgs e)
+        {
+            var format = MemoTextBox.Document.Selection.CharacterFormat;
+            format.Underline = format.Underline == Microsoft.UI.Text.UnderlineType.None ? Microsoft.UI.Text.UnderlineType.Single : Microsoft.UI.Text.UnderlineType.None;
+        }
+
+        private void FormatStrikethrough_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleStrikethrough();
+        }
+
+        private void FormatHighlight_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleHighlight();
+        }
+
+        private void FormatClear_Click(object sender, RoutedEventArgs e)
+        {
+            ClearFormatting();
+        }
+
+        private void ToggleHighlight()
+        {
+            var format = MemoTextBox.Document.Selection.CharacterFormat;
+            
+            // ダークテーマに合う控えめな黄色のハイライト色を設定
+            var highlightColor = Microsoft.UI.ColorHelper.FromArgb(255, 120, 100, 0);
+            var transparentColor = Microsoft.UI.Colors.Transparent;
+
+            if (format.BackgroundColor == highlightColor)
+            {
+                format.BackgroundColor = transparentColor; // すでにハイライトされていれば解除
+            }
+            else
+            {
+                format.BackgroundColor = highlightColor; // ハイライトを適用
+            }
+        }
+
+        private void ToggleStrikethrough()
+        {
+            var format = MemoTextBox.Document.Selection.CharacterFormat;
+            format.Strikethrough = format.Strikethrough == Microsoft.UI.Text.FormatEffect.On ? Microsoft.UI.Text.FormatEffect.Off : Microsoft.UI.Text.FormatEffect.On;
+        }
+
+        private void ClearFormatting()
+        {
+            var format = MemoTextBox.Document.Selection.CharacterFormat;
+            format.Bold = Microsoft.UI.Text.FormatEffect.Off;
+            format.Italic = Microsoft.UI.Text.FormatEffect.Off;
+            format.Underline = Microsoft.UI.Text.UnderlineType.None;
+            format.Strikethrough = Microsoft.UI.Text.FormatEffect.Off;
+            format.BackgroundColor = Microsoft.UI.Colors.Transparent;
+        }
+
+        #endregion
+
         private void MemoTextBox_Loaded(object sender, RoutedEventArgs e)
         {
             if (_memoScrollViewer != null)

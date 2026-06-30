@@ -539,7 +539,8 @@
                 IsTextPredictionEnabled="False"
                 ScrollViewer.VerticalScrollBarVisibility="Auto"
                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                TextChanged="MemoTextBox_TextChanged">
+                TextChanged="MemoTextBox_TextChanged"
+                PreviewKeyDown="MemoTextBox_PreviewKeyDown">
                 
                 <RichEditBox.Resources>
                     <!-- ホバーやフォーカスによる背景色変化と下部アクセント線を完全に無効化する軽量スタイル -->
@@ -578,19 +579,38 @@
                 FontSize="11.5"
                 Foreground="#666666" />
 
-            <!-- テキスト切り替え用 'T' ボタン (Georgiaフォントでセリフ風に表現) -->
-            <Button 
-                x:Name="WordWrapButton"
-                Content="T"
-                Style="{StaticResource IconButtonStyle}"
-                FontFamily="Georgia"
-                FontSize="16"
-                FontWeight="Normal"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Center"
-                Margin="0,0,12,0"
-                ToolTipService.ToolTip="右端折り返し切り替え"
-                Click="WordWrapButton_Click" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0" Spacing="4">
+                
+                <Button 
+                    x:Name="FormatMenuButton"
+                    Content="&#xE7E6;"
+                    Style="{StaticResource IconButtonStyle}"
+                    AllowFocusOnInteraction="False"
+                    ToolTipService.ToolTip="テキスト装飾">
+                    <Button.Flyout>
+                        <MenuFlyout>
+                            <MenuFlyoutItem Text="太字 (Ctrl+B)" Click="FormatBold_Click" />
+                            <MenuFlyoutItem Text="斜体 (Ctrl+I)" Click="FormatItalic_Click" />
+                            <MenuFlyoutItem Text="下線 (Ctrl+U)" Click="FormatUnderline_Click" />
+                            <MenuFlyoutItem Text="取り消し線 (Ctrl+T)" Click="FormatStrikethrough_Click" />
+                            <MenuFlyoutSeparator />
+                            <MenuFlyoutItem Text="ハイライト (Ctrl+H)" Click="FormatHighlight_Click" />
+                            <MenuFlyoutSeparator />
+                            <MenuFlyoutItem Text="装飾をクリア (Ctrl+Space)" Click="FormatClear_Click" />
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+
+                <Button 
+                    x:Name="WordWrapButton"
+                    Content="T"
+                    Style="{StaticResource IconButtonStyle}"
+                    FontFamily="Georgia"
+                    FontSize="16"
+                    FontWeight="Normal"
+                    ToolTipService.ToolTip="右端折り返し切り替え"
+                    Click="WordWrapButton_Click" />
+            </StackPanel>
         </Grid>
     </Grid>
 </Window>
