@@ -26,11 +26,11 @@ namespace sumi
     /// </summary>
     public static class MemoStorage
     {
-        private static readonly string FolderPath;
+        public static readonly string FolderPath;
         private static readonly string FilePath; // 互換性・移行用
         private static readonly string WindowDatPath;
         private static readonly string WindowDatTempPath;
-        private static readonly string NotesFolderPath;
+        public static readonly string NotesFolderPath;
         private static readonly string NotesDatPath;
         private static readonly string NotesDatTempPath;
         private static readonly string SettingsPath;
@@ -46,6 +46,7 @@ namespace sumi
         public static string FontFamily { get; set; } = "Noto Sans JP";
         public static double FontSize { get; set; } = 14.0;
         public static double LineSpacing { get; set; } = 1.0;
+        public static double ParagraphSpacing { get; set; } = 12.0; // 段落間の余白（pt単位）
         public static double Opacity { get; set; } = 20.0; // 0 to 100
         public static string FontWeight { get; set; } = "Medium";
         public static string QuitHotKey { get; set; } = "Alt+Q";
@@ -146,7 +147,7 @@ namespace sumi
                         }
 
                         // 物理ファイル保存
-                        SaveNoteTextSync(id, content);
+                        SaveNoteTextSync(id, content, content);
                         SaveMetadata();
 
                         // memo.txt をバックアップに退避
@@ -238,16 +239,35 @@ namespace sumi
                         }
 
                         // カレントのメモだけ同期でロード（起動時の表示遅延を防ぐ）
-                        string currentNoteFile = Path.Combine(NotesFolderPath, $"note_{latest.Id}.txt");
-                        if (File.Exists(currentNoteFile))
+                        string rtfFile = Path.Combine(NotesFolderPath, $"note_{latest.Id}.rtf");
+                        string txtFile = Path.Combine(NotesFolderPath, $"note_{latest.Id}.txt");
+                        string content = string.Empty;
+
+                        if (File.Exists(rtfFile))
                         {
-                            string content = File.ReadAllText(currentNoteFile, Utf8NoBom);
-                            lock (Notes)
+                            string rtfData = File.ReadAllText(rtfFile, Utf8NoBom);
+                            content = RtfToPlainTextConverter.ConvertRtfToPlainText(rtfData);
+                        }
+                        else if (File.Exists(txtFile))
+                        {
+                            // 旧形式 (.txt) のメモがある場合は読み出し、.rtf へ自動移行する
+                            content = File.ReadAllText(txtFile, Utf8NoBom);
+                            try
                             {
-                                latest.Content = content;
-                                latest.Title = GetTitleFromContent(content);
-                                latest.CharCount = content.Length;
+                                File.WriteAllText(rtfFile, content, Utf8NoBom);
+                                File.Delete(txtFile);
                             }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"[Migration Error] {ex.Message}");
+                            }
+                        }
+
+                        lock (Notes)
+                        {
+                            latest.Content = content;
+                            latest.Title = GetTitleFromContent(content);
+                            latest.CharCount = content.Length;
                         }
 
                         // 残りのメモはバックグラウンドで非同期にロードする
@@ -287,10 +307,31 @@ namespace sumi
                 {
                     if (note.Id == currentId) continue;
 
-                    string noteFile = Path.Combine(NotesFolderPath, $"note_{note.Id}.txt");
-                    if (File.Exists(noteFile))
+                    string rtfFile = Path.Combine(NotesFolderPath, $"note_{note.Id}.rtf");
+                    string txtFile = Path.Combine(NotesFolderPath, $"note_{note.Id}.txt");
+                    string content = string.Empty;
+
+                    if (File.Exists(rtfFile))
                     {
-                        string content = File.ReadAllText(noteFile, Utf8NoBom);
+                        string rtfData = File.ReadAllText(rtfFile, Utf8NoBom);
+                        content = RtfToPlainTextConverter.ConvertRtfToPlainText(rtfData);
+                    }
+                    else if (File.Exists(txtFile))
+                    {
+                        content = File.ReadAllText(txtFile, Utf8NoBom);
+                        try
+                        {
+                            File.WriteAllText(rtfFile, content, Utf8NoBom);
+                            File.Delete(txtFile);
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[Background Migration Error] {ex.Message}");
+                        }
+                    }
+
+                    if (!string.IsNullOrEmpty(content))
+                    {
                         lock (Notes)
                         {
                             // 既に読み込み済みの場合はスキップ
@@ -340,27 +381,9 @@ namespace sumi
         }
 
         /// <summary>
-        /// 現在のアクティブなメモテキストをアトミックに非同期保存します。
-        /// </summary>
-        public static async Task<bool> SaveMemoTextAtomicAsync(string text)
-        {
-            if (string.IsNullOrEmpty(CurrentNoteId)) return false;
-            return await SaveNoteTextAtomicAsync(CurrentNoteId, text);
-        }
-
-        /// <summary>
-        /// 現在のアクティブなメモテキストをアトミックに同期保存します。
-        /// </summary>
-        public static bool SaveMemoTextAtomicSync(string text)
-        {
-            if (string.IsNullOrEmpty(CurrentNoteId)) return false;
-            return SaveNoteTextSync(CurrentNoteId, text);
-        }
-
-        /// <summary>
         /// 指定されたメモを非同期かつアトミックに保存します。
         /// </summary>
-        public static async Task<bool> SaveNoteTextAtomicAsync(string id, string text)
+        public static async Task<bool> SaveNoteTextAtomicAsync(string id, string plainText, string rtfText)
         {
             try
             {
@@ -369,19 +392,19 @@ namespace sumi
                     var note = Notes.Find(n => n.Id == id);
                     if (note != null)
                     {
-                        note.Content = text;
-                        note.Title = GetTitleFromContent(text);
-                        note.CharCount = text.Length;
+                        note.Content = plainText;
+                        note.Title = GetTitleFromContent(plainText);
+                        note.CharCount = plainText.Length;
                     }
                 }
 
-                string noteFile = Path.Combine(NotesFolderPath, $"note_{id}.txt");
+                string noteFile = Path.Combine(NotesFolderPath, $"note_{id}.rtf");
                 string tempFile = Path.Combine(NotesFolderPath, $"note_{id}.tmp");
 
                 using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true))
                 using (var writer = new StreamWriter(fs, Utf8NoBom))
                 {
-                    await writer.WriteAsync(text);
+                    await writer.WriteAsync(rtfText);
                     await writer.FlushAsync();
                     fs.Flush(true); // 物理フラッシュ
                 }
@@ -411,7 +434,7 @@ namespace sumi
         /// <summary>
         /// 指定されたメモを同期かつアトミックに保存します（終了時用）。
         /// </summary>
-        public static bool SaveNoteTextSync(string id, string text)
+        public static bool SaveNoteTextSync(string id, string plainText, string rtfText)
         {
             try
             {
@@ -420,19 +443,19 @@ namespace sumi
                     var note = Notes.Find(n => n.Id == id);
                     if (note != null)
                     {
-                        note.Content = text;
-                        note.Title = GetTitleFromContent(text);
-                        note.CharCount = text.Length;
+                        note.Content = plainText;
+                        note.Title = GetTitleFromContent(plainText);
+                        note.CharCount = plainText.Length;
                     }
                 }
 
-                string noteFile = Path.Combine(NotesFolderPath, $"note_{id}.txt");
+                string noteFile = Path.Combine(NotesFolderPath, $"note_{id}.rtf");
                 string tempFile = Path.Combine(NotesFolderPath, $"note_{id}.tmp");
 
                 using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: false))
                 using (var writer = new StreamWriter(fs, Utf8NoBom))
                 {
-                    writer.Write(text);
+                    writer.Write(rtfText);
                     writer.Flush();
                     fs.Flush(true);
                 }
@@ -525,7 +548,7 @@ namespace sumi
             }
 
             // 物理保存
-            SaveNoteTextSync(id, string.Empty);
+            SaveNoteTextSync(id, string.Empty, string.Empty);
             SaveMetadata();
 
             return note;
@@ -549,7 +572,7 @@ namespace sumi
 
             if (removed)
             {
-                string noteFile = Path.Combine(NotesFolderPath, $"note_{id}.txt");
+                string noteFile = Path.Combine(NotesFolderPath, $"note_{id}.rtf");
                 string tempFile = Path.Combine(NotesFolderPath, $"note_{id}.tmp");
 
                 try
@@ -737,6 +760,9 @@ namespace sumi
                                 case "LineSpacing":
                                     if (double.TryParse(val, out double ls)) LineSpacing = Math.Max(1.0, ls);
                                     break;
+                                case "ParagraphSpacing":
+                                    if (double.TryParse(val, out double ps)) ParagraphSpacing = ps;
+                                    break;
                                 case "Opacity":
                                     if (double.TryParse(val, out double op)) Opacity = op;
                                     break;
@@ -779,6 +805,7 @@ namespace sumi
                 sb.AppendLine($"FontWeight={FontWeight}");
                 sb.AppendLine($"FontSize={FontSize}");
                 sb.AppendLine($"LineSpacing={LineSpacing}");
+                sb.AppendLine($"ParagraphSpacing={ParagraphSpacing}");
                 sb.AppendLine($"Opacity={Opacity}");
                 sb.AppendLine($"QuitHotKey={QuitHotKey}");
                 sb.AppendLine($"LaunchHotKey={LaunchHotKey}");
