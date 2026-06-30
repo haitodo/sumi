@@ -229,9 +229,6 @@ namespace sumi
             }
         }
 
-        /// <summary>
-        /// 太字などの文字装飾を維持したまま、フォント、行間、段落間余白などのグローバル設定をテキスト全体に強制適用します。
-        /// </summary>
         private void ApplyGlobalThemeToEditor()
         {
             if (MemoTextBox == null || _isRestoring) return;
@@ -247,8 +244,22 @@ namespace sumi
                 range.CharacterFormat.Name = MemoStorage.FontFamily;
                 range.CharacterFormat.Size = (float)MemoStorage.FontSize;
 
-                // 2. 行間 (Shift+Enter時) と段落間余白 (Enter時) の上書き
-                range.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Multiple, (float)MemoStorage.LineSpacing);
+                // 2. 行間 (Line Spacing) の動的制御
+                float lineSpacing = (float)MemoStorage.LineSpacing;
+                if (lineSpacing < 1.0f)
+                {
+                    // 1.0未満は Multiple（倍数）が WinUI 仕様上無視されるため、Exactly（固定値）で上書き
+                    // 標準的な行高さを「フォントサイズ × 1.25」のSingle相当ラインとして定義し、そこへ入力倍率を乗算
+                    float exactLineHeight = (float)(MemoStorage.FontSize * 1.25f * lineSpacing);
+                    range.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Exactly, exactLineHeight);
+                }
+                else
+                {
+                    // 1.0以上の場合は現行通り Multiple（倍数指定）を適用
+                    range.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Multiple, lineSpacing);
+                }
+
+                // 3. 段落間余白 (Paragraph Spacing) の上書き
                 range.ParagraphFormat.SpaceAfter = (float)MemoStorage.ParagraphSpacing;
             }
             finally
@@ -579,24 +590,40 @@ namespace sumi
             FontSizeSlider.Value = MemoStorage.FontSize;
             FontSizeValueText.Text = MemoStorage.FontSize.ToString("0.0");
 
-            string spacingStr = MemoStorage.LineSpacing.ToString("0.0");
+            // 行間 ComboBox の初期値設定
+            double currentLS = MemoStorage.LineSpacing;
+            bool foundLS = false;
             foreach (var item in LineSpacingComboBox.Items)
             {
-                if (item is string s && s == spacingStr)
+                if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - currentLS) < 0.01)
                 {
                     LineSpacingComboBox.SelectedItem = item;
+                    foundLS = true;
                     break;
                 }
             }
+            if (!foundLS)
+            {
+                LineSpacingComboBox.SelectedItem = null;
+                LineSpacingComboBox.Text = currentLS.ToString("0.0");
+            }
 
-            string pSpacingStr = ((int)MemoStorage.ParagraphSpacing).ToString();
+            // 段落スペース ComboBox の初期値設定
+            double currentPS = MemoStorage.ParagraphSpacing;
+            bool foundPS = false;
             foreach (var item in ParagraphSpacingComboBox.Items)
             {
-                if (item is string s && s == pSpacingStr)
+                if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - currentPS) < 0.1)
                 {
                     ParagraphSpacingComboBox.SelectedItem = item;
+                    foundPS = true;
                     break;
                 }
+            }
+            if (!foundPS)
+            {
+                ParagraphSpacingComboBox.SelectedItem = null;
+                ParagraphSpacingComboBox.Text = ((int)currentPS).ToString();
             }
 
             OpacitySlider.Value = MemoStorage.Opacity;
@@ -755,6 +782,70 @@ namespace sumi
             }
         }
 
+        private void LineSpacingComboBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+            if (double.TryParse(LineSpacingComboBox.Text, out double ls))
+            {
+                // 負数や極端な値を防ぐバリデーション（例: 0.5 〜 4.0）
+                ls = Math.Clamp(ls, 0.5, 4.0);
+                if (Math.Abs(MemoStorage.LineSpacing - ls) > 0.01)
+                {
+                    MemoStorage.LineSpacing = ls;
+                    ApplyGlobalThemeToEditor();
+                    QueueSaveSettings();
+                }
+
+                // UIの表示を入力・クランプ後の値に同期
+                string targetText = ls.ToString("0.0");
+                bool found = false;
+                foreach (var item in LineSpacingComboBox.Items)
+                {
+                    if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - ls) < 0.01)
+                    {
+                        if (LineSpacingComboBox.SelectedItem != item)
+                        {
+                            LineSpacingComboBox.SelectedItem = item;
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    LineSpacingComboBox.SelectedItem = null;
+                    if (LineSpacingComboBox.Text != targetText)
+                    {
+                        LineSpacingComboBox.Text = targetText;
+                    }
+                }
+            }
+            else
+            {
+                // 不正入力時は直前の有効な値に復元
+                RestoreLineSpacingComboBoxSelection();
+            }
+        }
+
+        private void RestoreLineSpacingComboBoxSelection()
+        {
+            bool found = false;
+            foreach (var item in LineSpacingComboBox.Items)
+            {
+                if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - MemoStorage.LineSpacing) < 0.01)
+                {
+                    LineSpacingComboBox.SelectedItem = item;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+            {
+                LineSpacingComboBox.SelectedItem = null;
+                LineSpacingComboBox.Text = MemoStorage.LineSpacing.ToString("0.0");
+            }
+        }
+
         private void ParagraphSpacingComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_isInitializing) return;
@@ -763,6 +854,70 @@ namespace sumi
                 MemoStorage.ParagraphSpacing = ps;
                 ApplyGlobalThemeToEditor();
                 QueueSaveSettings();
+            }
+        }
+
+        private void ParagraphSpacingComboBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+            if (double.TryParse(ParagraphSpacingComboBox.Text, out double ps))
+            {
+                // 負数を防ぐバリデーション（例: 0 〜 100ピクセル）
+                ps = Math.Clamp(ps, 0.0, 100.0);
+                if (Math.Abs(MemoStorage.ParagraphSpacing - ps) > 0.1)
+                {
+                    MemoStorage.ParagraphSpacing = ps;
+                    ApplyGlobalThemeToEditor();
+                    QueueSaveSettings();
+                }
+
+                // UIの表示を入力・クランプ後の値に同期
+                string targetText = ((int)ps).ToString();
+                bool found = false;
+                foreach (var item in ParagraphSpacingComboBox.Items)
+                {
+                    if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - ps) < 0.1)
+                    {
+                        if (ParagraphSpacingComboBox.SelectedItem != item)
+                        {
+                            ParagraphSpacingComboBox.SelectedItem = item;
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    ParagraphSpacingComboBox.SelectedItem = null;
+                    if (ParagraphSpacingComboBox.Text != targetText)
+                    {
+                        ParagraphSpacingComboBox.Text = targetText;
+                    }
+                }
+            }
+            else
+            {
+                // 不正入力時は直前の有効な値に復元
+                RestoreParagraphSpacingComboBoxSelection();
+            }
+        }
+
+        private void RestoreParagraphSpacingComboBoxSelection()
+        {
+            bool found = false;
+            foreach (var item in ParagraphSpacingComboBox.Items)
+            {
+                if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - MemoStorage.ParagraphSpacing) < 0.1)
+                {
+                    ParagraphSpacingComboBox.SelectedItem = item;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+            {
+                ParagraphSpacingComboBox.SelectedItem = null;
+                ParagraphSpacingComboBox.Text = ((int)MemoStorage.ParagraphSpacing).ToString();
             }
         }
 
