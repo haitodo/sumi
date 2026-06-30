@@ -254,6 +254,27 @@ namespace sumi
                 range.CharacterFormat.Name = MemoStorage.FontFamily;
                 range.CharacterFormat.Size = (float)MemoStorage.FontSize;
 
+                // 1.5. フォントウェイトの一括更新（太字装飾や見出しを維持しつつ、設定されたデフォルトの太さを適用）
+                ushort defaultWeight = GetDefaultFontWeight();
+                ushort boldWeight = GetBoldFontWeight();
+                UpdateRangeWeight(doc, 0, range.Length, defaultWeight, boldWeight);
+
+                // 1.6. 現在の選択範囲/カーソル位置のフォントウェイトも更新し、新規入力時の太さを同期
+                var selection = doc.Selection;
+                if (selection != null)
+                {
+                    var selBold = selection.CharacterFormat.Bold;
+                    var selSize = selection.CharacterFormat.Size;
+                    var selWeight = selection.CharacterFormat.Weight;
+
+                    bool isBoldOrHeading = (selBold == Microsoft.UI.Text.FormatEffect.On || selSize == 24 || selSize == 18);
+                    ushort targetWeight = isBoldOrHeading ? boldWeight : defaultWeight;
+                    if (selWeight != targetWeight)
+                    {
+                        selection.CharacterFormat.Weight = targetWeight;
+                    }
+                }
+
                 // 2. 行間 (Line Spacing) の動的制御
                 float lineSpacing = (float)MemoStorage.LineSpacing;
                 if (lineSpacing < 1.0f)
@@ -275,6 +296,50 @@ namespace sumi
             finally
             {
                 doc.ApplyDisplayUpdates(); // 一括反映
+            }
+        }
+
+        private void UpdateRangeWeight(Microsoft.UI.Text.RichEditTextDocument doc, int start, int end, ushort defaultWeight, ushort boldWeight)
+        {
+            if (start >= end) return;
+
+            var range = doc.GetRange(start, end);
+            var bold = range.CharacterFormat.Bold;
+            var size = range.CharacterFormat.Size;
+            var weight = range.CharacterFormat.Weight;
+
+            // 範囲内の太字、サイズ、ウェイトが均一である場合、一括で更新
+            if (bold != Microsoft.UI.Text.FormatEffect.Toggle && 
+                !float.IsNaN(size) && 
+                size > 0 && 
+                weight != 0)
+            {
+                bool isBoldOrHeading = (bold == Microsoft.UI.Text.FormatEffect.On || size == 24 || size == 18);
+                ushort targetWeight = isBoldOrHeading ? boldWeight : defaultWeight;
+                
+                if (weight != targetWeight)
+                {
+                    range.CharacterFormat.Weight = targetWeight;
+                }
+            }
+            else
+            {
+                // 範囲の長さが1文字以下の場合は、これ以上分割できないためここで更新
+                if (end - start <= 1)
+                {
+                    bool isBoldOrHeading = (bold == Microsoft.UI.Text.FormatEffect.On || size == 24 || size == 18);
+                    ushort targetWeight = isBoldOrHeading ? boldWeight : defaultWeight;
+                    if (weight != targetWeight)
+                    {
+                        range.CharacterFormat.Weight = targetWeight;
+                    }
+                    return;
+                }
+
+                // 均一でない場合は、範囲を半分に分割して再帰的に処理（分割統治法による高速化）
+                int mid = start + (end - start) / 2;
+                UpdateRangeWeight(doc, start, mid, defaultWeight, boldWeight);
+                UpdateRangeWeight(doc, mid, end, defaultWeight, boldWeight);
             }
         }
 
@@ -744,15 +809,15 @@ namespace sumi
         {
             var defaultWeight = GetDefaultFontWeight();
             if (defaultWeight == Microsoft.UI.Text.FontWeights.Light.Weight)
-                return Microsoft.UI.Text.FontWeights.Normal.Weight;
-            if (defaultWeight == Microsoft.UI.Text.FontWeights.Normal.Weight)
                 return Microsoft.UI.Text.FontWeights.Medium.Weight;
-            if (defaultWeight == Microsoft.UI.Text.FontWeights.Medium.Weight)
+            if (defaultWeight == Microsoft.UI.Text.FontWeights.Normal.Weight)
                 return Microsoft.UI.Text.FontWeights.SemiBold.Weight;
-            if (defaultWeight == Microsoft.UI.Text.FontWeights.SemiBold.Weight)
+            if (defaultWeight == Microsoft.UI.Text.FontWeights.Medium.Weight)
                 return Microsoft.UI.Text.FontWeights.Bold.Weight;
+            if (defaultWeight == Microsoft.UI.Text.FontWeights.SemiBold.Weight)
+                return Microsoft.UI.Text.FontWeights.ExtraBold.Weight;
             
-            return Microsoft.UI.Text.FontWeights.Bold.Weight;
+            return Microsoft.UI.Text.FontWeights.Black.Weight;
         }
 
         private void FontSizeDecreaseButton_Click(object sender, RoutedEventArgs e)

@@ -48,7 +48,7 @@ namespace sumi
         public static double LineSpacing { get; set; } = 0.9;
         public static double ParagraphSpacing { get; set; } = 6.0; // 段落間の余白（pt単位）
         public static double Opacity { get; set; } = 50.0; // 0 to 100
-        public static string FontWeight { get; set; } = "Medium";
+        public static string FontWeight { get; set; } = "Light";
         public static string QuitHotKey { get; set; } = "Alt+Q";
         public static string LaunchHotKey { get; set; } = string.Empty;
         /// <summary>
