@@ -1384,7 +1384,9 @@ namespace sumi
         private void UpdateFormatButtonStates()
         {
             if (MemoTextBox == null || FormatBoldBtn == null || FormatItalicBtn == null ||
-                FormatUnderlineBtn == null || FormatStrikethroughBtn == null || FormatHighlightBtn == null)
+                FormatUnderlineBtn == null || FormatStrikethroughBtn == null || FormatHighlightBtn == null ||
+                FormatBulletListBtn == null || FormatNumberListBtn == null ||
+                FormatHeading1Btn == null || FormatHeading2Btn == null)
             {
                 return;
             }
@@ -1403,30 +1405,67 @@ namespace sumi
             
             var highlightColor = Microsoft.UI.ColorHelper.FromArgb(255, 120, 100, 0);
             FormatHighlightBtn.IsChecked = format.BackgroundColor == highlightColor;
+
+            // リスト状態の同期
+            var listType = range.ParagraphFormat.ListType;
+            FormatBulletListBtn.IsChecked = (listType == Microsoft.UI.Text.MarkerType.Bullet);
+            FormatNumberListBtn.IsChecked = (listType == Microsoft.UI.Text.MarkerType.Arabic);
+
+            // 見出し状態の同期（基準サイズと太字で判定）
+            FormatHeading1Btn.IsChecked = (format.Size == 24 && format.Weight >= Microsoft.UI.Text.FontWeights.Bold.Weight);
+            FormatHeading2Btn.IsChecked = (format.Size == 18 && format.Weight >= Microsoft.UI.Text.FontWeights.Bold.Weight);
         }
 
         private void MemoTextBox_PreviewKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
             var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
             bool isCtrlDown = (ctrlState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+            var shiftState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift);
+            bool isShiftDown = (shiftState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
 
-            // RichEditBox は Ctrl+B/I/U を標準で処理するため、追加分のみハンドルします
             if (isCtrlDown)
             {
-                switch (e.Key)
+                // 箇条書き (Ctrl + Shift + L)
+                if (isShiftDown && e.Key == Windows.System.VirtualKey.L)
                 {
-                    case Windows.System.VirtualKey.H: // Ctrl + H でハイライト
-                        ToggleHighlight();
-                        e.Handled = true;
-                        break;
-                    case Windows.System.VirtualKey.T: // Ctrl + T で取り消し線
-                        ToggleStrikethrough();
-                        e.Handled = true;
-                        break;
-                    case Windows.System.VirtualKey.Space: // Ctrl + Space で装飾クリア
-                        ClearFormatting();
-                        e.Handled = true;
-                        break;
+                    FormatBulletList_Click(null, null);
+                    e.Handled = true;
+                }
+                // 番号付きリスト (Ctrl + Shift + N)
+                else if (isShiftDown && e.Key == Windows.System.VirtualKey.N)
+                {
+                    FormatNumberList_Click(null, null);
+                    e.Handled = true;
+                }
+                // 見出し1 (Ctrl + 1)
+                else if (e.Key == Windows.System.VirtualKey.Number1)
+                {
+                    FormatHeading1_Click(null, null);
+                    e.Handled = true;
+                }
+                // 見出し2 (Ctrl + 2)
+                else if (e.Key == Windows.System.VirtualKey.Number2)
+                {
+                    FormatHeading2_Click(null, null);
+                    e.Handled = true;
+                }
+                else
+                {
+                    switch (e.Key)
+                    {
+                        case Windows.System.VirtualKey.H: // Ctrl + H でハイライト
+                            ToggleHighlight();
+                            e.Handled = true;
+                            break;
+                        case Windows.System.VirtualKey.T: // Ctrl + T で取り消し線
+                            ToggleStrikethrough();
+                            e.Handled = true;
+                            break;
+                        case Windows.System.VirtualKey.Space: // Ctrl + Space で装飾クリア
+                            ClearFormatting();
+                            e.Handled = true;
+                            break;
+                    }
                 }
             }
         }
@@ -1465,6 +1504,52 @@ namespace sumi
         private void FormatClear_Click(object sender, RoutedEventArgs e)
         {
             ClearFormatting();
+        }
+
+        private void FormatBulletList_Click(object? sender, RoutedEventArgs? e)
+        {
+            var selection = MemoTextBox.Document.Selection;
+            selection.ParagraphFormat.ListType = (selection.ParagraphFormat.ListType == Microsoft.UI.Text.MarkerType.Bullet) 
+                ? Microsoft.UI.Text.MarkerType.None 
+                : Microsoft.UI.Text.MarkerType.Bullet;
+            
+            MemoTextBox.Focus(FocusState.Programmatic);
+            UpdateFormatButtonStates();
+        }
+
+        private void FormatNumberList_Click(object? sender, RoutedEventArgs? e)
+        {
+            var selection = MemoTextBox.Document.Selection;
+            selection.ParagraphFormat.ListType = (selection.ParagraphFormat.ListType == Microsoft.UI.Text.MarkerType.Arabic) 
+                ? Microsoft.UI.Text.MarkerType.None 
+                : Microsoft.UI.Text.MarkerType.Arabic;
+                
+            MemoTextBox.Focus(FocusState.Programmatic);
+            UpdateFormatButtonStates();
+        }
+
+        private void FormatHeading1_Click(object? sender, RoutedEventArgs? e)
+        {
+            var selection = MemoTextBox.Document.Selection;
+            bool isCurrentlyH1 = selection.CharacterFormat.Size == 24;
+
+            selection.CharacterFormat.Size = isCurrentlyH1 ? 14 : 24;
+            selection.CharacterFormat.Weight = isCurrentlyH1 ? Microsoft.UI.Text.FontWeights.Normal.Weight : Microsoft.UI.Text.FontWeights.Bold.Weight;
+            
+            MemoTextBox.Focus(FocusState.Programmatic);
+            UpdateFormatButtonStates();
+        }
+
+        private void FormatHeading2_Click(object? sender, RoutedEventArgs? e)
+        {
+            var selection = MemoTextBox.Document.Selection;
+            bool isCurrentlyH2 = selection.CharacterFormat.Size == 18;
+
+            selection.CharacterFormat.Size = isCurrentlyH2 ? 14 : 18;
+            selection.CharacterFormat.Weight = isCurrentlyH2 ? Microsoft.UI.Text.FontWeights.Normal.Weight : Microsoft.UI.Text.FontWeights.Bold.Weight;
+            
+            MemoTextBox.Focus(FocusState.Programmatic);
+            UpdateFormatButtonStates();
         }
 
         private void ToggleHighlight()
