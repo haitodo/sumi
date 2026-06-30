@@ -44,10 +44,10 @@ namespace sumi
 
         // 設定の定義（デフォルト値）
         public static string FontFamily { get; set; } = "Noto Sans JP";
-        public static double FontSize { get; set; } = 14.0;
-        public static double LineSpacing { get; set; } = 1.0;
-        public static double ParagraphSpacing { get; set; } = 12.0; // 段落間の余白（pt単位）
-        public static double Opacity { get; set; } = 20.0; // 0 to 100
+        public static double FontSize { get; set; } = 11.0;
+        public static double LineSpacing { get; set; } = 0.9;
+        public static double ParagraphSpacing { get; set; } = 6.0; // 段落間の余白（pt単位）
+        public static double Opacity { get; set; } = 50.0; // 0 to 100
         public static string FontWeight { get; set; } = "Medium";
         public static string QuitHotKey { get; set; } = "Alt+Q";
         public static string LaunchHotKey { get; set; } = string.Empty;
