@@ -330,17 +330,14 @@ namespace sumi
                         }
                     }
 
-                    if (!string.IsNullOrEmpty(content))
+                    lock (Notes)
                     {
-                        lock (Notes)
+                        // 既に読み込み済みの場合はスキップ（Loading... の未ロードメモのみ更新する）
+                        if (note.Title == "Loading...")
                         {
-                            // 既に読み込み済みの場合はスキップ
-                            if (string.IsNullOrEmpty(note.Content))
-                            {
-                                note.Content = content;
-                                note.Title = GetTitleFromContent(content);
-                                note.CharCount = content.Length;
-                            }
+                            note.Content = content;
+                            note.Title = GetTitleFromContent(content);
+                            note.CharCount = content.Length;
                         }
                     }
                 }

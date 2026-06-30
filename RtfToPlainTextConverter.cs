@@ -23,9 +23,10 @@ namespace sumi
             var ignoreStack = new Stack<bool>();
             bool currentIgnore = false;
 
-            // Unicodeプレースホルダーの文字数カウント（デフォルトは1）
+             // Unicodeプレースホルダーの文字数カウント（デフォルトは1）
             int ucValue = 1;
             var ucStack = new Stack<int>();
+            int codePage = 932; // デフォルトは Shift-JIS / CP932
 
             while (i < len)
             {
@@ -64,18 +65,28 @@ namespace sumi
                     }
                     else
                     {
-                        // コントロールワードの読み込み
+                        // コントロールワード（アルファベット）またはコントロールシンボル（記号）の読み込み
                         int start = i;
-                        while (i < len && char.IsLetter(rtf[i]))
+                        bool isSymbol = !char.IsLetter(rtf[i]);
+                        string word;
+                        if (!isSymbol)
                         {
+                            while (i < len && char.IsLetter(rtf[i]))
+                            {
+                                i++;
+                            }
+                            word = rtf.Substring(start, i - start);
+                        }
+                        else
+                        {
+                            word = rtf.Substring(start, 1);
                             i++;
                         }
-                        string word = rtf.Substring(start, i - start);
 
-                        // オプションのパラメータ読み込み
+                        // オプションのパラメータ読み込み（コントロールシンボルはパラメータを持たない）
                         bool hasParam = false;
                         int paramValue = 0;
-                        if (i < len && (rtf[i] == '-' || char.IsDigit(rtf[i])))
+                        if (!isSymbol && i < len && (rtf[i] == '-' || char.IsDigit(rtf[i])))
                         {
                             int paramStart = i;
                             if (rtf[i] == '-') i++;
@@ -100,6 +111,13 @@ namespace sumi
                         if (word == "fonttbl" || word == "colortbl" || word == "stylesheet" || word == "info" || word == "generator" || word == "themeData")
                         {
                             currentIgnore = true;
+                        }
+                        else if (word == "ansicpg")
+                        {
+                            if (hasParam)
+                            {
+                                codePage = paramValue;
+                            }
                         }
                         else if (word == "par" || word == "line")
                         {
@@ -148,29 +166,59 @@ namespace sumi
                         else if (word == "'")
                         {
                             // 16進数文字コードエスケープ (\'hh)
+                            var byteList = new List<byte>();
                             if (i + 1 < len)
                             {
                                 string hex = rtf.Substring(i, 2);
-                                if (!currentIgnore)
+                                try
                                 {
-                                    try
-                                    {
-                                        byte b = Convert.ToByte(hex, 16);
-                                        sb.Append((char)b);
-                                    }
-                                    catch
-                                    {
-                                        // デコード失敗時は無視
-                                    }
+                                    byteList.Add(Convert.ToByte(hex, 16));
+                                }
+                                catch
+                                {
+                                    // デコード失敗時は無視
                                 }
                                 i += 2;
+                            }
+
+                            // 後続する連続の \'hh を先読みして一括で取得（マルチバイト文字デコードのため）
+                            while (i + 3 < len && rtf[i] == '\\' && rtf[i + 1] == '\'')
+                            {
+                                string hex = rtf.Substring(i + 2, 2);
+                                try
+                                {
+                                    byteList.Add(Convert.ToByte(hex, 16));
+                                    i += 4;
+                                }
+                                catch
+                                {
+                                    break;
+                                }
+                            }
+
+                            if (byteList.Count > 0 && !currentIgnore)
+                            {
+                                try
+                                {
+                                    string decoded = Encoding.GetEncoding(codePage).GetString(byteList.ToArray());
+                                    sb.Append(decoded);
+                                }
+                                catch
+                                {
+                                    // 指定されたエンコーディングでのデコードに失敗した場合はそのまま各バイトを文字としてキャストしてフォールバック
+                                    foreach (byte b in byteList)
+                                    {
+                                        sb.Append((char)b);
+                                    }
+                                }
                             }
                         }
                     }
                 }
                 else
                 {
-                    if (!currentIgnore)
+                    // RTF仕様に基づき、生の改行文字（\r, \n）はレイアウトやプレーンテキストに反映させず無視する
+                    if (!currentIgnore && c != '\r' && c != '\n')
                     {
                         sb.Append(c);
                     }
