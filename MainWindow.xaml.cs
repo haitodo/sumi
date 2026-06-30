@@ -164,6 +164,8 @@ namespace sumi
                 if (plainText.EndsWith("\r")) plainText = plainText.Substring(0, plainText.Length - 1);
                 else if (plainText.EndsWith("\n")) plainText = plainText.Substring(0, plainText.Length - 1);
 
+                rtfText = TrimTrailingRtfPar(rtfText);
+
                 bool success = await MemoStorage.SaveNoteTextAtomicAsync(MemoStorage.CurrentNoteId, plainText, rtfText);
                 if (success)
                 {
@@ -374,10 +376,21 @@ namespace sumi
             else
             {
                 var newNote = MemoStorage.CreateNewNote();
+                
+                MemoTextBox.TextChanged -= MemoTextBox_TextChanged;
                 MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, string.Empty);
                 ApplyGlobalThemeToEditor();
                 TitleTextBlock.Text = newNote.Title;
                 UpdateCharCount(0);
+
+                this.DispatcherQueue.TryEnqueue(
+                    Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                    () =>
+                    {
+                        MemoTextBox.TextChanged -= MemoTextBox_TextChanged;
+                        MemoTextBox.TextChanged += MemoTextBox_TextChanged;
+                        UpdateFormatButtonStates();
+                    });
             }
 
             MemoTextBox.Focus(FocusState.Programmatic);
@@ -456,7 +469,8 @@ namespace sumi
                 if (MemoTextBox != null)
                 {
                     MemoTextBox.Focus(FocusState.Programmatic);
-                    MemoTextBox.Document.Selection.SetRange(int.MaxValue, int.MaxValue);
+                    int pos = GetCaretEndPosition();
+                    MemoTextBox.Document.Selection.SetRange(pos, pos);
                 }
             }
         }
@@ -581,6 +595,7 @@ namespace sumi
                         MemoTextBox.Document.GetText(Microsoft.UI.Text.TextGetOptions.FormatRtf, out rtfText);
                         if (plainText.EndsWith("\r")) plainText = plainText.Substring(0, plainText.Length - 1);
                         else if (plainText.EndsWith("\n")) plainText = plainText.Substring(0, plainText.Length - 1);
+                        rtfText = TrimTrailingRtfPar(rtfText);
                         gotText = true;
                     }
                 }
@@ -1256,6 +1271,8 @@ namespace sumi
                 if (plainText.EndsWith("\r") || plainText.EndsWith("\n")) 
                     plainText = plainText.Substring(0, plainText.Length - 1);
 
+                rtfText = TrimTrailingRtfPar(rtfText);
+
                 MemoStorage.SaveNoteTextSync(MemoStorage.CurrentNoteId, plainText, rtfText);
                 _isDirty = false;
             }
@@ -1270,6 +1287,7 @@ namespace sumi
 
             if (note != null)
             {
+                MemoTextBox.TextChanged -= MemoTextBox_TextChanged;
                 _isRestoring = true;
 
                 string rtfFile = System.IO.Path.Combine(MemoStorage.NotesFolderPath, $"note_{id}.rtf");
@@ -1298,16 +1316,24 @@ namespace sumi
                 }
 
                 ApplyGlobalThemeToEditor();
-                _isRestoring = false;
 
                 TitleTextBlock.Text = note.Title;
                 UpdateCharCount(note.CharCount);
-                UpdateFormatButtonStates();
 
                 if (PlaceholderTextBlock != null)
                 {
                     PlaceholderTextBlock.Visibility = string.IsNullOrEmpty(note.Content) ? Visibility.Visible : Visibility.Collapsed;
                 }
+
+                this.DispatcherQueue.TryEnqueue(
+                    Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                    () =>
+                    {
+                        MemoTextBox.TextChanged -= MemoTextBox_TextChanged;
+                        MemoTextBox.TextChanged += MemoTextBox_TextChanged;
+                        _isRestoring = false;
+                        UpdateFormatButtonStates();
+                    });
             }
         }
 
@@ -1432,11 +1458,37 @@ namespace sumi
             return $"Opened on {localTime:MMMM d}";
         }
 
-        /// <summary>
-        /// 新規作成のため新しく空のメモを作成します。
-        /// </summary>
         private void NewButton_Click(object sender, RoutedEventArgs e)
         {
+            // 1. 現在表示中のメモが空の場合は、新しく作成せずそのままフォーカスする
+            NoteData? currentNote = null;
+            lock (MemoStorage.Notes)
+            {
+                currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId);
+            }
+
+            if (currentNote != null && string.IsNullOrWhiteSpace(currentNote.Content))
+            {
+                MemoTextBox.Focus(FocusState.Programmatic);
+                return;
+            }
+
+            // 2. 既存のメモの中に中身が空のメモがある場合は、新規作成せずにそのメモを表示する
+            NoteData? emptyNote = null;
+            lock (MemoStorage.Notes)
+            {
+                // ロード完了かつ内容が空のメモを検索
+                emptyNote = MemoStorage.Notes.Find(n => n.Id != MemoStorage.CurrentNoteId && n.Title != "Loading..." && string.IsNullOrWhiteSpace(n.Content));
+            }
+
+            if (emptyNote != null)
+            {
+                SwitchToNote(emptyNote.Id);
+                MemoTextBox.Focus(FocusState.Programmatic);
+                return;
+            }
+
+            // 3. 空のメモが存在しない場合のみ新規作成する
             if (_isDirty)
             {
                 MemoTextBox.Document.GetText(Microsoft.UI.Text.TextGetOptions.UseLf, out string plainText);
@@ -1444,27 +1496,37 @@ namespace sumi
                 if (plainText.EndsWith("\r") || plainText.EndsWith("\n")) 
                     plainText = plainText.Substring(0, plainText.Length - 1);
 
+                rtfText = TrimTrailingRtfPar(rtfText);
+
                 MemoStorage.SaveNoteTextSync(MemoStorage.CurrentNoteId, plainText, rtfText);
                 _isDirty = false;
             }
 
             var newNote = MemoStorage.CreateNewNote();
             
+            MemoTextBox.TextChanged -= MemoTextBox_TextChanged;
             _isRestoring = true;
             MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, string.Empty);
             ApplyGlobalThemeToEditor();
-            _isRestoring = false;
 
             TitleTextBlock.Text = newNote.Title;
             UpdateCharCount(0);
-            UpdateFormatButtonStates();
 
             if (PlaceholderTextBlock != null)
             {
                 PlaceholderTextBlock.Visibility = Visibility.Visible;
             }
 
-            MemoTextBox.Focus(FocusState.Programmatic);
+            this.DispatcherQueue.TryEnqueue(
+                Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                () =>
+                {
+                    MemoTextBox.TextChanged -= MemoTextBox_TextChanged;
+                    MemoTextBox.TextChanged += MemoTextBox_TextChanged;
+                    _isRestoring = false;
+                    UpdateFormatButtonStates();
+                    MemoTextBox.Focus(FocusState.Programmatic);
+                });
         }
 
         /// <summary>
@@ -1733,6 +1795,7 @@ namespace sumi
             // TTFP最適化: コンストラクタ内で保留されていたテキストを、初回描画完了後に適用する。
             if (_pendingNote != null)
             {
+                MemoTextBox.TextChanged -= MemoTextBox_TextChanged;
                 string id = _pendingNote.Id;
                 _isRestoring = true;
 
@@ -1762,7 +1825,6 @@ namespace sumi
                 }
 
                 ApplyGlobalThemeToEditor();
-                _isRestoring = false;
 
                 if (PlaceholderTextBlock != null)
                 {
@@ -1770,14 +1832,16 @@ namespace sumi
                 }
                 _pendingNote = null;
 
-                // テキスト設定完了後にフォーカスと末尾移動を行う
-                // （Activated より Loaded が後に来るため、ここで確実に設定する）
                 this.DispatcherQueue.TryEnqueue(
-                    Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal,
+                    Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
                     () =>
                     {
+                        MemoTextBox.TextChanged -= MemoTextBox_TextChanged;
+                        MemoTextBox.TextChanged += MemoTextBox_TextChanged;
+                        _isRestoring = false;
                         MemoTextBox.Focus(FocusState.Programmatic);
-                        MemoTextBox.Document.Selection.SetRange(int.MaxValue, int.MaxValue);
+                        int pos = GetCaretEndPosition();
+                        MemoTextBox.Document.Selection.SetRange(pos, pos);
                         UpdateFormatButtonStates();
                     });
             }
@@ -2084,7 +2148,8 @@ namespace sumi
             {
                 MemoTextBox.Focus(FocusState.Programmatic);
                 // テキスト末尾にカーソルを移動
-                MemoTextBox.Document.Selection.SetRange(int.MaxValue, int.MaxValue);
+                int pos = GetCaretEndPosition();
+                MemoTextBox.Document.Selection.SetRange(pos, pos);
             }
         }
 
@@ -2387,6 +2452,25 @@ namespace sumi
         {
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
+        }
+
+        private static string TrimTrailingRtfPar(string rtf)
+        {
+            if (string.IsNullOrEmpty(rtf)) return rtf;
+
+            int lastPar = rtf.LastIndexOf("\\par");
+            if (lastPar == -1) return rtf;
+
+            return rtf.Remove(lastPar, 4);
+        }
+
+        private int GetCaretEndPosition()
+        {
+            if (MemoTextBox == null) return 0;
+            MemoTextBox.Document.GetText(Microsoft.UI.Text.TextGetOptions.UseLf, out string text);
+            if (text.EndsWith("\r") || text.EndsWith("\n"))
+                text = text.Substring(0, text.Length - 1);
+            return text.Length;
         }
 
         #endregion

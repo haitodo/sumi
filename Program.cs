@@ -24,6 +24,9 @@ public static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // 日本語を含むRTFの文字エンコーディング（CP932/Shift-JIS）をサポートするためプロバイダを登録
+        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+
         try
         {
             bool createdNew;
