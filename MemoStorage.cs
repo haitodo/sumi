@@ -758,7 +758,7 @@ namespace sumi
                                     if (double.TryParse(val, out double fs)) FontSize = fs;
                                     break;
                                 case "LineSpacing":
-                                    if (double.TryParse(val, out double ls)) LineSpacing = Math.Max(1.0, ls);
+                                    if (double.TryParse(val, out double ls)) LineSpacing = Math.Clamp(ls, 0.5, 4.0);
                                     break;
                                 case "ParagraphSpacing":
                                     if (double.TryParse(val, out double ps)) ParagraphSpacing = ps;
