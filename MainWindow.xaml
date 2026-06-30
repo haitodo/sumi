@@ -23,8 +23,38 @@
             <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
             <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#444444" />
 
+            <!-- トグルボタンの背景・フォアグラウンドカラーをオーバーライド -->
+            <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="#444444" />
+            <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#555555" />
+            <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="#666666" />
+            <SolidColorBrush x:Key="ToggleButtonForegroundChecked" Color="#ffffff" />
+            <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPointerOver" Color="#ffffff" />
+            <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPressed" Color="#ffffff" />
+            <SolidColorBrush x:Key="ToggleButtonBorderBrushChecked" Color="Transparent" />
+            
+            <SolidColorBrush x:Key="ToggleButtonBackgroundPointerOver" Color="#2d2d2d" />
+            <SolidColorBrush x:Key="ToggleButtonBackgroundPressed" Color="#3d3d3d" />
+            <SolidColorBrush x:Key="ToggleButtonForegroundPointerOver" Color="#ffffff" />
+            <SolidColorBrush x:Key="ToggleButtonForegroundPressed" Color="#cccccc" />
+            <SolidColorBrush x:Key="ToggleButtonBorderBrushPointerOver" Color="Transparent" />
+            <SolidColorBrush x:Key="ToggleButtonBorderBrushPressed" Color="Transparent" />
+            <SolidColorBrush x:Key="ToggleButtonBackgroundDisabled" Color="Transparent" />
+            <SolidColorBrush x:Key="ToggleButtonForegroundDisabled" Color="#444444" />
+
             <!-- ヘッダーおよびステータスバーの共通ボタン用スタイル -->
             <Style x:Key="IconButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="CornerRadius" Value="4" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Width" Value="32" />
+                <Setter Property="Height" Value="32" />
+                <Setter Property="Foreground" Value="#cccccc" />
+                <Setter Property="FontFamily" Value="Segoe Fluent Icons" />
+                <Setter Property="FontSize" Value="14" />
+            </Style>
+
+            <Style x:Key="IconToggleButtonStyle" TargetType="ToggleButton">
                 <Setter Property="Background" Value="Transparent" />
                 <Setter Property="BorderThickness" Value="0" />
                 <Setter Property="CornerRadius" Value="4" />
@@ -540,6 +570,7 @@
                 ScrollViewer.VerticalScrollBarVisibility="Auto"
                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
                 TextChanged="MemoTextBox_TextChanged"
+                SelectionChanged="MemoTextBox_SelectionChanged"
                 PreviewKeyDown="MemoTextBox_PreviewKeyDown"
                 SelectionFlyout="{x:Null}">
                 
@@ -571,35 +602,35 @@
 
         <!-- 3. ステータスバー -->
         <Grid Grid.Row="2" Height="36" Background="Transparent">
-            <!-- 文字数カウント表示 -->
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
             <TextBlock 
+                Grid.Column="0"
                 x:Name="CharCountTextBlock"
                 Text="0 characters"
                 VerticalAlignment="Center"
-                HorizontalAlignment="Center"
+                HorizontalAlignment="Left"
+                Margin="16,0,0,0"
                 FontSize="11.5"
-                Foreground="#666666" />
+                Foreground="#666666"
+                TextTrimming="CharacterEllipsis" />
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0" Spacing="4">
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0" Spacing="4">
                 
-                <Button Content="&#xE19B;" Style="{StaticResource IconButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="太字 (Ctrl+B)" Click="FormatBold_Click" />
-                <Button Content="&#xE199;" Style="{StaticResource IconButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="斜体 (Ctrl+I)" Click="FormatItalic_Click" />
-                <Button Content="&#xE19A;" Style="{StaticResource IconButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="下線 (Ctrl+U)" Click="FormatUnderline_Click" />
-                <Button Content="&#xEDE0;" Style="{StaticResource IconButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="取り消し線 (Ctrl+T)" Click="FormatStrikethrough_Click" />
-                <Button Content="&#xE7E6;" Style="{StaticResource IconButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="ハイライト (Ctrl+H)" Click="FormatHighlight_Click" />
+                <ToggleButton x:Name="FormatBoldBtn" Content="&#xE19B;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="太字 (Ctrl+B)" Click="FormatBold_Click" />
+                <ToggleButton x:Name="FormatItalicBtn" Content="&#xE199;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="斜体 (Ctrl+I)" Click="FormatItalic_Click" />
+                <ToggleButton x:Name="FormatUnderlineBtn" Content="&#xE19A;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="下線 (Ctrl+U)" Click="FormatUnderline_Click" />
+                <ToggleButton x:Name="FormatStrikethroughBtn" Content="&#xEDE0;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="取り消し線 (Ctrl+T)" Click="FormatStrikethrough_Click" />
+                <ToggleButton x:Name="FormatHighlightBtn" Content="&#xE7E6;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="ハイライト (Ctrl+H)" Click="FormatHighlight_Click" />
+                
                 <Button Content="&#xE894;" Style="{StaticResource IconButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="装飾をクリア (Ctrl+Space)" Click="FormatClear_Click" />
                 
                 <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
 
-                <Button 
-                    x:Name="WordWrapButton"
-                    Content="T"
-                    Style="{StaticResource IconButtonStyle}"
-                    FontFamily="Georgia"
-                    FontSize="16"
-                    FontWeight="Normal"
-                    ToolTipService.ToolTip="右端折り返し切り替え"
-                    Click="WordWrapButton_Click" />
+                <Button x:Name="WordWrapButton" Content="T" Style="{StaticResource IconButtonStyle}" FontFamily="Georgia" FontSize="16" FontWeight="Normal" ToolTipService.ToolTip="右端折り返し切り替え" Click="WordWrapButton_Click" />
             </StackPanel>
         </Grid>
     </Grid>
