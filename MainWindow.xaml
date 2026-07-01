@@ -636,10 +636,10 @@
 
                 <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
 
-                <ToggleButton x:Name="FormatHeading1Btn" Content="H1" Style="{StaticResource IconToggleButtonStyle}" FontFamily="Georgia" FontSize="13" FontWeight="Bold" AllowFocusOnInteraction="False" ToolTipService.ToolTip="見出し 1 (Ctrl+1)" Click="FormatHeading1_Click" />
+                <ToggleButton x:Name="FormatHeading1Btn" Content="H1" Style="{StaticResource IconToggleButtonStyle}" FontFamily="Georgia" FontSize="12" FontWeight="Bold" AllowFocusOnInteraction="False" ToolTipService.ToolTip="見出し 1 (Ctrl+1)" Click="FormatHeading1_Click" />
                 <ToggleButton x:Name="FormatHeading2Btn" Content="H2" Style="{StaticResource IconToggleButtonStyle}" FontFamily="Georgia" FontSize="12" FontWeight="Bold" AllowFocusOnInteraction="False" ToolTipService.ToolTip="見出し 2 (Ctrl+2)" Click="FormatHeading2_Click" />
 
-                <Button Content="&#xE894;" Style="{StaticResource IconButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="装飾をクリア (Ctrl+Space)" Click="FormatClear_Click" />
+                <Button Content="&#xE75C;" Style="{StaticResource IconButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="装飾をクリア (Ctrl+Space)" Click="FormatClear_Click" />
                 
                 <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
 
