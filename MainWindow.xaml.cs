@@ -1,8 +1,10 @@
 using Microsoft.UI;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Media;
 using System;
 using Windows.Graphics;
 using WinRT;
@@ -2023,6 +2025,119 @@ namespace sumi
             {
                 _memoScrollViewer.PointerWheelChanged -= ScrollViewer_PointerWheelChanged;
                 _memoScrollViewer = null;
+            }
+        }
+
+        private void MemoTextBox_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+        {
+            // 1. システム標準のコンテキストメニュー表示をキャンセルします
+            e.Handled = true;
+
+            // 2. 現在選択されているテキストを取得して整形します
+            var selection = MemoTextBox.Document.Selection;
+            string selectedText = (selection?.Text ?? string.Empty).Trim();
+            bool hasSelection = !string.IsNullOrEmpty(selectedText);
+
+            // 3. 自作の MenuFlyout を生成します
+            var menu = new MenuFlyout();
+
+            // --- 【標準テキスト編集コマンドの追加】 ---
+            var cutItem = new MenuFlyoutItem { Text = "切り取り", Icon = new SymbolIcon(Symbol.Cut) };
+            cutItem.Click += (s, args) => selection?.Cut();
+            cutItem.IsEnabled = hasSelection && !MemoTextBox.IsReadOnly;
+
+            var copyItem = new MenuFlyoutItem { Text = "コピー", Icon = new SymbolIcon(Symbol.Copy) };
+            copyItem.Click += (s, args) => selection?.Copy();
+            copyItem.IsEnabled = hasSelection;
+
+            var pasteItem = new MenuFlyoutItem { Text = "貼り付け", Icon = new SymbolIcon(Symbol.Paste) };
+            pasteItem.Click += (s, args) => selection?.Paste(0); // 0 = デフォルト形式
+            pasteItem.IsEnabled = !MemoTextBox.IsReadOnly;
+
+            var selectAllItem = new MenuFlyoutItem { Text = "すべて選択", Icon = new SymbolIcon(Symbol.SelectAll) };
+            selectAllItem.Click += (s, args) => selection?.SetRange(0, int.MaxValue);
+
+            menu.Items.Add(cutItem);
+            menu.Items.Add(copyItem);
+            menu.Items.Add(pasteItem);
+            menu.Items.Add(selectAllItem);
+
+            // --- 【ご要望のWeb連携コマンドの追加】 ---
+            if (hasSelection)
+            {
+                // 区切り線を追加
+                menu.Items.Add(new MenuFlyoutSeparator());
+
+                // 項目1：Webで "選択テキスト" を検索する
+                // メニューの幅を考慮し、選択文字列が長い場合は省略表記にします
+                string displaySearchText = selectedText.Length > 15 ? selectedText.Substring(0, 15) + "..." : selectedText;
+                var searchItem = new MenuFlyoutItem
+                {
+                    Text = $"Webで \"{displaySearchText}\" を検索",
+                    Icon = new FontIcon { Glyph = "\xE721", FontFamily = new FontFamily("Segoe Fluent Icons") } // 虫眼鏡アイコン
+                };
+                searchItem.Click += (s, args) =>
+                {
+                    // Googleを検索エンジンとして規定のブラウザを起動
+                    string queryUrl = "https://www.google.com/search?q=" + Uri.EscapeDataString(selectedText);
+                    OpenUrlInDefaultBrowser(queryUrl);
+                };
+                menu.Items.Add(searchItem);
+
+                // 項目2：Webで "選択したテキスト" を開く
+                // 簡易的なURL形式判定（http://、https:// で始まるか、または www. などで始まるか）
+                bool isUrl = Uri.TryCreate(selectedText, UriKind.Absolute, out var uriResult)
+                             && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
+
+                if (!isUrl && (selectedText.StartsWith("www.", StringComparison.OrdinalIgnoreCase) || selectedText.Contains(".")))
+                {
+                    isUrl = true; // www.example.com などの場合もURLとみなして開けるようにします
+                }
+
+                var openItem = new MenuFlyoutItem
+                {
+                    Text = "Webで開く",
+                    Icon = new FontIcon { Glyph = "\xE71B", FontFamily = new FontFamily("Segoe Fluent Icons") }, // 地球儀アイコン
+                    IsEnabled = isUrl // URLとして判別できた場合のみクリック可能にします
+                };
+                openItem.Click += (s, args) =>
+                {
+                    string url = selectedText;
+                    if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        url = "https://" + url; // スキーマがない場合は https を補完
+                    }
+                    OpenUrlInDefaultBrowser(url);
+                };
+                menu.Items.Add(openItem);
+            }
+
+            // 4. 右クリックされた座標（CursorLeft/CursorTop）にメニューを表示します
+            var options = new FlyoutShowOptions
+            {
+                Position = new Windows.Foundation.Point(e.CursorLeft, e.CursorTop),
+                ShowMode = FlyoutShowMode.Standard
+            };
+            menu.ShowAt(MemoTextBox, options);
+        }
+
+        /// <summary>
+        /// .NET Core / WinUI 3環境で、安全にOS規定のデフォルトブラウザでURLを開くためのヘルパーです。
+        /// </summary>
+        private void OpenUrlInDefaultBrowser(string url)
+        {
+            try
+            {
+                // .NET Core環境で既定のブラウザを呼び出すには、UseShellExecute = true が必須です
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Browser Open Error] {ex.Message}");
             }
         }
 
