@@ -20,6 +20,7 @@ namespace sumi
         private bool _isDirty = false;
         private bool _isInitialFocusSet = false;
         private bool _isInitializing = true;
+        private bool _isInitializingSettings = false;
         private IntPtr _hWnd = IntPtr.Zero;
         private bool _isTrayIconAdded = false;
         private SUBCLASSPROC? _subclassProc;
@@ -716,66 +717,75 @@ namespace sumi
             UpdateFlyoutMaxHeights();
             SettingsSearchBox.Text = string.Empty;
 
-            // ComboBox/Slider初期値設定
-            foreach (var item in FontComboBox.Items)
+            // UIコントロールへの初期値割り当て中にイベントが連鎖するのを防ぐ
+            _isInitializingSettings = true;
+            try
             {
-                if (item is string s && s == MemoStorage.FontFamily)
+                // ComboBox/Slider初期値設定
+                foreach (var item in FontComboBox.Items)
                 {
-                    FontComboBox.SelectedItem = item;
-                    break;
+                    if (item is string s && s == MemoStorage.FontFamily)
+                    {
+                        FontComboBox.SelectedItem = item;
+                        break;
+                    }
                 }
-            }
 
-            foreach (var item in FontWeightComboBox.Items)
-            {
-                if (item is string s && s == MemoStorage.FontWeight)
+                foreach (var item in FontWeightComboBox.Items)
                 {
-                    FontWeightComboBox.SelectedItem = item;
-                    break;
+                    if (item is string s && s == MemoStorage.FontWeight)
+                    {
+                        FontWeightComboBox.SelectedItem = item;
+                        break;
+                    }
                 }
-            }
 
-            FontSizeSlider.Value = MemoStorage.FontSize;
-            FontSizeValueText.Text = MemoStorage.FontSize.ToString("0.0");
+                FontSizeSlider.Value = MemoStorage.FontSize;
+                FontSizeValueText.Text = MemoStorage.FontSize.ToString("0.0");
 
-            // 行間 ComboBox の初期値設定
-            double currentLS = MemoStorage.LineSpacing;
-            bool foundLS = false;
-            foreach (var item in LineSpacingComboBox.Items)
-            {
-                if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - currentLS) < 0.01)
+                // 行間 ComboBox の初期値設定
+                double currentLS = MemoStorage.LineSpacing;
+                bool foundLS = false;
+                foreach (var item in LineSpacingComboBox.Items)
                 {
-                    LineSpacingComboBox.SelectedItem = item;
-                    foundLS = true;
-                    break;
+                    if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - currentLS) < 0.01)
+                    {
+                        LineSpacingComboBox.SelectedItem = item;
+                        foundLS = true;
+                        break;
+                    }
                 }
-            }
-            if (!foundLS)
-            {
-                LineSpacingComboBox.SelectedItem = null;
-                LineSpacingComboBox.Text = currentLS.ToString("0.##");
-            }
-
-            // 段落スペース ComboBox の初期値設定
-            double currentPS = MemoStorage.ParagraphSpacing;
-            bool foundPS = false;
-            foreach (var item in ParagraphSpacingComboBox.Items)
-            {
-                if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - currentPS) < 0.1)
+                if (!foundLS)
                 {
-                    ParagraphSpacingComboBox.SelectedItem = item;
-                    foundPS = true;
-                    break;
+                    LineSpacingComboBox.SelectedItem = null;
+                    LineSpacingComboBox.Text = currentLS.ToString("0.##");
                 }
-            }
-            if (!foundPS)
-            {
-                ParagraphSpacingComboBox.SelectedItem = null;
-                ParagraphSpacingComboBox.Text = ((int)currentPS).ToString();
-            }
 
-            OpacitySlider.Value = MemoStorage.Opacity;
-            OpacityValueText.Text = $"{(int)MemoStorage.Opacity}%";
+                // 段落スペース ComboBox の初期値設定
+                double currentPS = MemoStorage.ParagraphSpacing;
+                bool foundPS = false;
+                foreach (var item in ParagraphSpacingComboBox.Items)
+                {
+                    if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - currentPS) < 0.1)
+                    {
+                        ParagraphSpacingComboBox.SelectedItem = item;
+                        foundPS = true;
+                        break;
+                    }
+                }
+                if (!foundPS)
+                {
+                    ParagraphSpacingComboBox.SelectedItem = null;
+                    ParagraphSpacingComboBox.Text = ((int)currentPS).ToString();
+                }
+
+                OpacitySlider.Value = MemoStorage.Opacity;
+                OpacityValueText.Text = $"{(int)MemoStorage.Opacity}%";
+            }
+            finally
+            {
+                _isInitializingSettings = false;
+            }
 
             QuitHotKeyButton.Content = MemoStorage.QuitHotKey;
             LaunchHotKeyButton.Content = MemoStorage.LaunchHotKey;
@@ -822,7 +832,7 @@ namespace sumi
 
         private void FontComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_isInitializing) return;
+            if (_isInitializing || _isInitializingSettings) return;
             if (FontComboBox.SelectedItem is string font)
             {
                 MemoStorage.FontFamily = font;
@@ -836,7 +846,7 @@ namespace sumi
 
         private void FontWeightComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_isInitializing) return;
+            if (_isInitializing || _isInitializingSettings) return;
             if (FontWeightComboBox.SelectedItem is string weight)
             {
                 MemoStorage.FontWeight = weight;
@@ -927,7 +937,7 @@ namespace sumi
 
         private void FontSizeSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
         {
-            if (_isInitializing) return;
+            if (_isInitializing || _isInitializingSettings) return;
             double size = FontSizeSlider.Value;
             if (FontSizeValueText != null)
             {
@@ -948,7 +958,7 @@ namespace sumi
 
         private void LineSpacingComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_isInitializing) return;
+            if (_isInitializing || _isInitializingSettings) return;
             if (LineSpacingComboBox.SelectedItem is string val && double.TryParse(val, out double ls))
             {
                 MemoStorage.LineSpacing = ls;
@@ -1023,7 +1033,7 @@ namespace sumi
 
         private void ParagraphSpacingComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_isInitializing) return;
+            if (_isInitializing || _isInitializingSettings) return;
             if (ParagraphSpacingComboBox.SelectedItem is string val && double.TryParse(val, out double ps))
             {
                 MemoStorage.ParagraphSpacing = ps;
@@ -1098,7 +1108,7 @@ namespace sumi
 
         private void OpacitySlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
         {
-            if (_isInitializing) return;
+            if (_isInitializing || _isInitializingSettings) return;
             double opacity = OpacitySlider.Value;
             if (OpacityValueText != null)
             {
@@ -1860,7 +1870,6 @@ namespace sumi
             _memoScrollViewer = FindScrollViewer(MemoTextBox);
             if (_memoScrollViewer != null)
             {
-                // ScrollViewer の PointerWheelChanged イベントにハンドラーを追加
                 _memoScrollViewer.PointerWheelChanged += ScrollViewer_PointerWheelChanged;
             }
 
@@ -1869,7 +1878,6 @@ namespace sumi
             {
                 string id = _pendingNote.Id;
                 var pendingNoteCopy = _pendingNote;
-                // 再入防止のためディスパッチの前に null クリアする
                 _pendingNote = null;
 
                 this.DispatcherQueue.TryEnqueue(
@@ -1885,12 +1893,10 @@ namespace sumi
                             if (rtfData.StartsWith("{\\rtf1"))
                             {
                                 MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.FormatRtf, rtfData);
-                                // RTF ロード時はすべての装飾・書式が自己完結しているため、テーマ適用をスキップして RichEdit のスタイル初期化バグを回避する。
                             }
                             else
                             {
                                 MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, rtfData);
-                                // プレーンテキストの場合は、現在のデフォルトテーマ（フォントファミリー、サイズ、行間等）を適用する。
                                 ApplyGlobalThemeToEditor(preserveFormatting: false);
                             }
                         }
@@ -1901,21 +1907,43 @@ namespace sumi
                             ApplyGlobalThemeToEditor(preserveFormatting: false);
                         }
 
+                        // RichEditBoxに読み込ませた直後に、OSネイティブの解析結果（プレーンテキスト）を正確に取得
+                        MemoTextBox.Document.GetText(Microsoft.UI.Text.TextGetOptions.UseLf, out string plainText);
+                        if (plainText.EndsWith("\r") || plainText.EndsWith("\n"))
+                            plainText = plainText.Substring(0, plainText.Length - 1);
+
                         if (PlaceholderTextBlock != null)
                         {
-                            MemoTextBox.Document.GetText(Microsoft.UI.Text.TextGetOptions.UseLf, out string plainText);
-                            if (plainText.EndsWith("\r") || plainText.EndsWith("\n"))
-                                plainText = plainText.Substring(0, plainText.Length - 1);
                             PlaceholderTextBlock.Visibility = string.IsNullOrEmpty(plainText) ? Visibility.Visible : Visibility.Collapsed;
                         }
 
-                        MemoTextBox.TextChanged -= MemoTextBox_TextChanged;
-                        MemoTextBox.TextChanged += MemoTextBox_TextChanged;
-                        _isRestoring = false;
-                        MemoTextBox.Focus(FocusState.Programmatic);
-                        int pos = GetCaretEndPosition();
-                        MemoTextBox.Document.Selection.SetRange(pos, pos);
-                        UpdateFormatButtonStates();
+                        // 起動直後、ネイティブ解析結果を用いてタイトルと文字数を確実に同期・更新する
+                        if (pendingNoteCopy != null)
+                        {
+                            lock (MemoStorage.Notes)
+                            {
+                                pendingNoteCopy.Content = plainText;
+                                pendingNoteCopy.Title = MemoStorage.GetTitleFromContent(plainText);
+                                pendingNoteCopy.CharCount = plainText.Length;
+                            }
+                            TitleTextBlock.Text = pendingNoteCopy.Title;
+                            UpdateCharCount(pendingNoteCopy.CharCount);
+                        }
+
+                        // ネストした TryEnqueue で非同期の TextChanged 処理を完全にやり過ごしてから状態を復帰する
+                        this.DispatcherQueue.TryEnqueue(
+                            Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                            () =>
+                            {
+                                MemoTextBox.TextChanged -= MemoTextBox_TextChanged;
+                                MemoTextBox.TextChanged += MemoTextBox_TextChanged;
+                                _isRestoring = false;
+                                _isDirty = false; // 起動時の自動汚染を防ぐために確実に false にする
+                                MemoTextBox.Focus(FocusState.Programmatic);
+                                int pos = GetCaretEndPosition();
+                                MemoTextBox.Document.Selection.SetRange(pos, pos);
+                                UpdateFormatButtonStates();
+                            });
                     });
             }
         }

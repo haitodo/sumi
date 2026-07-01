@@ -279,8 +279,20 @@ namespace sumi
                         lock (Notes)
                         {
                             latest.Content = content;
-                            latest.Title = GetTitleFromContent(content);
-                            latest.CharCount = content.Length;
+
+                            // 自前コンバーターでの解析結果が有効な場合のみ更新し、
+                            // 解析不全（Untitled）の場合は notes.dat からロードした正しいタイトルを保護する
+                            string parsedTitle = GetTitleFromContent(content);
+                            if (parsedTitle != "Untitled")
+                            {
+                                latest.Title = parsedTitle;
+                            }
+                            else if (string.IsNullOrEmpty(latest.Title))
+                            {
+                                latest.Title = "Untitled";
+                            }
+
+                            latest.CharCount = content.Length > 0 ? content.Length : latest.CharCount;
                         }
 
                         // 残りのメモはバックグラウンドで非同期にロードする
@@ -347,8 +359,8 @@ namespace sumi
 
                     lock (Notes)
                     {
-                        // 既に読み込み済みの場合はスキップ（Loading... の未ロードメモのみ更新する）
-                        if (note.Title == "Loading...")
+                        // コンテンツが未読み込み状態の場合、バックグラウンドロード結果を反映してタイトルを再構築
+                        if (string.IsNullOrEmpty(note.Content))
                         {
                             note.Content = content;
                             note.Title = GetTitleFromContent(content);
@@ -364,21 +376,28 @@ namespace sumi
         }
 
         /// <summary>
-        /// コンテンツからタイトル（最初の行）を取得します。
+        /// コンテンツからタイトル（最初の有効なテキスト行）を取得します。
         /// </summary>
         public static string GetTitleFromContent(string content)
         {
             if (string.IsNullOrWhiteSpace(content))
                 return "Untitled";
-            
+
             using (var reader = new StringReader(content))
             {
-                string? firstLine = reader.ReadLine();
-                if (string.IsNullOrWhiteSpace(firstLine))
-                    return "Untitled";
-                return firstLine.Trim();
+                string? line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    // 先頭にある空行や空白行をスキップし、最初に現れた有効な文字列をタイトルにする
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        return line.Trim();
+                    }
+                }
             }
+            return "Untitled";
         }
+
 
         /// <summary>
         /// 現在のアクティブなメモテキストを同期的に読み込みます。
