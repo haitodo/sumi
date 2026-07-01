@@ -64,6 +64,7 @@ namespace sumi
                 if (_isDisposed) return;
                 _isDisposed = true;
                 _timer.Stop();
+                _timer.Tick -= Timer_Tick; // ★イベントハンドラーの登録を解除
             }
         }
     }
