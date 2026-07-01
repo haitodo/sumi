@@ -158,16 +158,15 @@ namespace sumi
             _scheduler = new SaveScheduler(this.DispatcherQueue, async () =>
             {
                 long currentRevision = _revision;
-                
+
                 MemoTextBox.Document.GetText(Microsoft.UI.Text.TextGetOptions.UseLf, out string plainText);
                 MemoTextBox.Document.GetText(Microsoft.UI.Text.TextGetOptions.FormatRtf, out string rtfText);
-                
+
                 if (plainText.EndsWith("\r")) plainText = plainText.Substring(0, plainText.Length - 1);
                 else if (plainText.EndsWith("\n")) plainText = plainText.Substring(0, plainText.Length - 1);
 
                 rtfText = TrimTrailingRtfPar(rtfText);
 
-                // ファイルI/Oをバックグラウンドスレッドへオフロード
                 bool success = await Task.Run(async () => await MemoStorage.SaveNoteTextAtomicAsync(MemoStorage.CurrentNoteId, plainText, rtfText));
                 if (success)
                 {
@@ -176,6 +175,15 @@ namespace sumi
                     {
                         _isDirty = false;
                     }
+
+                    // ★タイピングが一段落して保存が完了したタイミングで一時オブジェクトをクリーンアップ
+                    this.DispatcherQueue.TryEnqueue(
+                        Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                        () =>
+                        {
+                            System.GC.Collect();
+                            System.GC.WaitForPendingFinalizers();
+                        });
                 }
             });
 
@@ -235,10 +243,11 @@ namespace sumi
 
         /// <param name="preserveFormatting">
         /// true の場合、RTF 読み込み直後に呼ばれるケース向けに、個々の文字サイズ・ウェイトの上書きをスキップする。
-        /// ハイライト・見出しサイズ・太字などの装飾を保護するために使用する。
-        /// false（デフォルト）の場合は設定変更時の全文適用を行う従来の挙動になる。
         /// </param>
-        private void ApplyGlobalThemeToEditor(bool preserveFormatting = false)
+        /// <param name="isPlainText">
+        /// true の場合、プレーンテキストとして全体に一括適用し、重い UpdateRangeWeight をスキップします。
+        /// </param>
+        private void ApplyGlobalThemeToEditor(bool preserveFormatting = false, bool isPlainText = false)
         {
             if (MemoTextBox == null) return;
 
@@ -246,8 +255,6 @@ namespace sumi
             doc.BatchDisplayUpdates(); // 描画を一時停止し、パフォーマンスを最大化
             try
             {
-                // デフォルトの文字フォーマットを設定 (空ドキュメントや新規テキスト入力用)
-                // preserveFormatting に関わらず常に設定する（新規入力時のデフォルトフォントの基準として必要）
                 var defaultFormat = doc.GetDefaultCharacterFormat();
                 if (defaultFormat != null)
                 {
@@ -257,21 +264,26 @@ namespace sumi
                     doc.SetDefaultCharacterFormat(defaultFormat);
                 }
 
-                // 全テキストを選択
                 var range = doc.GetRange(0, int.MaxValue);
 
                 if (!preserveFormatting)
                 {
-                    // 通常モード（設定変更時）: フォントファミリー・サイズ・ウェイトを全文上書きする
                     range.CharacterFormat.Name = MemoStorage.FontFamily;
                     range.CharacterFormat.Size = (float)MemoStorage.FontSize;
 
-                    // 1.5. フォントウェイトの一括更新（太字装飾や見出しを維持しつつ、設定されたデフォルトの太さを適用）
                     ushort defaultWeight = GetDefaultFontWeight();
                     ushort boldWeight = GetBoldFontWeight();
-                    UpdateRangeWeight(doc, 0, range.Length, defaultWeight, boldWeight);
 
-                    // 1.6. 現在の選択範囲/カーソル位置のフォントウェイトも更新し、新規入力時の太さを同期
+                    if (isPlainText)
+                    {
+                        // ★プレーンテキスト時は分割統治を行わず、一括で適用することでCOMオブジェクト生成を防ぐ
+                        range.CharacterFormat.Weight = defaultWeight;
+                    }
+                    else
+                    {
+                        UpdateRangeWeight(doc, 0, range.Length, defaultWeight, boldWeight);
+                    }
+
                     var selection = doc.Selection;
                     if (selection != null)
                     {
@@ -280,39 +292,30 @@ namespace sumi
                         var selWeight = selection.CharacterFormat.Weight;
 
                         bool isBoldOrHeading = (selBold == Microsoft.UI.Text.FormatEffect.On || selSize == 24 || selSize == 18);
-                        ushort targetWeight = isBoldOrHeading ? GetBoldFontWeight() : GetDefaultFontWeight();
+                        ushort targetWeight = isBoldOrHeading ? boldWeight : defaultWeight;
                         if (selWeight != targetWeight)
                         {
                             selection.CharacterFormat.Weight = targetWeight;
                         }
                     }
                 }
-                // preserveFormatting = true の場合: RTF から読み込んだ値をすべて保持する。
-                // フォントファミリー・サイズ・ウェイトを上書きしないことで、
-                // ハイライト・見出し・太字・斜体などの装飾情報を完全に保護する。
-                // （RTF にはフォントテーブルが含まれているため、フォントファミリーの再設定は不要）
 
-                // 2. 行間 (Line Spacing) の動的制御
                 float lineSpacing = (float)MemoStorage.LineSpacing;
                 if (lineSpacing < 1.0f)
                 {
-                    // 1.0未満は Multiple（倍数）が WinUI 仕様上無視されるため、Exactly（固定値）で上書き
-                    // 標準的な行高さを「フォントサイズ × 1.25」のSingle相当ラインとして定義し、そこへ入力倍率を乗算
                     float exactLineHeight = (float)(MemoStorage.FontSize * 1.25f * lineSpacing);
                     range.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Exactly, exactLineHeight);
                 }
                 else
                 {
-                    // 1.0以上の場合は現行通り Multiple（倍数指定）を適用
                     range.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Multiple, lineSpacing);
                 }
 
-                // 3. 段落間余白 (Paragraph Spacing) の上書き
                 range.ParagraphFormat.SpaceAfter = (float)MemoStorage.ParagraphSpacing;
             }
             finally
             {
-                doc.ApplyDisplayUpdates(); // 一括反映
+                doc.ApplyDisplayUpdates();
             }
         }
 
@@ -1147,6 +1150,10 @@ namespace sumi
         {
             PinnedListView.ItemsSource = null;
             NotesListView.ItemsSource = null;
+
+            // ★能動的なクリーンアップを実行してメモリを一掃する
+            System.GC.Collect();
+            System.GC.WaitForPendingFinalizers();
         }
 
         private void RootGrid_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -1370,14 +1377,14 @@ namespace sumi
                     {
                         MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, rtfData);
                         // プレーンテキストの場合は、現在のデフォルトテーマ（フォントファミリー、サイズ、行間等）を適用する。
-                        ApplyGlobalThemeToEditor(preserveFormatting: false);
+                        ApplyGlobalThemeToEditor(preserveFormatting: false, isPlainText: true);
                     }
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"[RTF Load Fallback Error] {ex.Message}");
                     MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, rtfData);
-                    ApplyGlobalThemeToEditor(preserveFormatting: false);
+                    ApplyGlobalThemeToEditor(preserveFormatting: false, isPlainText: true);
                 }
 
                 TitleTextBlock.Text = note.Title;
@@ -1573,7 +1580,7 @@ namespace sumi
             MemoTextBox.TextChanged -= MemoTextBox_TextChanged;
             _isRestoring = true;
             MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, string.Empty);
-            ApplyGlobalThemeToEditor();
+            ApplyGlobalThemeToEditor(preserveFormatting: false, isPlainText: true);
 
             TitleTextBlock.Text = newNote.Title;
             UpdateCharCount(0);
@@ -1621,27 +1628,23 @@ namespace sumi
                 return;
             }
 
-            // 「文字選択は加味しない」要件を満たすため、選択範囲全体ではなく
-            // カーソルの開始位置（キャレット位置）ピンポイントの書式を取得する
-            int cursorPos = MemoTextBox.Document.Selection.StartPosition;
-            var range = MemoTextBox.Document.GetRange(cursorPos, cursorPos);
-            var format = range.CharacterFormat;
+            // ★GetRangeを呼ぶのをやめ、既存のSelectionをそのまま使用してCOMオブジェクトの新規生成を回避
+            var selection = MemoTextBox.Document.Selection;
+            if (selection == null) return;
+            var format = selection.CharacterFormat;
 
-            // カーソル位置の書式に応じて ToggleButton の状態を同期
             FormatBoldBtn.IsChecked = (format.Bold == Microsoft.UI.Text.FormatEffect.On || format.Weight >= GetBoldFontWeight());
             FormatItalicBtn.IsChecked = format.Italic == Microsoft.UI.Text.FormatEffect.On;
             FormatUnderlineBtn.IsChecked = format.Underline != Microsoft.UI.Text.UnderlineType.None;
             FormatStrikethroughBtn.IsChecked = format.Strikethrough == Microsoft.UI.Text.FormatEffect.On;
-            
+
             var highlightColor = Microsoft.UI.ColorHelper.FromArgb(255, 120, 100, 0);
             FormatHighlightBtn.IsChecked = format.BackgroundColor == highlightColor;
 
-            // リスト状態の同期
-            var listType = range.ParagraphFormat.ListType;
+            var listType = selection.ParagraphFormat.ListType;
             FormatBulletListBtn.IsChecked = (listType == Microsoft.UI.Text.MarkerType.Bullet);
             FormatNumberListBtn.IsChecked = (listType == Microsoft.UI.Text.MarkerType.Arabic);
 
-            // 見出し状態の同期（基準サイズと太字で判定）
             FormatHeading1Btn.IsChecked = (format.Size == 24 && (format.Bold == Microsoft.UI.Text.FormatEffect.On || format.Weight >= GetBoldFontWeight()));
             FormatHeading2Btn.IsChecked = (format.Size == 18 && (format.Bold == Microsoft.UI.Text.FormatEffect.On || format.Weight >= GetBoldFontWeight()));
         }
@@ -1897,14 +1900,14 @@ namespace sumi
                             else
                             {
                                 MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, rtfData);
-                                ApplyGlobalThemeToEditor(preserveFormatting: false);
+                                ApplyGlobalThemeToEditor(preserveFormatting: false, isPlainText: true);
                             }
                         }
                         catch (Exception ex)
                         {
                             System.Diagnostics.Debug.WriteLine($"[RTF Load Fallback Error] {ex.Message}");
                             MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, rtfData);
-                            ApplyGlobalThemeToEditor(preserveFormatting: false);
+                            ApplyGlobalThemeToEditor(preserveFormatting: false, isPlainText: true);
                         }
 
                         // RichEditBoxに読み込ませた直後に、OSネイティブの解析結果（プレーンテキスト）を正確に取得
