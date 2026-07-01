@@ -130,7 +130,7 @@ namespace sumi
                     {
                         string content = File.ReadAllText(FilePath, Utf8NoBom);
                         string id = DateTime.UtcNow.Ticks.ToString();
-                        
+
                         var note = new NoteData
                         {
                             Id = id,
@@ -183,15 +183,26 @@ namespace sumi
                                 long ticks = long.Parse(parts[2]);
                                 var lastOpened = new DateTime(ticks, DateTimeKind.Utc);
 
-                                // 高速起動のためコンテンツは空で初期設定（バックグラウンドで遅延読み込み）
+                                // 後方互換性に配慮しつつ、保存済みのTitleとCharCountをパース
+                                string title = "Untitled";
+                                int charCount = 0;
+                                if (parts.Length >= 5)
+                                {
+                                    title = parts[3];
+                                    if (int.TryParse(parts[4], out int count))
+                                    {
+                                        charCount = count;
+                                    }
+                                }
+
                                 Notes.Add(new NoteData
                                 {
                                     Id = id,
                                     IsPinned = isPinned,
                                     LastOpened = lastOpened,
                                     Content = string.Empty,
-                                    Title = "Loading...",
-                                    CharCount = 0
+                                    Title = title,       // 起動直後に即座に表示可能
+                                    CharCount = charCount // 起動直後に即座に表示可能
                                 });
                             }
                         }
@@ -561,7 +572,8 @@ namespace sumi
                 {
                     foreach (var note in Notes)
                     {
-                        sb.AppendLine($"{note.Id}|{note.IsPinned}|{note.LastOpened.Ticks}");
+                        // Title と CharCount をメタデータに含めて保存します
+                        sb.AppendLine($"{note.Id}|{note.IsPinned}|{note.LastOpened.Ticks}|{note.Title}|{note.CharCount}");
                     }
                 }
                 byte[] bytes = Utf8NoBom.GetBytes(sb.ToString());
@@ -570,16 +582,12 @@ namespace sumi
                 {
                     fs.Write(bytes, 0, bytes.Length);
                     fs.Flush();
-                    fs.Flush(true); // 物理フラッシュ
+                    fs.Flush(true);
                 }
 
                 if (File.Exists(NotesDatPath))
                 {
                     File.Replace(NotesDatTempPath, NotesDatPath, null);
-                    using (var fs = new FileStream(NotesDatPath, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
-                    {
-                        fs.Flush(true);
-                    }
                 }
                 else
                 {
@@ -709,7 +717,7 @@ namespace sumi
         }
 
         /// <summary>
-        /// ウィンドウ座標の復元およびマルチモニターを考慮したクランプ処理を行います。
+        /// ウィンドウ座標の復元およびマルチモニターを考慮したクランプ処理、DPI自動スケーリングの相殺処理を行います。
         /// </summary>
         public static bool LoadWindowPlacement(IntPtr hWnd, out int x, out int y, out int width, out int height)
         {
@@ -741,7 +749,10 @@ namespace sumi
                                     info.cbSize = Marshal.SizeOf<MONITORINFO>();
                                     if (GetMonitorInfo(hMonitor, ref info))
                                     {
-                                        // 現在のウィンドウの初期DPIと、移動先モニターのDPIを取得して、DPI遷移によるサイズ変更を打ち消す調整を行う
+                                        // 【重要】
+                                        // ウィンドウが画面に表示される前の初期化段階では、GetDpiForWindow は標準の 96 DPI を返します。
+                                        // その後、対象モニターに配置される際、OSによって自動的に「targetDpi / initialDpi」倍にリサイズされます。
+                                        // 起動時の二重スケーリングを防ぐため、事前にこの拡大比率の逆数を掛けてサイズを補正します。
                                         uint initialDpi = 96;
                                         try
                                         {
@@ -768,7 +779,7 @@ namespace sumi
                                         if (initialDpi == 0) initialDpi = 96;
                                         if (targetDpi == 0) targetDpi = 96;
 
-                                        // DPI差分による自動スケーリングを相殺するようにサイズを補正
+                                        // DPIの差分がある場合、OSによる自動スケーリングを事前に相殺する
                                         if (initialDpi != targetDpi)
                                         {
                                             lw = (int)Math.Round(lw * ((double)initialDpi / targetDpi));
