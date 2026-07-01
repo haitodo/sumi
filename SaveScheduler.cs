@@ -10,7 +10,7 @@ namespace sumi
     public class SaveScheduler : IDisposable
     {
         private readonly DispatcherQueueTimer _timer;
-        private readonly Func<Task> _onSaveTriggered;
+        private Func<Task>? _onSaveTriggered; // ★ readonlyを削除し、null許容型に変更
         private readonly object _lock = new object();
         private bool _isDisposed = false;
 
@@ -41,7 +41,10 @@ namespace sumi
             _timer.Stop();
             try
             {
-                await _onSaveTriggered();
+                if (_onSaveTriggered != null) // ★ nullチェックを追加
+                {
+                    await _onSaveTriggered();
+                }
             }
             catch (Exception ex)
             {
@@ -65,6 +68,7 @@ namespace sumi
                 _isDisposed = true;
                 _timer.Stop();
                 _timer.Tick -= Timer_Tick; // ★イベントハンドラーの登録を解除
+                _onSaveTriggered = null;   // ★ MainWindow へのラムダ強参照をクリアして解放を促す
             }
         }
     }

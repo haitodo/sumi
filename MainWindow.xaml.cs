@@ -1190,7 +1190,68 @@ namespace sumi
         {
             if (sender is Grid grid)
             {
+                grid.PointerEntered += NoteItemGrid_PointerEntered;
+                grid.PointerExited += NoteItemGrid_PointerExited;
+                grid.SizeChanged += NoteItemGrid_SizeChanged;
                 CheckPointerOverGrid(grid);
+            }
+        }
+
+        private void NoteItemGrid_Unloaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is Grid grid)
+            {
+                grid.PointerEntered -= NoteItemGrid_PointerEntered;
+                grid.PointerExited -= NoteItemGrid_PointerExited;
+                grid.SizeChanged -= NoteItemGrid_SizeChanged;
+            }
+        }
+
+        private void NoteItemButton_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                btn.Click += NoteItem_Click;
+            }
+        }
+
+        private void NoteItemButton_Unloaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                btn.Click -= NoteItem_Click;
+            }
+        }
+
+        private void PinItemButton_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                btn.Click += PinItem_Click;
+            }
+        }
+
+        private void PinItemButton_Unloaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                btn.Click -= PinItem_Click;
+            }
+        }
+
+        private void DeleteItemButton_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                btn.Click += DeleteItem_Click;
+            }
+        }
+
+        private void DeleteItemButton_Unloaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                btn.Click -= DeleteItem_Click;
             }
         }
 
@@ -1483,8 +1544,8 @@ namespace sumi
                 }
 
                 bool isCurrent = note.Id == MemoStorage.CurrentNoteId;
-                string subtitle = isCurrent 
-                    ? $"Current • {note.CharCount} characters" 
+                string subtitle = isCurrent
+                    ? $"Current • {note.CharCount} characters"
                     : $"{GetRelativeTimeText(note.LastOpened)} • {note.CharCount} characters";
 
                 bool isHighlighted = note.Id == _highlightedNoteId;
@@ -1494,7 +1555,12 @@ namespace sumi
                 else normalVMs.Add(vm);
             }
 
+            // ★ メモリリーク対策: ItemsSource に新しいリストを設定する前に
+            // 一度 null を代入してネイティブ側の古いツリー要素の解放処理を走らせる
+            PinnedListView.ItemsSource = null;
             PinnedListView.ItemsSource = pinnedVMs;
+
+            NotesListView.ItemsSource = null;
             NotesListView.ItemsSource = normalVMs;
 
             PinnedSection.Visibility = pinnedVMs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -2554,13 +2620,32 @@ namespace sumi
                         MemoTextBox.Loaded -= MemoTextBox_Loaded;
                         MemoTextBox.Unloaded -= MemoTextBox_Unloaded;
                     }
+
+                    // ★ 追加: RootGrid のイベント解除
+                    if (RootGrid != null)
+                    {
+                        RootGrid.SizeChanged -= RootGrid_SizeChanged;
+                    }
+
+                    // ★ 追加: KeyDown ハンドラの解除
+                    if (this.Content != null)
+                    {
+                        this.Content.RemoveHandler(UIElement.KeyDownEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler(Global_KeyDown));
+                    }
+
+                    // ★ 追加: AppWindow イベントの解除
+                    if (_appWindow != null)
+                    {
+                        _appWindow.Closing -= AppWindow_Closing;
+                        _appWindow.Changed -= AppWindow_Changed;
+                    }
                 }
 
                 // アンマネージドリソース（トレイアイコン、ホットキー、サブクラスなど）の解放
                 RemoveTrayIcon();
                 if (_hWnd != IntPtr.Zero)
                 {
-                    UnregisterHotKey(_hWnd, 1001); // 元のコード通りマジックナンバーを使用
+                    UnregisterHotKey(_hWnd, 1001);
                     UnregisterHotKey(_hWnd, 1002);
                     if (_subclassProc != null)
                     {
