@@ -576,7 +576,8 @@
                 TextChanged="MemoTextBox_TextChanged"
                 SelectionChanged="MemoTextBox_SelectionChanged"
                 PreviewKeyDown="MemoTextBox_PreviewKeyDown"
-                SelectionFlyout="{x:Null}">
+                SelectionFlyout="{x:Null}"
+                ContextMenuOpening="MemoTextBox_ContextMenuOpening">
                 
                 <RichEditBox.Resources>
                     <!-- ホバーやフォーカスによる背景色変化と下部アクセント線を完全に無効化する軽量スタイル -->
