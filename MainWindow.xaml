@@ -632,7 +632,7 @@
                 <ToggleButton x:Name="FormatHighlightBtn" Content="&#xE7E6;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="ハイライト (Ctrl+H)" Click="FormatHighlight_Click" />
                 
                 <ToggleButton x:Name="FormatBulletListBtn" Content="&#xE8FD;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="箇条書き (Ctrl+Shift+L)" Click="FormatBulletList_Click" />
-                <ToggleButton x:Name="FormatNumberListBtn" Content="&#xE8EA;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="番号付きリスト (Ctrl+Shift+N)" Click="FormatNumberList_Click" />
+                <ToggleButton x:Name="FormatNumberListBtn" Content="&#xF146;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="番号付きリスト (Ctrl+Shift+N)" Click="FormatNumberList_Click" />
 
                 <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
 
