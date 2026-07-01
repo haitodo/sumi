@@ -1365,7 +1365,10 @@ namespace sumi
 
                 if (PlaceholderTextBlock != null)
                 {
-                    PlaceholderTextBlock.Visibility = string.IsNullOrEmpty(note.Content) ? Visibility.Visible : Visibility.Collapsed;
+                    MemoTextBox.Document.GetText(Microsoft.UI.Text.TextGetOptions.UseLf, out string plainText);
+                    if (plainText.EndsWith("\r") || plainText.EndsWith("\n"))
+                        plainText = plainText.Substring(0, plainText.Length - 1);
+                    PlaceholderTextBlock.Visibility = string.IsNullOrEmpty(plainText) ? Visibility.Visible : Visibility.Collapsed;
                 }
 
                 this.DispatcherQueue.TryEnqueue(
@@ -1890,7 +1893,10 @@ namespace sumi
 
                         if (PlaceholderTextBlock != null)
                         {
-                            PlaceholderTextBlock.Visibility = string.IsNullOrEmpty(pendingNoteCopy.Content) ? Visibility.Visible : Visibility.Collapsed;
+                            MemoTextBox.Document.GetText(Microsoft.UI.Text.TextGetOptions.UseLf, out string plainText);
+                            if (plainText.EndsWith("\r") || plainText.EndsWith("\n"))
+                                plainText = plainText.Substring(0, plainText.Length - 1);
+                            PlaceholderTextBlock.Visibility = string.IsNullOrEmpty(plainText) ? Visibility.Visible : Visibility.Collapsed;
                         }
 
                         MemoTextBox.TextChanged -= MemoTextBox_TextChanged;
