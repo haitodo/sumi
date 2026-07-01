@@ -498,6 +498,17 @@ namespace sumi
             if (plainText.EndsWith("\r") || plainText.EndsWith("\n")) 
                 plainText = plainText.Substring(0, plainText.Length - 1);
 
+            NoteData? currentNote = null;
+            lock (MemoStorage.Notes) { currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId); }
+
+            // ロード直後の遅延イベント等による不要な _isDirty 化を防ぐため、
+            // テキストに変化がない場合は早期リターンする。
+            // (ただし、すでに _isDirty が true の場合は装飾変更等の可能性があるためスルーする)
+            if (currentNote != null && currentNote.Content == plainText && !_isDirty)
+            {
+                return;
+            }
+
             if (PlaceholderTextBlock != null)
             {
                 PlaceholderTextBlock.Visibility = string.IsNullOrEmpty(plainText) ? Visibility.Visible : Visibility.Collapsed;
@@ -507,8 +518,6 @@ namespace sumi
             _revision++;
             _scheduler.Schedule(); // RTF生成と保存はスケジューラーに任せる
 
-            NoteData? currentNote = null;
-            lock (MemoStorage.Notes) { currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId); }
             if (currentNote != null)
             {
                 lock (MemoStorage.Notes)
@@ -535,6 +544,28 @@ namespace sumi
             }
             else
             {
+                // 非表示モードでも未保存の装飾データ（太字・ハイライト等）を確実に保存する
+                // デバウンス中（_isDirty=true）でも RTF を同期保存し、再表示時に装飾が失われないようにする
+                if (_isDirty)
+                {
+                    try
+                    {
+                        MemoTextBox.Document.GetText(Microsoft.UI.Text.TextGetOptions.UseLf, out string plainText);
+                        MemoTextBox.Document.GetText(Microsoft.UI.Text.TextGetOptions.FormatRtf, out string rtfText);
+                        if (plainText.EndsWith("\r") || plainText.EndsWith("\n"))
+                            plainText = plainText.Substring(0, plainText.Length - 1);
+                        rtfText = TrimTrailingRtfPar(rtfText);
+                        MemoStorage.SaveNoteTextSync(MemoStorage.CurrentNoteId, plainText, rtfText);
+                        _isDirty = false;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[Hide Save Error] {ex.Message}");
+                    }
+                }
+                // 保存完了後はデバウンスタイマーをキャンセルし、保存コールバックが二重起動しないようにする
+                _scheduler?.Cancel();
+
                 // 非表示にする前に、デバウンス中の座標を確定して保存
                 _windowPlacementTimer.Stop();
                 var pos = _appWindow.Position;
@@ -595,6 +626,9 @@ namespace sumi
             if (_isShutdownCalled) return;
             _isShutdownCalled = true;
 
+            // デバウンス保存タイマーを即座にキャンセルし、終了処理中の非同期保存コールバックと競合させない
+            _scheduler?.Cancel();
+
             // 1. 未保存データを終了直前に同期的に安全にディスク永続化
             if (_isDirty)
             {
@@ -624,9 +658,9 @@ namespace sumi
                 }
                 else
                 {
-                    // フォールバック: 安全なインメモリキャッシュから取得
-                    string safeText = MemoStorage.LoadMemoText();
-                    MemoStorage.SaveNoteTextSync(MemoStorage.CurrentNoteId, safeText, safeText);
+                    // フォールバック: GetText に失敗した場合は保存をスキップし、既存の RTF ファイルを保持する
+                    // （プレーンテキストで RTF ファイルを上書きすると太字・ハイライト等の装飾が消えるため保存しない）
+                    System.Diagnostics.Debug.WriteLine("[Shutdown Fallback] GetText failed; skipping save to preserve existing RTF.");
                 }
             }
 
@@ -1310,20 +1344,21 @@ namespace sumi
                     if (rtfData.StartsWith("{\\rtf1"))
                     {
                         MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.FormatRtf, rtfData);
+                        // RTF ロード時はすべての装飾・書式が自己完結しているため、テーマ適用をスキップして RichEdit のスタイル初期化バグを回避する。
                     }
                     else
                     {
                         MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, rtfData);
+                        // プレーンテキストの場合は、現在のデフォルトテーマ（フォントファミリー、サイズ、行間等）を適用する。
+                        ApplyGlobalThemeToEditor(preserveFormatting: false);
                     }
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"[RTF Load Fallback Error] {ex.Message}");
                     MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, rtfData);
+                    ApplyGlobalThemeToEditor(preserveFormatting: false);
                 }
-
-                // RTF 読み込み後はフォントサイズ・ウェイトを上書きしない（装飾を保護するため）
-                ApplyGlobalThemeToEditor(preserveFormatting: true);
 
                 TitleTextBlock.Text = note.Title;
                 UpdateCharCount(note.CharCount);
@@ -1816,40 +1851,11 @@ namespace sumi
                 _memoScrollViewer.PointerWheelChanged += ScrollViewer_PointerWheelChanged;
             }
 
-            // TTFP最適化: コンストラクタ内で保留されていたテキストを、初回描画完了後に適用する。
+            // TTFP最適化: コントロールが完全に描画完了・初期化された後に、テキストの適用とテーマ設定を行う。
             if (_pendingNote != null)
             {
-                MemoTextBox.TextChanged -= MemoTextBox_TextChanged;
                 string id = _pendingNote.Id;
-                _isRestoring = true;
-
-                string rtfData = MemoStorage.LoadNoteRtf(id);
-                try
-                {
-                    if (rtfData.StartsWith("{\\rtf1"))
-                    {
-                        MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.FormatRtf, rtfData);
-                    }
-                    else
-                    {
-                        MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, rtfData);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[RTF Load Fallback Error] {ex.Message}");
-                    MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, rtfData);
-                }
-
-                // RTF 読み込み後のテーマ適用は Low 優先度ディスパッチに移動し、RTF の初回レンダリング完了後に適用する。
-                // (起動時は BatchDisplayUpdates がコントロールの初回レンダリングと競合するため、
-                //  同一フレーム内で呼び出すと RTF の装飾表示が破損する。切替時は問題ないため SwitchToNote はそのまま。)
-
-                if (PlaceholderTextBlock != null)
-                {
-                    PlaceholderTextBlock.Visibility = string.IsNullOrEmpty(_pendingNote.Content) ? Visibility.Visible : Visibility.Collapsed;
-                }
-
+                var pendingNoteCopy = _pendingNote;
                 // 再入防止のためディスパッチの前に null クリアする
                 _pendingNote = null;
 
@@ -1857,9 +1863,36 @@ namespace sumi
                     Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
                     () =>
                     {
-                        // RTF 初回レンダリング完了後にフォント・行間・段落余白を適用する
-                        // (SetText と同フレームで呼ぶと初回レンダリングと干渉して装飾が破損するため遥延する)
-                        ApplyGlobalThemeToEditor(preserveFormatting: true);
+                        MemoTextBox.TextChanged -= MemoTextBox_TextChanged;
+                        _isRestoring = true;
+
+                        string rtfData = MemoStorage.LoadNoteRtf(id);
+                        try
+                        {
+                            if (rtfData.StartsWith("{\\rtf1"))
+                            {
+                                MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.FormatRtf, rtfData);
+                                // RTF ロード時はすべての装飾・書式が自己完結しているため、テーマ適用をスキップして RichEdit のスタイル初期化バグを回避する。
+                            }
+                            else
+                            {
+                                MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, rtfData);
+                                // プレーンテキストの場合は、現在のデフォルトテーマ（フォントファミリー、サイズ、行間等）を適用する。
+                                ApplyGlobalThemeToEditor(preserveFormatting: false);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[RTF Load Fallback Error] {ex.Message}");
+                            MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, rtfData);
+                            ApplyGlobalThemeToEditor(preserveFormatting: false);
+                        }
+
+                        if (PlaceholderTextBlock != null)
+                        {
+                            PlaceholderTextBlock.Visibility = string.IsNullOrEmpty(pendingNoteCopy.Content) ? Visibility.Visible : Visibility.Collapsed;
+                        }
+
                         MemoTextBox.TextChanged -= MemoTextBox_TextChanged;
                         MemoTextBox.TextChanged += MemoTextBox_TextChanged;
                         _isRestoring = false;
@@ -2111,6 +2144,28 @@ namespace sumi
                     }
                     else
                     {
+                        // 非表示モードでも未保存の装飾データ（太字・ハイライト等）を確実に保存する
+                        // デバウンス中（_isDirty=true）でも RTF を同期保存し、再表示時に装飾が失われないようにする
+                        if (_isDirty)
+                        {
+                            try
+                            {
+                                MemoTextBox.Document.GetText(Microsoft.UI.Text.TextGetOptions.UseLf, out string plainText);
+                                MemoTextBox.Document.GetText(Microsoft.UI.Text.TextGetOptions.FormatRtf, out string rtfText);
+                                if (plainText.EndsWith("\r") || plainText.EndsWith("\n"))
+                                    plainText = plainText.Substring(0, plainText.Length - 1);
+                                rtfText = TrimTrailingRtfPar(rtfText);
+                                MemoStorage.SaveNoteTextSync(MemoStorage.CurrentNoteId, plainText, rtfText);
+                                _isDirty = false;
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[HotKey Hide Save Error] {ex.Message}");
+                            }
+                        }
+                        // 保存完了後はデバウンスタイマーをキャンセルし、保存コールバックが二重起動しないようにする
+                        _scheduler?.Cancel();
+
                         // 非表示にする前に最新のウィンドウ配置を保存
                         var pos = _appWindow.Position;
                         var size = _appWindow.Size;
