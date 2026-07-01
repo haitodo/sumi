@@ -1434,7 +1434,8 @@ namespace sumi
                     if (rtfData.StartsWith("{\\rtf1"))
                     {
                         MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.FormatRtf, rtfData);
-                        // RTF ロード時はすべての装飾・書式が自己完結しているため、テーマ適用をスキップして RichEdit のスタイル初期化バグを回避する。
+                        // 既存の文字装飾を保護しながら、末尾の段落記号や新規入力箇所の基準サイズを設定値に合わせる
+                        ApplyGlobalThemeToEditor(preserveFormatting: true);
                     }
                     else
                     {
@@ -1964,6 +1965,8 @@ namespace sumi
                             if (rtfData.StartsWith("{\\rtf1"))
                             {
                                 MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.FormatRtf, rtfData);
+                                // 個別装飾（太字・ハイライト等）を保護しつつ、新規入力行のためにデフォルト書式を登録する
+                                ApplyGlobalThemeToEditor(preserveFormatting: true);
                             }
                             else
                             {
