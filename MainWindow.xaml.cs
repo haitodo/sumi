@@ -319,43 +319,53 @@ namespace sumi
         {
             if (start >= end) return;
 
-            var range = doc.GetRange(start, end);
-            var bold = range.CharacterFormat.Bold;
-            var size = range.CharacterFormat.Size;
-            var weight = range.CharacterFormat.Weight;
+            // Stackによるループ構造に置き換え、コールスタック枯渇（StackOverflowException）を防ぎます
+            var rangesToProcess = new System.Collections.Generic.Stack<(int Start, int End)>();
+            rangesToProcess.Push((start, end));
 
-            // 範囲内の太字、サイズ、ウェイトが均一である場合、一括で更新
-            if (bold != Microsoft.UI.Text.FormatEffect.Toggle && 
-                !float.IsNaN(size) && 
-                size > 0 && 
-                weight != 0)
+            while (rangesToProcess.Count > 0)
             {
-                bool isBoldOrHeading = (bold == Microsoft.UI.Text.FormatEffect.On || size == 24 || size == 18);
-                ushort targetWeight = isBoldOrHeading ? boldWeight : defaultWeight;
-                
-                if (weight != targetWeight)
-                {
-                    range.CharacterFormat.Weight = targetWeight;
-                }
-            }
-            else
-            {
-                // 範囲の長さが1文字以下の場合は、これ以上分割できないためここで更新
-                if (end - start <= 1)
+                var (currentStart, currentEnd) = rangesToProcess.Pop();
+                if (currentStart >= currentEnd) continue;
+
+                var range = doc.GetRange(currentStart, currentEnd);
+                var bold = range.CharacterFormat.Bold;
+                var size = range.CharacterFormat.Size;
+                var weight = range.CharacterFormat.Weight;
+
+                // 範囲内の太字、サイズ、ウェイトが均一であれば一括で更新
+                if (bold != Microsoft.UI.Text.FormatEffect.Toggle &&
+                    !float.IsNaN(size) &&
+                    size > 0 &&
+                    weight != 0)
                 {
                     bool isBoldOrHeading = (bold == Microsoft.UI.Text.FormatEffect.On || size == 24 || size == 18);
                     ushort targetWeight = isBoldOrHeading ? boldWeight : defaultWeight;
+
                     if (weight != targetWeight)
                     {
                         range.CharacterFormat.Weight = targetWeight;
                     }
-                    return;
                 }
+                else
+                {
+                    // 範囲の長さが1文字以下の場合は、これ以上分割できないためここで直接更新
+                    if (currentEnd - currentStart <= 1)
+                    {
+                        bool isBoldOrHeading = (bold == Microsoft.UI.Text.FormatEffect.On || size == 24 || size == 18);
+                        ushort targetWeight = isBoldOrHeading ? boldWeight : defaultWeight;
+                        if (weight != targetWeight)
+                        {
+                            range.CharacterFormat.Weight = targetWeight;
+                        }
+                        continue;
+                    }
 
-                // 均一でない場合は、範囲を半分に分割して再帰的に処理（分割統治法による高速化）
-                int mid = start + (end - start) / 2;
-                UpdateRangeWeight(doc, start, mid, defaultWeight, boldWeight);
-                UpdateRangeWeight(doc, mid, end, defaultWeight, boldWeight);
+                    // 均一でない場合は半分に分割してスタックに積み直す（非再帰化）
+                    int mid = currentStart + (currentEnd - currentStart) / 2;
+                    rangesToProcess.Push((mid, currentEnd));
+                    rangesToProcess.Push((currentStart, mid));
+                }
             }
         }
 
@@ -2543,10 +2553,28 @@ namespace sumi
         {
             if (string.IsNullOrEmpty(rtf)) return rtf;
 
-            int lastPar = rtf.LastIndexOf("\\par");
-            if (lastPar == -1) return rtf;
+            // RTF の閉じ括弧 '}' の直前に \par が存在するかを後ろから走査して厳密に確認します
+            int lastCloseBrace = rtf.LastIndexOf('}');
+            if (lastCloseBrace == -1) return rtf;
 
-            return rtf.Remove(lastPar, 4);
+            // 閉じカッコの直前にある改行文字やスペースをスキップ
+            int searchIndex = lastCloseBrace - 1;
+            while (searchIndex >= 0 && (rtf[searchIndex] == '\r' || rtf[searchIndex] == '\n' || rtf[searchIndex] == ' '))
+            {
+                searchIndex--;
+            }
+
+            if (searchIndex >= 3)
+            {
+                // ターゲット位置が本当に "\\par" であるかを部分的に検証して安全にトリム
+                int parIndex = rtf.LastIndexOf("\\par", searchIndex, 4, StringComparison.Ordinal);
+                if (parIndex != -1 && parIndex == searchIndex - 3)
+                {
+                    return rtf.Remove(parIndex, 4);
+                }
+            }
+
+            return rtf;
         }
 
         private void MarkAsDirty()
