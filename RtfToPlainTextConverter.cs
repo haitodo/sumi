@@ -8,6 +8,7 @@ namespace sumi
     /// RTF（リッチテキスト形式）の文字列からプレーンテキストを抽出するユーティリティクラスです。
     /// UIスレッドに依存しないため、バックグラウンドでのロード・検索インデックス生成に利用できます。
     /// </summary>
+    [Obsolete("Use UI thread ITextDocument APIs for Rich Text editing operations. Use this only for background plain text extraction if necessary.", false)]
     public static class RtfToPlainTextConverter
     {
         public static string ConvertRtfToPlainText(string rtf)

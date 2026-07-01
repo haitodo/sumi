@@ -246,7 +246,9 @@ namespace sumi
                         if (File.Exists(rtfFile))
                         {
                             string rtfData = File.ReadAllText(rtfFile, Utf8NoBom);
+#pragma warning disable CS0618
                             content = RtfToPlainTextConverter.ConvertRtfToPlainText(rtfData);
+#pragma warning restore CS0618
                         }
                         else if (File.Exists(txtFile))
                         {
@@ -314,7 +316,9 @@ namespace sumi
                     if (File.Exists(rtfFile))
                     {
                         string rtfData = File.ReadAllText(rtfFile, Utf8NoBom);
+#pragma warning disable CS0618
                         content = RtfToPlainTextConverter.ConvertRtfToPlainText(rtfData);
+#pragma warning restore CS0618
                     }
                     else if (File.Exists(txtFile))
                     {
@@ -378,7 +382,41 @@ namespace sumi
         }
 
         /// <summary>
-        /// 指定されたメモを非同期かつアトミックに保存します。
+        /// 指定されたノートの RTF テキストを読み込みます。一時的なロックに備えてリトライ処理を行います。
+        /// </summary>
+        public static string LoadNoteRtf(string id)
+        {
+            string rtfFile = Path.Combine(NotesFolderPath, $"note_{id}.rtf");
+            string txtFile = Path.Combine(NotesFolderPath, $"note_{id}.txt");
+
+            int maxRetries = 5;
+            int delayMs = 100;
+            for (int i = 0; i < maxRetries; i++)
+            {
+                try
+                {
+                    if (File.Exists(rtfFile))
+                    {
+                        return File.ReadAllText(rtfFile, Utf8NoBom);
+                    }
+                    else if (File.Exists(txtFile))
+                    {
+                        return File.ReadAllText(txtFile, Utf8NoBom);
+                    }
+                    return string.Empty;
+                }
+                catch (IOException ex) when (i < maxRetries - 1)
+                {
+                    Debug.WriteLine($"[LoadNoteRtf Retry {i + 1}] IOException: {ex.Message}");
+                    System.Threading.Thread.Sleep(delayMs);
+                    delayMs *= 2;
+                }
+            }
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// 指定されたメモを非同期かつアトミックに保存します。一時的なロックに備えてリトライ処理を行います。
         /// </summary>
         public static async Task<bool> SaveNoteTextAtomicAsync(string id, string plainText, string rtfText)
         {
@@ -398,28 +436,44 @@ namespace sumi
                 string noteFile = Path.Combine(NotesFolderPath, $"note_{id}.rtf");
                 string tempFile = Path.Combine(NotesFolderPath, $"note_{id}.tmp");
 
-                using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true))
-                using (var writer = new StreamWriter(fs, Utf8NoBom))
+                int maxRetries = 5;
+                int delayMs = 100;
+                for (int i = 0; i < maxRetries; i++)
                 {
-                    await writer.WriteAsync(rtfText);
-                    await writer.FlushAsync();
-                    fs.Flush(true); // 物理フラッシュ
-                }
-
-                if (File.Exists(noteFile))
-                {
-                    File.Replace(tempFile, noteFile, null);
-                    using (var fs = new FileStream(noteFile, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
+                    try
                     {
-                        fs.Flush(true);
+                        using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true))
+                        using (var writer = new StreamWriter(fs, Utf8NoBom))
+                        {
+                            await writer.WriteAsync(rtfText);
+                            await writer.FlushAsync();
+                            fs.Flush(true); // 物理フラッシュ
+                        }
+
+                        if (File.Exists(noteFile))
+                        {
+                            File.Replace(tempFile, noteFile, null);
+                            using (var fs = new FileStream(noteFile, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
+                            {
+                                fs.Flush(true);
+                            }
+                        }
+                        else
+                        {
+                            File.Move(tempFile, noteFile);
+                        }
+
+                        return true;
+                    }
+                    catch (IOException ex) when (i < maxRetries - 1)
+                    {
+                        Debug.WriteLine($"[SaveNoteTextAtomicAsync Retry {i + 1}] IOException: {ex.Message}");
+                        await Task.Delay(delayMs);
+                        delayMs *= 2;
                     }
                 }
-                else
-                {
-                    File.Move(tempFile, noteFile);
-                }
 
-                return true;
+                return false;
             }
             catch (Exception ex)
             {
@@ -429,7 +483,7 @@ namespace sumi
         }
 
         /// <summary>
-        /// 指定されたメモを同期かつアトミックに保存します（終了時用）。
+        /// 指定されたメモを同期かつアトミックに保存します（終了時用）。一時的なロックに備えてリトライ処理を行います。
         /// </summary>
         public static bool SaveNoteTextSync(string id, string plainText, string rtfText)
         {
@@ -449,28 +503,44 @@ namespace sumi
                 string noteFile = Path.Combine(NotesFolderPath, $"note_{id}.rtf");
                 string tempFile = Path.Combine(NotesFolderPath, $"note_{id}.tmp");
 
-                using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: false))
-                using (var writer = new StreamWriter(fs, Utf8NoBom))
+                int maxRetries = 5;
+                int delayMs = 100;
+                for (int i = 0; i < maxRetries; i++)
                 {
-                    writer.Write(rtfText);
-                    writer.Flush();
-                    fs.Flush(true);
-                }
-
-                if (File.Exists(noteFile))
-                {
-                    File.Replace(tempFile, noteFile, null);
-                    using (var fs = new FileStream(noteFile, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
+                    try
                     {
-                        fs.Flush(true);
+                        using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: false))
+                        using (var writer = new StreamWriter(fs, Utf8NoBom))
+                        {
+                            writer.Write(rtfText);
+                            writer.Flush();
+                            fs.Flush(true);
+                        }
+
+                        if (File.Exists(noteFile))
+                        {
+                            File.Replace(tempFile, noteFile, null);
+                            using (var fs = new FileStream(noteFile, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
+                            {
+                                fs.Flush(true);
+                            }
+                        }
+                        else
+                        {
+                            File.Move(tempFile, noteFile);
+                        }
+
+                        return true;
+                    }
+                    catch (IOException ex) when (i < maxRetries - 1)
+                    {
+                        Debug.WriteLine($"[SaveNoteTextSync Retry {i + 1}] IOException: {ex.Message}");
+                        System.Threading.Thread.Sleep(delayMs);
+                        delayMs *= 2;
                     }
                 }
-                else
-                {
-                    File.Move(tempFile, noteFile);
-                }
 
-                return true;
+                return false;
             }
             catch (Exception ex)
             {

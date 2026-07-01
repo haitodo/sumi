@@ -166,7 +166,8 @@ namespace sumi
 
                 rtfText = TrimTrailingRtfPar(rtfText);
 
-                bool success = await MemoStorage.SaveNoteTextAtomicAsync(MemoStorage.CurrentNoteId, plainText, rtfText);
+                // ファイルI/Oをバックグラウンドスレッドへオフロード
+                bool success = await Task.Run(async () => await MemoStorage.SaveNoteTextAtomicAsync(MemoStorage.CurrentNoteId, plainText, rtfText));
                 if (success)
                 {
                     _savedRevision = currentRevision;
@@ -1290,13 +1291,10 @@ namespace sumi
                 MemoTextBox.TextChanged -= MemoTextBox_TextChanged;
                 _isRestoring = true;
 
-                string rtfFile = System.IO.Path.Combine(MemoStorage.NotesFolderPath, $"note_{id}.rtf");
-                string txtFile = System.IO.Path.Combine(MemoStorage.NotesFolderPath, $"note_{id}.txt");
-
-                if (System.IO.File.Exists(rtfFile))
+                string rtfData = MemoStorage.LoadNoteRtf(id);
+                try
                 {
-                    string rtfData = System.IO.File.ReadAllText(rtfFile, new System.Text.UTF8Encoding(false));
-                    if (rtfData.StartsWith("{\\rtf"))
+                    if (rtfData.StartsWith("{\\rtf1"))
                     {
                         MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.FormatRtf, rtfData);
                     }
@@ -1305,14 +1303,10 @@ namespace sumi
                         MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, rtfData);
                     }
                 }
-                else if (System.IO.File.Exists(txtFile))
+                catch (Exception ex)
                 {
-                    string txtData = System.IO.File.ReadAllText(txtFile, new System.Text.UTF8Encoding(false));
-                    MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, txtData);
-                }
-                else
-                {
-                    MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, string.Empty);
+                    System.Diagnostics.Debug.WriteLine($"[RTF Load Fallback Error] {ex.Message}");
+                    MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, rtfData);
                 }
 
                 ApplyGlobalThemeToEditor();
@@ -1589,6 +1583,12 @@ namespace sumi
 
             if (isCtrlDown)
             {
+                // Ctrl + B, Ctrl + I, Ctrl + U を検知してドキュメントを変更状態にする
+                if (e.Key == Windows.System.VirtualKey.B || e.Key == Windows.System.VirtualKey.I || e.Key == Windows.System.VirtualKey.U)
+                {
+                    MarkAsDirty();
+                }
+
                 // 箇条書き (Ctrl + Shift + L)
                 if (isShiftDown && e.Key == Windows.System.VirtualKey.L)
                 {
@@ -1649,6 +1649,7 @@ namespace sumi
                 format.Weight = GetBoldFontWeight();
             }
             UpdateFormatButtonStates();
+            MarkAsDirty();
         }
 
         private void FormatItalic_Click(object sender, RoutedEventArgs e)
@@ -1656,6 +1657,7 @@ namespace sumi
             var format = MemoTextBox.Document.Selection.CharacterFormat;
             format.Italic = format.Italic == Microsoft.UI.Text.FormatEffect.On ? Microsoft.UI.Text.FormatEffect.Off : Microsoft.UI.Text.FormatEffect.On;
             UpdateFormatButtonStates();
+            MarkAsDirty();
         }
 
         private void FormatUnderline_Click(object sender, RoutedEventArgs e)
@@ -1663,6 +1665,7 @@ namespace sumi
             var format = MemoTextBox.Document.Selection.CharacterFormat;
             format.Underline = format.Underline == Microsoft.UI.Text.UnderlineType.None ? Microsoft.UI.Text.UnderlineType.Single : Microsoft.UI.Text.UnderlineType.None;
             UpdateFormatButtonStates();
+            MarkAsDirty();
         }
 
         private void FormatStrikethrough_Click(object sender, RoutedEventArgs e)
@@ -1689,6 +1692,7 @@ namespace sumi
             
             MemoTextBox.Focus(FocusState.Programmatic);
             UpdateFormatButtonStates();
+            MarkAsDirty();
         }
 
         private void FormatNumberList_Click(object? sender, RoutedEventArgs? e)
@@ -1706,6 +1710,7 @@ namespace sumi
                 
             MemoTextBox.Focus(FocusState.Programmatic);
             UpdateFormatButtonStates();
+            MarkAsDirty();
         }
 
         private void FormatHeading1_Click(object? sender, RoutedEventArgs? e)
@@ -1719,6 +1724,7 @@ namespace sumi
             
             MemoTextBox.Focus(FocusState.Programmatic);
             UpdateFormatButtonStates();
+            MarkAsDirty();
         }
 
         private void FormatHeading2_Click(object? sender, RoutedEventArgs? e)
@@ -1732,6 +1738,7 @@ namespace sumi
             
             MemoTextBox.Focus(FocusState.Programmatic);
             UpdateFormatButtonStates();
+            MarkAsDirty();
         }
 
         private void ToggleHighlight()
@@ -1751,6 +1758,7 @@ namespace sumi
                 format.BackgroundColor = highlightColor; // ハイライトを適用
             }
             UpdateFormatButtonStates();
+            MarkAsDirty();
         }
 
         private void ToggleStrikethrough()
@@ -1758,6 +1766,7 @@ namespace sumi
             var format = MemoTextBox.Document.Selection.CharacterFormat;
             format.Strikethrough = format.Strikethrough == Microsoft.UI.Text.FormatEffect.On ? Microsoft.UI.Text.FormatEffect.Off : Microsoft.UI.Text.FormatEffect.On;
             UpdateFormatButtonStates();
+            MarkAsDirty();
         }
 
         private void ClearFormatting()
@@ -1775,6 +1784,7 @@ namespace sumi
             selection.ParagraphFormat.ListType = Microsoft.UI.Text.MarkerType.None;
 
             UpdateFormatButtonStates();
+            MarkAsDirty();
         }
 
         #endregion
@@ -1799,13 +1809,10 @@ namespace sumi
                 string id = _pendingNote.Id;
                 _isRestoring = true;
 
-                string rtfFile = System.IO.Path.Combine(MemoStorage.NotesFolderPath, $"note_{id}.rtf");
-                string txtFile = System.IO.Path.Combine(MemoStorage.NotesFolderPath, $"note_{id}.txt");
-
-                if (System.IO.File.Exists(rtfFile))
+                string rtfData = MemoStorage.LoadNoteRtf(id);
+                try
                 {
-                    string rtfData = System.IO.File.ReadAllText(rtfFile, new System.Text.UTF8Encoding(false));
-                    if (rtfData.StartsWith("{\\rtf"))
+                    if (rtfData.StartsWith("{\\rtf1"))
                     {
                         MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.FormatRtf, rtfData);
                     }
@@ -1814,14 +1821,10 @@ namespace sumi
                         MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, rtfData);
                     }
                 }
-                else if (System.IO.File.Exists(txtFile))
+                catch (Exception ex)
                 {
-                    string txtData = System.IO.File.ReadAllText(txtFile, new System.Text.UTF8Encoding(false));
-                    MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, txtData);
-                }
-                else
-                {
-                    MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, string.Empty);
+                    System.Diagnostics.Debug.WriteLine($"[RTF Load Fallback Error] {ex.Message}");
+                    MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, rtfData);
                 }
 
                 ApplyGlobalThemeToEditor();
@@ -2462,6 +2465,13 @@ namespace sumi
             if (lastPar == -1) return rtf;
 
             return rtf.Remove(lastPar, 4);
+        }
+
+        private void MarkAsDirty()
+        {
+            _isDirty = true;
+            _revision++;
+            _scheduler?.Schedule();
         }
 
         private int GetCaretEndPosition()
