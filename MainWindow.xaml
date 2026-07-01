@@ -68,15 +68,16 @@
 
             <!-- メモアイテムの表示テンプレート -->
             <DataTemplate x:Key="NoteItemTemplate" x:DataType="local:NoteItemViewModel">
+                <!-- 変更点: 直接のPointerイベント等を廃止し、Loaded/Unloadedで制御 -->
                 <Grid Padding="4" Background="{x:Bind BackgroundBrush, Mode=OneTime}" CornerRadius="4" 
-                      PointerEntered="NoteItemGrid_PointerEntered" PointerExited="NoteItemGrid_PointerExited"
-                      Loaded="NoteItemGrid_Loaded" SizeChanged="NoteItemGrid_SizeChanged">
+                      Loaded="NoteItemGrid_Loaded" Unloaded="NoteItemGrid_Unloaded">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    
+
                     <!-- メモ選択領域 -->
+                    <!-- 変更点: Clickイベントを直接繋がず、Loaded/Unloaded経由でハンドラを着脱 -->
                     <Button Grid.Column="0" 
                             HorizontalAlignment="Stretch" 
                             HorizontalContentAlignment="Stretch" 
@@ -84,7 +85,8 @@
                             BorderThickness="0"
                             Padding="8,6"
                             CornerRadius="4"
-                            Click="NoteItem_Click">
+                            Loaded="NoteItemButton_Loaded"
+                            Unloaded="NoteItemButton_Unloaded">
                         <Grid RowSpacing="2">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -97,13 +99,14 @@
                             </StackPanel>
                         </Grid>
                     </Button>
-                    
+
                     <!-- アクション領域（ホバー時にのみ表示） -->
                     <StackPanel x:Name="ActionsPanel" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Spacing="2" Padding="0,0,4,0" Visibility="Collapsed">
                         <Button Style="{StaticResource IconButtonStyle}" 
                                 Width="28" Height="28"
                                 ToolTipService.ToolTip="{x:Bind PinToolTip}"
-                                Click="PinItem_Click">
+                                Loaded="PinItemButton_Loaded"
+                                Unloaded="PinItemButton_Unloaded">
                             <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <!-- Base outline pin (always visible, draws the needle) -->
                                 <FontIcon Glyph="&#xE718;" 
@@ -122,7 +125,8 @@
                                 Style="{StaticResource IconButtonStyle}" 
                                 Width="28" Height="28" FontSize="11"
                                 ToolTipService.ToolTip="削除"
-                                Click="DeleteItem_Click" />
+                                Loaded="DeleteItemButton_Loaded"
+                                Unloaded="DeleteItemButton_Unloaded" />
                     </StackPanel>
                 </Grid>
             </DataTemplate>
