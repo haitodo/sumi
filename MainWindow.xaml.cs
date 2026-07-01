@@ -305,15 +305,32 @@ namespace sumi
                 float lineSpacing = (float)MemoStorage.LineSpacing;
                 if (lineSpacing < 1.0f)
                 {
-                    float exactLineHeight = (float)(MemoStorage.FontSize * 1.25f * lineSpacing);
-                    range.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Exactly, exactLineHeight);
+                    // 文書全体の行間を一括で固定値に設定すると、H1やH2の段落で文字が押し潰されて重なってしまいます。
+                    // 段落をループ処理し、それぞれのフォントサイズに基づいた適切な Exactly 行高を個別に適用します。
+                    var paraRange = doc.GetRange(0, 0);
+                    while (true)
+                    {
+                        paraRange.Expand(Microsoft.UI.Text.TextRangeUnit.Paragraph);
+
+                        float paraFontSize = paraRange.CharacterFormat.Size;
+                        if (float.IsNaN(paraFontSize) || paraFontSize <= 0)
+                        {
+                            paraFontSize = (float)MemoStorage.FontSize;
+                        }
+
+                        float exactLineHeight = (float)(paraFontSize * 1.25f * lineSpacing);
+                        paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Exactly, exactLineHeight);
+                        paraRange.ParagraphFormat.SpaceAfter = (float)MemoStorage.ParagraphSpacing;
+
+                        int moved = paraRange.Move(Microsoft.UI.Text.TextRangeUnit.Paragraph, 1);
+                        if (moved <= 0) break;
+                    }
                 }
                 else
                 {
                     range.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Multiple, lineSpacing);
+                    range.ParagraphFormat.SpaceAfter = (float)MemoStorage.ParagraphSpacing;
                 }
-
-                range.ParagraphFormat.SpaceAfter = (float)MemoStorage.ParagraphSpacing;
             }
             finally
             {
@@ -1857,15 +1874,87 @@ namespace sumi
             MarkAsDirty();
         }
 
+        /// <summary>
+        /// 指定された段落の範囲をスキャンし、その中に含まれる最大のフォントサイズを取得します。
+        /// </summary>
+        private float GetMaxFontSizeInParagraph(Microsoft.UI.Text.ITextRange paraRange)
+        {
+            float size = paraRange.CharacterFormat.Size;
+            if (!float.IsNaN(size) && size > 0)
+            {
+                return size;
+            }
+
+            // サイズが混在している（NaN）場合、段落内をスキャンして最大値を見つけます
+            float max = (float)MemoStorage.FontSize;
+            int end = paraRange.EndPosition;
+
+            var dup = paraRange.GetClone();
+            dup.Collapse(true);
+
+            while (dup.StartPosition < end)
+            {
+                float sz = dup.CharacterFormat.Size;
+                if (!float.IsNaN(sz))
+                {
+                    if (sz > max) max = sz;
+                    if (max >= 24) break; // すでに最大の見出し1(24)に達した場合はその時点で終了して高速化
+                }
+
+                int moved = dup.Move(Microsoft.UI.Text.TextRangeUnit.Character, 1);
+                if (moved <= 0) break;
+            }
+
+            return max;
+        }
+
         private void FormatHeading1_Click(object? sender, RoutedEventArgs? e)
         {
             var selection = MemoTextBox.Document.Selection;
-            bool isCurrentlyH1 = selection.CharacterFormat.Size == 24;
+            if (selection == null) return;
 
-            selection.CharacterFormat.Size = isCurrentlyH1 ? (float)MemoStorage.FontSize : 24;
-            selection.CharacterFormat.Bold = isCurrentlyH1 ? GetDefaultBoldEffect() : Microsoft.UI.Text.FormatEffect.On;
-            selection.CharacterFormat.Weight = isCurrentlyH1 ? GetDefaultFontWeight() : GetBoldFontWeight();
-            
+            // 1. 自動追跡可能なクローンを使って現在の選択範囲を保存
+            var savedSelection = selection.GetClone();
+
+            // 2. 選択範囲のサイズからトグル状態を判定
+            float currentSize = selection.CharacterFormat.Size;
+            if (float.IsNaN(currentSize) || currentSize <= 0)
+            {
+                var temp = selection.GetClone();
+                temp.Collapse(true);
+                currentSize = temp.CharacterFormat.Size;
+            }
+
+            bool isCurrentlyH1 = (currentSize == 24);
+
+            float targetSize = isCurrentlyH1 ? (float)MemoStorage.FontSize : 24;
+            var boldEffect = isCurrentlyH1 ? GetDefaultBoldEffect() : Microsoft.UI.Text.FormatEffect.On;
+            ushort targetWeight = isCurrentlyH1 ? GetDefaultFontWeight() : GetBoldFontWeight();
+
+            // 3. 選択された文字列（selection）に対してフォントとウェイトを適用
+            selection.CharacterFormat.Size = targetSize;
+            selection.CharacterFormat.Bold = boldEffect;
+            selection.CharacterFormat.Weight = targetWeight;
+
+            // 4. 選択範囲が含まれる段落全体を特定し、適用した targetSize に基づいて行高をダイレクトに設定
+            var paraRange = MemoTextBox.Document.GetRange(selection.StartPosition, selection.EndPosition);
+            paraRange.Expand(Microsoft.UI.Text.TextRangeUnit.Paragraph);
+
+            float lineSpacing = (float)MemoStorage.LineSpacing;
+            if (lineSpacing < 1.0f)
+            {
+                float exactLineHeight = (float)(targetSize * 1.25f * lineSpacing);
+                paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Exactly, exactLineHeight);
+            }
+            else
+            {
+                paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Multiple, lineSpacing);
+            }
+            paraRange.ParagraphFormat.SpaceAfter = (float)MemoStorage.ParagraphSpacing;
+
+            // 5. 選択範囲（カーソル位置）を正確に復元
+            selection.SetRange(savedSelection.StartPosition, savedSelection.EndPosition);
+
             MemoTextBox.Focus(FocusState.Programmatic);
             UpdateFormatButtonStates();
             MarkAsDirty();
@@ -1874,12 +1963,50 @@ namespace sumi
         private void FormatHeading2_Click(object? sender, RoutedEventArgs? e)
         {
             var selection = MemoTextBox.Document.Selection;
-            bool isCurrentlyH2 = selection.CharacterFormat.Size == 18;
+            if (selection == null) return;
 
-            selection.CharacterFormat.Size = isCurrentlyH2 ? (float)MemoStorage.FontSize : 18;
-            selection.CharacterFormat.Bold = isCurrentlyH2 ? GetDefaultBoldEffect() : Microsoft.UI.Text.FormatEffect.On;
-            selection.CharacterFormat.Weight = isCurrentlyH2 ? GetDefaultFontWeight() : GetBoldFontWeight();
-            
+            // 1. 自動追跡可能なクローンを使って現在の選択範囲を保存
+            var savedSelection = selection.GetClone();
+
+            // 2. 選択範囲のサイズからトグル状態を判定
+            float currentSize = selection.CharacterFormat.Size;
+            if (float.IsNaN(currentSize) || currentSize <= 0)
+            {
+                var temp = selection.GetClone();
+                temp.Collapse(true);
+                currentSize = temp.CharacterFormat.Size;
+            }
+
+            bool isCurrentlyH2 = (currentSize == 18);
+
+            float targetSize = isCurrentlyH2 ? (float)MemoStorage.FontSize : 18;
+            var boldEffect = isCurrentlyH2 ? GetDefaultBoldEffect() : Microsoft.UI.Text.FormatEffect.On;
+            ushort targetWeight = isCurrentlyH2 ? GetDefaultFontWeight() : GetBoldFontWeight();
+
+            // 3. 選択された文字列（selection）に対してフォントとウェイトを適用
+            selection.CharacterFormat.Size = targetSize;
+            selection.CharacterFormat.Bold = boldEffect;
+            selection.CharacterFormat.Weight = targetWeight;
+
+            // 4. 選択範囲が含まれる段落全体を特定し、適用した targetSize に基づいて行高をダイレクトに設定
+            var paraRange = MemoTextBox.Document.GetRange(selection.StartPosition, selection.EndPosition);
+            paraRange.Expand(Microsoft.UI.Text.TextRangeUnit.Paragraph);
+
+            float lineSpacing = (float)MemoStorage.LineSpacing;
+            if (lineSpacing < 1.0f)
+            {
+                float exactLineHeight = (float)(targetSize * 1.25f * lineSpacing);
+                paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Exactly, exactLineHeight);
+            }
+            else
+            {
+                paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Multiple, lineSpacing);
+            }
+            paraRange.ParagraphFormat.SpaceAfter = (float)MemoStorage.ParagraphSpacing;
+
+            // 5. 選択範囲（カーソル位置）を正確に復元
+            selection.SetRange(savedSelection.StartPosition, savedSelection.EndPosition);
+
             MemoTextBox.Focus(FocusState.Programmatic);
             UpdateFormatButtonStates();
             MarkAsDirty();
@@ -1916,6 +2043,12 @@ namespace sumi
         private void ClearFormatting()
         {
             var selection = MemoTextBox.Document.Selection;
+            if (selection == null) return;
+
+            // 1. 自動追跡可能なクローンを使って現在の選択範囲を保存
+            var savedSelection = selection.GetClone();
+
+            // 2. 選択部分の文字装飾を標準に戻す
             var format = selection.CharacterFormat;
             format.Bold = GetDefaultBoldEffect();
             format.Weight = GetDefaultFontWeight();
@@ -1926,6 +2059,26 @@ namespace sumi
             format.Size = (float)MemoStorage.FontSize;
 
             selection.ParagraphFormat.ListType = Microsoft.UI.Text.MarkerType.None;
+
+            // 3. 選択範囲が含まれる段落全体を特定し、行高をデフォルトにダイレクトにリセット
+            var paraRange = MemoTextBox.Document.GetRange(selection.StartPosition, selection.EndPosition);
+            paraRange.Expand(Microsoft.UI.Text.TextRangeUnit.Paragraph);
+
+            float lineSpacing = (float)MemoStorage.LineSpacing;
+            if (lineSpacing < 1.0f)
+            {
+                float exactLineHeight = (float)(MemoStorage.FontSize * 1.25f * lineSpacing);
+                paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Exactly, exactLineHeight);
+            }
+            else
+            {
+                paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Multiple, lineSpacing);
+            }
+            paraRange.ParagraphFormat.SpaceAfter = (float)MemoStorage.ParagraphSpacing;
+            paraRange.ParagraphFormat.ListType = Microsoft.UI.Text.MarkerType.None;
+
+            // 4. 選択範囲（カーソル位置）を正確に復元
+            selection.SetRange(savedSelection.StartPosition, savedSelection.EndPosition);
 
             UpdateFormatButtonStates();
             MarkAsDirty();
