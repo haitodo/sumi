@@ -232,7 +232,12 @@ namespace sumi
             }
         }
 
-        private void ApplyGlobalThemeToEditor()
+        /// <param name="preserveFormatting">
+        /// true の場合、RTF 読み込み直後に呼ばれるケース向けに、個々の文字サイズ・ウェイトの上書きをスキップする。
+        /// ハイライト・見出しサイズ・太字などの装飾を保護するために使用する。
+        /// false（デフォルト）の場合は設定変更時の全文適用を行う従来の挙動になる。
+        /// </param>
+        private void ApplyGlobalThemeToEditor(bool preserveFormatting = false)
         {
             if (MemoTextBox == null) return;
 
@@ -241,6 +246,7 @@ namespace sumi
             try
             {
                 // デフォルトの文字フォーマットを設定 (空ドキュメントや新規テキスト入力用)
+                // preserveFormatting に関わらず常に設定する（新規入力時のデフォルトフォントの基準として必要）
                 var defaultFormat = doc.GetDefaultCharacterFormat();
                 if (defaultFormat != null)
                 {
@@ -253,30 +259,37 @@ namespace sumi
                 // 全テキストを選択
                 var range = doc.GetRange(0, int.MaxValue);
 
-                // 1. フォントとサイズの上書き
-                range.CharacterFormat.Name = MemoStorage.FontFamily;
-                range.CharacterFormat.Size = (float)MemoStorage.FontSize;
-
-                // 1.5. フォントウェイトの一括更新（太字装飾や見出しを維持しつつ、設定されたデフォルトの太さを適用）
-                ushort defaultWeight = GetDefaultFontWeight();
-                ushort boldWeight = GetBoldFontWeight();
-                UpdateRangeWeight(doc, 0, range.Length, defaultWeight, boldWeight);
-
-                // 1.6. 現在の選択範囲/カーソル位置のフォントウェイトも更新し、新規入力時の太さを同期
-                var selection = doc.Selection;
-                if (selection != null)
+                if (!preserveFormatting)
                 {
-                    var selBold = selection.CharacterFormat.Bold;
-                    var selSize = selection.CharacterFormat.Size;
-                    var selWeight = selection.CharacterFormat.Weight;
+                    // 通常モード（設定変更時）: フォントファミリー・サイズ・ウェイトを全文上書きする
+                    range.CharacterFormat.Name = MemoStorage.FontFamily;
+                    range.CharacterFormat.Size = (float)MemoStorage.FontSize;
 
-                    bool isBoldOrHeading = (selBold == Microsoft.UI.Text.FormatEffect.On || selSize == 24 || selSize == 18);
-                    ushort targetWeight = isBoldOrHeading ? boldWeight : defaultWeight;
-                    if (selWeight != targetWeight)
+                    // 1.5. フォントウェイトの一括更新（太字装飾や見出しを維持しつつ、設定されたデフォルトの太さを適用）
+                    ushort defaultWeight = GetDefaultFontWeight();
+                    ushort boldWeight = GetBoldFontWeight();
+                    UpdateRangeWeight(doc, 0, range.Length, defaultWeight, boldWeight);
+
+                    // 1.6. 現在の選択範囲/カーソル位置のフォントウェイトも更新し、新規入力時の太さを同期
+                    var selection = doc.Selection;
+                    if (selection != null)
                     {
-                        selection.CharacterFormat.Weight = targetWeight;
+                        var selBold = selection.CharacterFormat.Bold;
+                        var selSize = selection.CharacterFormat.Size;
+                        var selWeight = selection.CharacterFormat.Weight;
+
+                        bool isBoldOrHeading = (selBold == Microsoft.UI.Text.FormatEffect.On || selSize == 24 || selSize == 18);
+                        ushort targetWeight = isBoldOrHeading ? GetBoldFontWeight() : GetDefaultFontWeight();
+                        if (selWeight != targetWeight)
+                        {
+                            selection.CharacterFormat.Weight = targetWeight;
+                        }
                     }
                 }
+                // preserveFormatting = true の場合: RTF から読み込んだ値をすべて保持する。
+                // フォントファミリー・サイズ・ウェイトを上書きしないことで、
+                // ハイライト・見出し・太字・斜体などの装飾情報を完全に保護する。
+                // （RTF にはフォントテーブルが含まれているため、フォントファミリーの再設定は不要）
 
                 // 2. 行間 (Line Spacing) の動的制御
                 float lineSpacing = (float)MemoStorage.LineSpacing;
@@ -1309,7 +1322,8 @@ namespace sumi
                     MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, rtfData);
                 }
 
-                ApplyGlobalThemeToEditor();
+                // RTF 読み込み後はフォントサイズ・ウェイトを上書きしない（装飾を保護するため）
+                ApplyGlobalThemeToEditor(preserveFormatting: true);
 
                 TitleTextBlock.Text = note.Title;
                 UpdateCharCount(note.CharCount);
@@ -1827,18 +1841,25 @@ namespace sumi
                     MemoTextBox.Document.SetText(Microsoft.UI.Text.TextSetOptions.None, rtfData);
                 }
 
-                ApplyGlobalThemeToEditor();
+                // RTF 読み込み後のテーマ適用は Low 優先度ディスパッチに移動し、RTF の初回レンダリング完了後に適用する。
+                // (起動時は BatchDisplayUpdates がコントロールの初回レンダリングと競合するため、
+                //  同一フレーム内で呼び出すと RTF の装飾表示が破損する。切替時は問題ないため SwitchToNote はそのまま。)
 
                 if (PlaceholderTextBlock != null)
                 {
                     PlaceholderTextBlock.Visibility = string.IsNullOrEmpty(_pendingNote.Content) ? Visibility.Visible : Visibility.Collapsed;
                 }
+
+                // 再入防止のためディスパッチの前に null クリアする
                 _pendingNote = null;
 
                 this.DispatcherQueue.TryEnqueue(
                     Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
                     () =>
                     {
+                        // RTF 初回レンダリング完了後にフォント・行間・段落余白を適用する
+                        // (SetText と同フレームで呼ぶと初回レンダリングと干渉して装飾が破損するため遥延する)
+                        ApplyGlobalThemeToEditor(preserveFormatting: true);
                         MemoTextBox.TextChanged -= MemoTextBox_TextChanged;
                         MemoTextBox.TextChanged += MemoTextBox_TextChanged;
                         _isRestoring = false;
