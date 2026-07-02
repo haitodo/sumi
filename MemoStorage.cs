@@ -44,13 +44,13 @@ namespace sumi
 
         // 設定の定義（デフォルト値）
         public static string FontFamily { get; set; } = "Noto Sans JP";
+        public static string FontWeight { get; set; } = "Light";
         public static double FontSize { get; set; } = 11.0;
         public static double LineSpacing { get; set; } = 0.9;
         public static double ParagraphSpacing { get; set; } = 6.0; // 段落間の余白（pt単位）
         public static double Opacity { get; set; } = 50.0; // 0 to 100
-        public static string FontWeight { get; set; } = "Light";
-        public static string QuitHotKey { get; set; } = "Alt+Q";
         public static string LaunchHotKey { get; set; } = string.Empty;
+        public static string QuitHotKey { get; set; } = "Alt+Q";
         /// <summary>
         /// 前回終了時に表示していたメモのID（再起動後の復元用）。
         /// </summary>
