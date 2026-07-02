@@ -174,7 +174,7 @@
                                 
                                 <TextBox x:Name="SettingsSearchBox" 
                                          Grid.Row="0"
-                                         PlaceholderText="Search for actions..."
+                                         PlaceholderText="Search for settings..."
                                          TextChanged="SettingsSearchBox_TextChanged">
                                     <TextBox.Resources>
                                         <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
