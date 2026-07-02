@@ -120,11 +120,18 @@ namespace sumi
                                 codePage = paramValue;
                             }
                         }
-                        else if (word == "par" || word == "line")
+                        else if (word == "par" || word == "line" || word == "row")
                         {
                             if (!currentIgnore)
                             {
                                 sb.AppendLine();
+                            }
+                        }
+                        else if (word == "cell")
+                        {
+                            if (!currentIgnore)
+                            {
+                                sb.Append("\t"); // セルの区切りをタブ文字に変換
                             }
                         }
                         else if (word == "uc")
