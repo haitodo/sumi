@@ -1874,38 +1874,77 @@ namespace sumi
             MarkAsDirty();
         }
 
-        /// <summary>
-        /// 指定された段落の範囲をスキャンし、その中に含まれる最大のフォントサイズを取得します。
-        /// </summary>
-        private float GetMaxFontSizeInParagraph(Microsoft.UI.Text.ITextRange paraRange)
+        // ★ 追加：表の生成ボタン確定イベント
+        private void InsertTableConfirm_Click(object sender, RoutedEventArgs e)
         {
-            float size = paraRange.CharacterFormat.Size;
-            if (!float.IsNaN(size) && size > 0)
+            int rows = 3;
+            int cols = 3;
+
+            if (TableRowsComboBox.SelectedItem is string rStr && int.TryParse(rStr, out int r))
             {
-                return size;
+                rows = r;
+            }
+            if (TableColsComboBox.SelectedItem is string cStr && int.TryParse(cStr, out int c))
+            {
+                cols = c;
             }
 
-            // サイズが混在している（NaN）場合、段落内をスキャンして最大値を見つけます
-            float max = (float)MemoStorage.FontSize;
-            int end = paraRange.EndPosition;
+            // 指定された行・列数に基づいてRTFテーブルコードを生成
+            string tableRtf = CreateTableRtf(rows, cols);
 
-            var dup = paraRange.GetClone();
-            dup.Collapse(true);
-
-            while (dup.StartPosition < end)
+            try
             {
-                float sz = dup.CharacterFormat.Size;
-                if (!float.IsNaN(sz))
+                // 現在の選択範囲（カーソル位置）にテーブルをフォーマットされたRTFとして挿入
+                MemoTextBox.Document.Selection.SetText(Microsoft.UI.Text.TextSetOptions.FormatRtf, tableRtf);
+                MarkAsDirty();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Insert Table Error] {ex.Message}");
+            }
+
+            InsertTableFlyout.Hide();
+            MemoTextBox.Focus(FocusState.Programmatic);
+        }
+
+        // ★ 境界線の色（グレー）を指定してRTF形式の表データを作成するメソッド
+        private string CreateTableRtf(int rows, int cols)
+        {
+            var sb = new System.Text.StringBuilder();
+
+            // RTFヘッダーにカラーテーブルを定義し、インデックス1にグレー（R:150, G:150, B:150）を登録します
+            sb.Append(@"{\rtf1\ansi\deff0{\colortbl;\red150\green150\blue150;}");
+
+            int colWidth = 1800;
+
+            for (int r = 0; r < rows; r++)
+            {
+                sb.Append(@"\trowd\trgaph100");
+
+                for (int c = 0; c < cols; c++)
                 {
-                    if (sz > max) max = sz;
-                    if (max >= 24) break; // すでに最大の見出し1(24)に達した場合はその時点で終了して高速化
+                    int cellX = (c + 1) * colWidth;
+
+                    // 各罫線の定義（clbrdr*）の末尾に、カラーテーブルから色を適用する制御ワード「\brdrcf1」を付加します
+                    sb.Append(@"\clbrdrt\brdrs\brdrw15\brdrcf1" +
+                              @"\clbrdrl\brdrs\brdrw15\brdrcf1" +
+                              @"\clbrdrb\brdrs\brdrw15\brdrcf1" +
+                              @"\clbrdrr\brdrs\brdrw15\brdrcf1");
+
+                    sb.Append(@"\clpadt60\clpadl100\clpadb60\clpadr100");
+                    sb.Append($@"\cellx{cellX}");
                 }
 
-                int moved = dup.Move(Microsoft.UI.Text.TextRangeUnit.Character, 1);
-                if (moved <= 0) break;
+                for (int c = 0; c < cols; c++)
+                {
+                    sb.Append(@" \intbl\cell");
+                }
+
+                sb.Append(@"\row");
             }
 
-            return max;
+            sb.Append(@"}");
+            return sb.ToString();
         }
 
         private void FormatHeading1_Click(object? sender, RoutedEventArgs? e)

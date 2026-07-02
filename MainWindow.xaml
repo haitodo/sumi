@@ -149,7 +149,7 @@
             <!-- 操作ボタン群 (ドラッグ無効) -->
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0" Spacing="4">
                 <!-- 設定ボタン -->
-                <Button x:Name="PlayButton" Content="&#xE768;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="設定">
+                <Button x:Name="PlayButton" Content="&#xE713;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="設定">
                     <Button.Flyout>
                         <Flyout x:Name="SettingsFlyout" Placement="BottomEdgeAlignedLeft" Opened="SettingsFlyout_Opened">
                             <Flyout.FlyoutPresenterStyle>
@@ -466,7 +466,7 @@
                     </Button.Flyout>
                 </Button>
                 <!-- メモ一覧ボタン -->
-                <Button x:Name="NotesButton" Content="&#xE8C8;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="メモ一覧" Click="NotesButton_Click">
+                <Button x:Name="NotesButton" Content="&#xEE40;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="メモ一覧" Click="NotesButton_Click">
                     <Button.Flyout>
                         <Flyout x:Name="NotesFlyout" Placement="BottomEdgeAlignedLeft" Closed="NotesFlyout_Closed">
                             <Flyout.FlyoutPresenterStyle>
@@ -633,6 +633,73 @@
                 
                 <ToggleButton x:Name="FormatBulletListBtn" Content="&#xE8FD;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="箇条書き (Ctrl+Shift+L)" Click="FormatBulletList_Click" />
                 <ToggleButton x:Name="FormatNumberListBtn" Content="&#xF146;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="番号付きリスト (Ctrl+Shift+N)" Click="FormatNumberList_Click" />
+
+                <Button x:Name="FormatTableBtn" Content="&#xF232;" Style="{StaticResource IconButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="テーブルの挿入">
+                    <Button.Flyout>
+                        <Flyout x:Name="InsertTableFlyout">
+                            <Flyout.FlyoutPresenterStyle>
+                                <Style TargetType="FlyoutPresenter">
+                                    <Setter Property="Background" Value="#ee1f1f1f" />
+                                    <Setter Property="BorderBrush" Value="#333333" />
+                                    <Setter Property="BorderThickness" Value="1" />
+                                    <Setter Property="CornerRadius" Value="8" />
+                                    <Setter Property="Padding" Value="12" />
+                                </Style>
+                            </Flyout.FlyoutPresenterStyle>
+                            <StackPanel Spacing="8" Width="160">
+                                <TextBlock Text="テーブルの挿入" FontSize="12" FontWeight="SemiBold" Foreground="#ffffff" />
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <TextBlock Text="行数" FontSize="11" Foreground="#999999" />
+                                        <ComboBox x:Name="TableRowsComboBox" SelectedIndex="2" Height="28" Padding="8,0,24,0" HorizontalAlignment="Stretch" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4">
+                                            <x:String>1</x:String>
+                                            <x:String>2</x:String>
+                                            <x:String>3</x:String>
+                                            <x:String>4</x:String>
+                                            <x:String>5</x:String>
+                                            <x:String>6</x:String>
+                                            <x:String>7</x:String>
+                                            <x:String>8</x:String>
+                                            <x:String>9</x:String>
+                                            <x:String>10</x:String>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                        <TextBlock Text="列数" FontSize="11" Foreground="#999999" />
+                                        <ComboBox x:Name="TableColsComboBox" SelectedIndex="2" Height="28" Padding="8,0,24,0" HorizontalAlignment="Stretch" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4">
+                                            <x:String>1</x:String>
+                                            <x:String>2</x:String>
+                                            <x:String>3</x:String>
+                                            <x:String>4</x:String>
+                                            <x:String>5</x:String>
+                                            <x:String>6</x:String>
+                                            <x:String>7</x:String>
+                                            <x:String>8</x:String>
+                                            <x:String>9</x:String>
+                                            <x:String>10</x:String>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Grid>
+                                <Button Content="挿入" HorizontalAlignment="Stretch" Height="28" Click="InsertTableConfirm_Click" CornerRadius="4">
+                                    <Button.Resources>
+                                        <SolidColorBrush x:Key="ButtonBackground" Color="#0078d4" />
+                                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1084da" />
+                                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#005a9e" />
+                                        <SolidColorBrush x:Key="ButtonForeground" Color="#ffffff" />
+                                        <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#ffffff" />
+                                        <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#ffffff" />
+                                    </Button.Resources>
+                                </Button>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
 
                 <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
 
