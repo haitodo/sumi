@@ -318,9 +318,13 @@ namespace sumi
                             paraFontSize = (float)MemoStorage.FontSize;
                         }
 
-                        float exactLineHeight = (float)(paraFontSize * 1.25f * lineSpacing);
+                        // ★下部余白を削るため、段落の下余白を強制的に 0 にする
+                        paraRange.ParagraphFormat.SpaceBefore = 4.5f;
+                        paraRange.ParagraphFormat.SpaceAfter = 1.5f;
+
+                        // ★下側をクリッピングする
+                         float exactLineHeight = (float)(paraFontSize * 1.5f * lineSpacing);
                         paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Exactly, exactLineHeight);
-                        paraRange.ParagraphFormat.SpaceAfter = (float)MemoStorage.ParagraphSpacing;
 
                         int moved = paraRange.Move(Microsoft.UI.Text.TextRangeUnit.Paragraph, 1);
                         if (moved <= 0) break;
@@ -2103,17 +2107,15 @@ namespace sumi
             var paraRange = MemoTextBox.Document.GetRange(selection.StartPosition, selection.EndPosition);
             paraRange.Expand(Microsoft.UI.Text.TextRangeUnit.Paragraph);
 
+            // ★ 追加: クリアした時も段落余白をゼロにする
+            paraRange.ParagraphFormat.SpaceBefore = 4.5f;
+            paraRange.ParagraphFormat.SpaceAfter = 1.5f;
+
             float lineSpacing = (float)MemoStorage.LineSpacing;
-            if (lineSpacing < 1.0f)
-            {
-                float exactLineHeight = (float)(MemoStorage.FontSize * 1.25f * lineSpacing);
-                paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Exactly, exactLineHeight);
-            }
-            else
-            {
-                paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Multiple, lineSpacing);
-            }
-            paraRange.ParagraphFormat.SpaceAfter = (float)MemoStorage.ParagraphSpacing;
+
+            // ★ ★下側をクリッピングする
+            float exactLineHeight = (float)(MemoStorage.FontSize * 1.5f * lineSpacing);
+            paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Exactly, exactLineHeight);
             paraRange.ParagraphFormat.ListType = Microsoft.UI.Text.MarkerType.None;
 
             // 4. 選択範囲（カーソル位置）を正確に復元
