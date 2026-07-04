@@ -1455,7 +1455,12 @@ namespace sumi
         {
             if (SidebarSplitView != null)
             {
-                SidebarSplitView.IsPaneOpen = !SidebarSplitView.IsPaneOpen;
+                bool targetOpen = !SidebarSplitView.IsPaneOpen;
+                if (targetOpen)
+                {
+                    PopulateSidebarView(_currentSidebarView);
+                }
+                SidebarSplitView.IsPaneOpen = targetOpen;
             }
         }
 
@@ -1518,6 +1523,7 @@ namespace sumi
             // Open pane if closed
             if (SidebarSplitView != null && !SidebarSplitView.IsPaneOpen)
             {
+                PopulateSidebarView(view);
                 SidebarSplitView.IsPaneOpen = true;
             }
             else
@@ -1563,13 +1569,18 @@ namespace sumi
                 MemoStorage.LoadTasksForNoteSync(currentNote);
                 if (CurrentTasksListView != null)
                 {
-                    CurrentTasksListView.ItemsSource = null;
-                    CurrentTasksListView.ItemsSource = currentNote.Tasks;
+                    if (CurrentTasksListView.ItemsSource != currentNote.Tasks)
+                    {
+                        CurrentTasksListView.ItemsSource = currentNote.Tasks;
+                    }
                 }
             }
             else
             {
-                if (CurrentTasksListView != null) CurrentTasksListView.ItemsSource = null;
+                if (CurrentTasksListView != null && CurrentTasksListView.ItemsSource != null)
+                {
+                    CurrentTasksListView.ItemsSource = null;
+                }
             }
         }
 
@@ -1604,8 +1615,12 @@ namespace sumi
 
             if (RecentTasksGroupsControl != null)
             {
-                RecentTasksGroupsControl.ItemsSource = null;
-                RecentTasksGroupsControl.ItemsSource = groups;
+                var currentList = RecentTasksGroupsControl.ItemsSource as List<RecentTasksGroupViewModel>;
+                if (!AreRecentTasksGroupsEqual(currentList, groups))
+                {
+                    RecentTasksGroupsControl.ItemsSource = null;
+                    RecentTasksGroupsControl.ItemsSource = groups;
+                }
             }
         }
 
@@ -1640,8 +1655,12 @@ namespace sumi
 
             if (JustDoItTasksGroupsControl != null)
             {
-                JustDoItTasksGroupsControl.ItemsSource = null;
-                JustDoItTasksGroupsControl.ItemsSource = groups;
+                var currentList = JustDoItTasksGroupsControl.ItemsSource as List<RecentTasksGroupViewModel>;
+                if (!AreRecentTasksGroupsEqual(currentList, groups))
+                {
+                    JustDoItTasksGroupsControl.ItemsSource = null;
+                    JustDoItTasksGroupsControl.ItemsSource = groups;
+                }
             }
         }
 
@@ -1649,24 +1668,22 @@ namespace sumi
         {
             MemoStorage.IsSidebarOpen = true;
             QueueSaveSettings();
-            PopulateSidebarView(_currentSidebarView);
+
+            // Focus the appropriate input control once the pane is fully opened
+            if (_currentSidebarView == SidebarView.Notes)
+            {
+                SidebarNoteSearchBox?.Focus(FocusState.Programmatic);
+            }
+            else if (_currentSidebarView == SidebarView.Tasks)
+            {
+                AddTaskBox?.Focus(FocusState.Programmatic);
+            }
         }
 
         private void SidebarSplitView_PaneClosed(SplitView sender, object args)
         {
             MemoStorage.IsSidebarOpen = false;
             QueueSaveSettings();
-
-            //能動的なクリーンアップを実行してメモリを一掃する
-            if (SidebarRecentListView != null) SidebarRecentListView.ItemsSource = null;
-            if (SidebarPinnedListView != null) SidebarPinnedListView.ItemsSource = null;
-            if (SidebarNotesListView != null) SidebarNotesListView.ItemsSource = null;
-            if (CurrentTasksListView != null) CurrentTasksListView.ItemsSource = null;
-            if (RecentTasksGroupsControl != null) RecentTasksGroupsControl.ItemsSource = null;
-            if (JustDoItTasksGroupsControl != null) JustDoItTasksGroupsControl.ItemsSource = null;
-
-            System.GC.Collect();
-            System.GC.WaitForPendingFinalizers();
         }
 
         private void AddTaskBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
@@ -2119,12 +2136,6 @@ namespace sumi
 
         private void NotesFlyout_Closed(object? sender, object? e)
         {
-            if (RecentListView != null) RecentListView.ItemsSource = null;
-            if (PinnedListView != null) PinnedListView.ItemsSource = null;
-            if (NotesListView != null) NotesListView.ItemsSource = null;
-
-            System.GC.Collect();
-            System.GC.WaitForPendingFinalizers();
         }
 
         private void NoteItemGrid_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
@@ -2443,14 +2454,35 @@ namespace sumi
                 }
             }
 
-            RecentListView.ItemsSource = null;
-            RecentListView.ItemsSource = recentVMs;
+            if (RecentListView != null)
+            {
+                var currentList = RecentListView.ItemsSource as IList<NoteItemViewModel>;
+                if (!AreNoteListsEqual(currentList, recentVMs))
+                {
+                    RecentListView.ItemsSource = null;
+                    RecentListView.ItemsSource = recentVMs;
+                }
+            }
 
-            PinnedListView.ItemsSource = null;
-            PinnedListView.ItemsSource = pinnedVMs;
+            if (PinnedListView != null)
+            {
+                var currentList = PinnedListView.ItemsSource as IList<NoteItemViewModel>;
+                if (!AreNoteListsEqual(currentList, pinnedVMs))
+                {
+                    PinnedListView.ItemsSource = null;
+                    PinnedListView.ItemsSource = pinnedVMs;
+                }
+            }
 
-            NotesListView.ItemsSource = null;
-            NotesListView.ItemsSource = normalVMs;
+            if (NotesListView != null)
+            {
+                var currentList = NotesListView.ItemsSource as IList<NoteItemViewModel>;
+                if (!AreNoteListsEqual(currentList, normalVMs))
+                {
+                    NotesListView.ItemsSource = null;
+                    NotesListView.ItemsSource = normalVMs;
+                }
+            }
 
             RecentSection.Visibility = (recentVMs.Count > 0 && MemoStorage.RecentNotesCount > 0) ? Visibility.Visible : Visibility.Collapsed;
             PinnedSection.Visibility = pinnedVMs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -2526,18 +2558,30 @@ namespace sumi
 
             if (SidebarRecentListView != null)
             {
-                SidebarRecentListView.ItemsSource = null;
-                SidebarRecentListView.ItemsSource = recentVMs;
+                var currentList = SidebarRecentListView.ItemsSource as IList<NoteItemViewModel>;
+                if (!AreNoteListsEqual(currentList, recentVMs))
+                {
+                    SidebarRecentListView.ItemsSource = null;
+                    SidebarRecentListView.ItemsSource = recentVMs;
+                }
             }
             if (SidebarPinnedListView != null)
             {
-                SidebarPinnedListView.ItemsSource = null;
-                SidebarPinnedListView.ItemsSource = pinnedVMs;
+                var currentList = SidebarPinnedListView.ItemsSource as IList<NoteItemViewModel>;
+                if (!AreNoteListsEqual(currentList, pinnedVMs))
+                {
+                    SidebarPinnedListView.ItemsSource = null;
+                    SidebarPinnedListView.ItemsSource = pinnedVMs;
+                }
             }
             if (SidebarNotesListView != null)
             {
-                SidebarNotesListView.ItemsSource = null;
-                SidebarNotesListView.ItemsSource = normalVMs;
+                var currentList = SidebarNotesListView.ItemsSource as IList<NoteItemViewModel>;
+                if (!AreNoteListsEqual(currentList, normalVMs))
+                {
+                    SidebarNotesListView.ItemsSource = null;
+                    SidebarNotesListView.ItemsSource = normalVMs;
+                }
             }
 
             if (SidebarRecentSection != null) SidebarRecentSection.Visibility = (recentVMs.Count > 0 && MemoStorage.RecentNotesCount > 0) ? Visibility.Visible : Visibility.Collapsed;
@@ -2579,6 +2623,53 @@ namespace sumi
                 return $"Opened {days} day{(days > 1 ? "s" : "")} ago";
             }
             return $"Opened on {localTime:MMMM d}";
+        }
+
+        private bool AreNoteListsEqual(System.Collections.Generic.IList<NoteItemViewModel>? listA, System.Collections.Generic.List<NoteItemViewModel> listB)
+        {
+            if (listA == null) return false;
+            if (listA.Count != listB.Count) return false;
+            for (int i = 0; i < listB.Count; i++)
+            {
+                var itemA = listA[i];
+                var itemB = listB[i];
+                if (itemA.Id != itemB.Id ||
+                    itemA.Title != itemB.Title ||
+                    itemA.Subtitle != itemB.Subtitle ||
+                    itemA.IsPinned != itemB.IsPinned ||
+                    itemA.IsCurrent != itemB.IsCurrent ||
+                    itemA.IsHighlighted != itemB.IsHighlighted)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private bool AreRecentTasksGroupsEqual(System.Collections.Generic.List<RecentTasksGroupViewModel>? listA, System.Collections.Generic.List<RecentTasksGroupViewModel> listB)
+        {
+            if (listA == null) return false;
+            if (listA.Count != listB.Count) return false;
+            for (int i = 0; i < listB.Count; i++)
+            {
+                var groupA = listA[i];
+                var groupB = listB[i];
+                if (groupA.NoteId != groupB.NoteId || groupA.NoteTitle != groupB.NoteTitle) return false;
+                if (groupA.Tasks.Count != groupB.Tasks.Count) return false;
+                for (int j = 0; j < groupB.Tasks.Count; j++)
+                {
+                    var taskA = groupA.Tasks[j];
+                    var taskB = groupB.Tasks[j];
+                    if (taskA.Id != taskB.Id ||
+                        taskA.Title != taskB.Title ||
+                        taskA.IsCompleted != taskB.IsCompleted ||
+                        taskA.IsJustDoIt != taskB.IsJustDoIt)
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
         }
 
         private void NewButton_Click(object sender, RoutedEventArgs e)
