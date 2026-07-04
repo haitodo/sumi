@@ -500,108 +500,10 @@
                     </Button.Flyout>
                 </Button>
 
-                <!-- メモ一覧ボタン -->
-                <Button x:Name="NotesButton" Content="&#xEE40;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="メモ一覧">
-                    <Button.Flyout>
-                        <Flyout x:Name="NotesFlyout" Placement="BottomEdgeAlignedLeft" Opened="NotesFlyout_Opened" Closed="NotesFlyout_Closed">
-                            <Flyout.FlyoutPresenterStyle>
-                                <Style TargetType="FlyoutPresenter">
-                                    <Setter Property="Background" Value="{StaticResource OpaqueFlyoutBackgroundBrush}" />
-                                    <Setter Property="BorderBrush" Value="#333333" />
-                                    <Setter Property="BorderThickness" Value="1" />
-                                    <Setter Property="CornerRadius" Value="8" />
-                                    <Setter Property="Padding" Value="12" />
-                                    <Setter Property="MaxWidth" Value="320" />
-                                    <Setter Property="MinWidth" Value="280" />
-                                    <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />
-                                    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
-                                </Style>
-                            </Flyout.FlyoutPresenterStyle>
-                            
-                            <Grid RowSpacing="8" Width="260">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" /> <!-- 検索ボックス -->
-                                    <RowDefinition Height="*" />    <!-- メモ一覧スクロール領域 -->
-                                </Grid.RowDefinitions>
-                                
-                                <!-- 検索ボックス -->
-                                <TextBox x:Name="NoteSearchBox" 
-                                         Grid.Row="0"
-                                         PlaceholderText="Search for notes..."
-                                         Width="260"
-                                         HorizontalAlignment="Stretch"
-                                         TextChanged="NoteSearchBox_TextChanged"
-                                         KeyDown="NoteSearchBox_KeyDown">
-                                    <TextBox.Resources>
-                                        <!-- ダークテーマ用TextBoxスタイルオーバーライド -->
-                                        <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
-                                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#2d2d2d" />
-                                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
-                                        <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
-                                        <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#444444" />
-                                        <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
-                                        <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
-                                        <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
-                                        <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
-                                        <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#777777" />
-                                        <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#777777" />
-                                        <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#777777" />
-                                    </TextBox.Resources>
-                                </TextBox>
-                                
-                                <!-- 一覧スクロール領域 -->
-                                <ScrollViewer x:Name="NotesScrollViewer" Grid.Row="1" MaxHeight="300" VerticalScrollBarVisibility="Auto">
-                                    <StackPanel x:Name="NotesListContainer" Spacing="8">
-                                        <!-- Recent セクション -->
-                                        <StackPanel x:Name="RecentSection" Spacing="4">
-                                            <TextBlock Text="Recent" FontSize="11" Foreground="#666666" FontWeight="SemiBold" Margin="4,4,0,2" />
-                                            <ItemsControl x:Name="RecentListView" ItemTemplate="{StaticResource NoteItemTemplate}">
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <StackPanel Spacing="2" />
-                                                    </ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
-                                            </ItemsControl>
-                                        </StackPanel>
-
-                                        <!-- Pinned セクション -->
-                                        <StackPanel x:Name="PinnedSection" Spacing="4">
-                                            <TextBlock Text="Pinned" FontSize="11" Foreground="#666666" FontWeight="SemiBold" Margin="4,4,0,2" />
-                                            <ItemsControl x:Name="PinnedListView" ItemTemplate="{StaticResource NoteItemTemplate}">
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <StackPanel Spacing="2" />
-                                                    </ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
-                                            </ItemsControl>
-                                        </StackPanel>
-                                        
-                                        <!-- Notes セクション -->
-                                        <StackPanel x:Name="NotesSection" Spacing="4">
-                                            <TextBlock Text="Notes" FontSize="11" Foreground="#666666" FontWeight="SemiBold" Margin="4,4,0,2" />
-                                            <ItemsControl x:Name="NotesListView" ItemTemplate="{StaticResource NoteItemTemplate}">
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <StackPanel Spacing="2" />
-                                                    </ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
-                                            </ItemsControl>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </ScrollViewer>
-                            </Grid>
-                        </Flyout>
-                    </Button.Flyout>
-                </Button>
-
-                <!-- 新規追加ボタン -->
-                <Button x:Name="NewButton" Content="&#xE710;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="新規作成" Click="NewButton_Click" />
             </StackPanel>
 
-            <!-- ドラッグ検出領域 (タイトル表示) -->
-            <Grid Grid.Column="1" x:Name="TitleDragRegion" Background="Transparent">
-                <TextBlock x:Name="TitleTextBlock" Text="Untitled" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="8,0,8,0" FontSize="12.5" Foreground="#999999" FontWeight="Normal" TextTrimming="CharacterEllipsis" MaxLines="1" />
-            </Grid>
+            <!-- ドラッグ検出領域 -->
+            <Grid Grid.Column="1" x:Name="TitleDragRegion" Background="Transparent" />
 
             <!-- システムボタン（最小化・最大化・閉じる）用のスペースを確保 -->
             <Border Grid.Column="2" Width="140" Background="Transparent" />
@@ -1113,12 +1015,123 @@
             <SplitView.Content>
                 <Grid>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" /> <!-- 新規ヘッダー部 -->
                         <RowDefinition Height="*" />    <!-- エディタ -->
                         <RowDefinition Height="Auto" /> <!-- ステータスバー -->
                     </Grid.RowDefinitions>
 
+                    <!-- ヘッダー部 -->
+                    <Grid Grid.Row="0" Height="36" BorderBrush="#2d2d2d" BorderThickness="0,0,0,1" Background="Transparent">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" /> <!-- 操作ボタン群 -->
+                            <ColumnDefinition Width="*" />    <!-- タイトル表示 -->
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0" Spacing="4">
+                            <!-- メモ一覧ボタン -->
+                            <Button x:Name="NotesButton" Content="&#xEE40;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="メモ一覧">
+                                <Button.Flyout>
+                                    <Flyout x:Name="NotesFlyout" Placement="BottomEdgeAlignedLeft" Opened="NotesFlyout_Opened" Closed="NotesFlyout_Closed">
+                                        <Flyout.FlyoutPresenterStyle>
+                                            <Style TargetType="FlyoutPresenter">
+                                                <Setter Property="Background" Value="{StaticResource OpaqueFlyoutBackgroundBrush}" />
+                                                <Setter Property="BorderBrush" Value="#333333" />
+                                                <Setter Property="BorderThickness" Value="1" />
+                                                <Setter Property="CornerRadius" Value="8" />
+                                                <Setter Property="Padding" Value="12" />
+                                                <Setter Property="MaxWidth" Value="320" />
+                                                <Setter Property="MinWidth" Value="280" />
+                                                <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />
+                                                <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+                                            </Style>
+                                        </Flyout.FlyoutPresenterStyle>
+                                        
+                                        <Grid RowSpacing="8" Width="260">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" /> <!-- 検索ボックス -->
+                                                <RowDefinition Height="*" />    <!-- メモ一覧スクロール領域 -->
+                                            </Grid.RowDefinitions>
+                                            
+                                            <!-- 検索ボックス -->
+                                            <TextBox x:Name="NoteSearchBox" 
+                                                     Grid.Row="0"
+                                                     PlaceholderText="Search for notes..."
+                                                     Width="260"
+                                                     HorizontalAlignment="Stretch"
+                                                     TextChanged="NoteSearchBox_TextChanged"
+                                                     KeyDown="NoteSearchBox_KeyDown">
+                                                <TextBox.Resources>
+                                                    <!-- ダークテーマ用TextBoxスタイルオーバーライド -->
+                                                    <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
+                                                    <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#2d2d2d" />
+                                                    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
+                                                    <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
+                                                    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#444444" />
+                                                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
+                                                    <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                                                    <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
+                                                    <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
+                                                    <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#777777" />
+                                                    <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#777777" />
+                                                    <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#777777" />
+                                                </TextBox.Resources>
+                                            </TextBox>
+                                            
+                                            <!-- 一覧スクロール領域 -->
+                                            <ScrollViewer x:Name="NotesScrollViewer" Grid.Row="1" MaxHeight="300" VerticalScrollBarVisibility="Auto">
+                                                <StackPanel x:Name="NotesListContainer" Spacing="8">
+                                                    <!-- Recent セクション -->
+                                                    <StackPanel x:Name="RecentSection" Spacing="4">
+                                                        <TextBlock Text="Recent" FontSize="11" Foreground="#666666" FontWeight="SemiBold" Margin="4,4,0,2" />
+                                                        <ItemsControl x:Name="RecentListView" ItemTemplate="{StaticResource NoteItemTemplate}">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <StackPanel Spacing="2" />
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+
+                                                    <!-- Pinned セクション -->
+                                                    <StackPanel x:Name="PinnedSection" Spacing="4">
+                                                        <TextBlock Text="Pinned" FontSize="11" Foreground="#666666" FontWeight="SemiBold" Margin="4,4,0,2" />
+                                                        <ItemsControl x:Name="PinnedListView" ItemTemplate="{StaticResource NoteItemTemplate}">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <StackPanel Spacing="2" />
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+                                                    
+                                                    <!-- Notes セクション -->
+                                                    <StackPanel x:Name="NotesSection" Spacing="4">
+                                                        <TextBlock Text="Notes" FontSize="11" Foreground="#666666" FontWeight="SemiBold" Margin="4,4,0,2" />
+                                                        <ItemsControl x:Name="NotesListView" ItemTemplate="{StaticResource NoteItemTemplate}">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <StackPanel Spacing="2" />
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </ScrollViewer>
+                                        </Grid>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+
+                            <!-- 新規追加ボタン -->
+                            <Button x:Name="NewButton" Content="&#xE710;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="新規作成" Click="NewButton_Click" />
+                        </StackPanel>
+
+                        <!-- メモタイトル表示 -->
+                        <TextBlock Grid.Column="1" x:Name="TitleTextBlock" Text="Untitled" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="16,0,16,0" FontSize="13" Foreground="#ffffff" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                    </Grid>
+
                     <!-- エディタ -->
-                    <Grid Grid.Row="0">
+                    <Grid Grid.Row="1">
                         <RichEditBox 
                             x:Name="MemoTextBox"
                             HorizontalAlignment="Stretch"
@@ -1161,7 +1174,7 @@
                             HorizontalAlignment="Left" />
                     </Grid>
 
-                    <Grid Grid.Row="1" Height="36" Background="Transparent">
+                    <Grid Grid.Row="2" Height="36" Background="Transparent">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
