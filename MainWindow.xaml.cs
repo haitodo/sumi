@@ -317,17 +317,37 @@ namespace sumi
                         paraRange.Expand(Microsoft.UI.Text.TextRangeUnit.Paragraph);
 
                         float paraFontSize = paraRange.CharacterFormat.Size;
+
+                        // ★修正ポイント：サイズが混在して NaN になる場合、段落の「先頭」のサイズを取得する
                         if (float.IsNaN(paraFontSize) || paraFontSize <= 0)
                         {
-                            paraFontSize = (float)MemoStorage.FontSize;
+                            var temp = paraRange.GetClone();
+                            temp.Collapse(true); // 選択範囲を段落の先頭に畳む
+                            paraFontSize = temp.CharacterFormat.Size;
+
+                            // それでも取得できない場合はデフォルトサイズ
+                            if (float.IsNaN(paraFontSize) || paraFontSize <= 0)
+                            {
+                                paraFontSize = (float)MemoStorage.FontSize;
+                            }
                         }
 
-                        // ★下部余白を削るため、段落の下余白を強制的に 0 にする
-                        paraRange.ParagraphFormat.SpaceBefore = 4.5f;
-                        paraRange.ParagraphFormat.SpaceAfter = 1.5f;
+                        // 先頭の文字が見出しサイズ（H1:24 または H2:18）かどうかで余白を分ける
+                        if (paraFontSize == 24 || paraFontSize == 18)
+                        {
+                            // 見出しの場合は上部余白を0、下部余白を設定値にする
+                            paraRange.ParagraphFormat.SpaceBefore = 0.0f;
+                            paraRange.ParagraphFormat.SpaceAfter = (float)MemoStorage.ParagraphSpacing;
+                        }
+                        else
+                        {
+                            // 通常テキストの場合は上下の余白を詰める
+                            paraRange.ParagraphFormat.SpaceBefore = 4.5f;
+                            paraRange.ParagraphFormat.SpaceAfter = 1.5f;
+                        }
 
-                        // ★下側をクリッピングする
-                         float exactLineHeight = (float)(paraFontSize * 1.5f * lineSpacing);
+                        // 下側をクリッピングする
+                        float exactLineHeight = (float)(paraFontSize * 1.5f * lineSpacing);
                         paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Exactly, exactLineHeight);
 
                         int moved = paraRange.Move(Microsoft.UI.Text.TextRangeUnit.Paragraph, 1);
