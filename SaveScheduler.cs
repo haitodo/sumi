@@ -24,6 +24,12 @@ namespace sumi
             _timer.Tick += Timer_Tick;
         }
 
+        public TimeSpan Interval
+        {
+            get => _timer.Interval;
+            set => _timer.Interval = value;
+        }
+
         public void Schedule()
         {
             lock (_lock)

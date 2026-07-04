@@ -5,6 +5,10 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Buffers.Binary;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace sumi
 {
@@ -19,6 +23,87 @@ namespace sumi
         public string Content { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public int CharCount { get; set; }
+        public int UncompletedTaskCount { get; set; }
+        public ObservableCollection<TaskItemViewModel> Tasks { get; } = new();
+        public bool HasLoadedTasks { get; set; }
+    }
+
+    /// <summary>
+    /// タスクの物理保存用のデータモデルです。
+    /// </summary>
+    public class TaskItem
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public bool IsCompleted { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    /// <summary>
+    /// タスクアイテムのバインディング用ビューモデルです（Single Source of Truth用）。
+    /// </summary>
+    public class TaskItemViewModel : System.ComponentModel.INotifyPropertyChanged
+    {
+        private string _title = string.Empty;
+        private bool _isCompleted;
+
+        public string Id { get; set; } = string.Empty;
+        public string ParentNoteId { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+
+        public string Title
+        {
+            get => _title;
+            set
+            {
+                if (_title != value)
+                {
+                    _title = value;
+                    OnPropertyChanged(nameof(Title));
+                    _onChanged?.Invoke();
+                }
+            }
+        }
+
+        public bool IsCompleted
+        {
+            get => _isCompleted;
+            set
+            {
+                if (_isCompleted != value)
+                {
+                    _isCompleted = value;
+                    OnPropertyChanged(nameof(IsCompleted));
+                    _onChanged?.Invoke();
+                }
+            }
+        }
+
+        private readonly Action? _onChanged;
+
+        public TaskItemViewModel(string id, string parentNoteId, string title, bool isCompleted, DateTime createdAt, Action? onChanged)
+        {
+            Id = id;
+            ParentNoteId = parentNoteId;
+            _title = title;
+            _isCompleted = isCompleted;
+            CreatedAt = createdAt;
+            _onChanged = onChanged;
+        }
+
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    /// <summary>
+    /// Native AOTシリアライズ用のコンテキストクラスです。
+    /// </summary>
+    [JsonSerializable(typeof(List<TaskItem>))]
+    internal partial class TaskJsonContext : JsonSerializerContext
+    {
     }
 
     /// <summary>
@@ -51,10 +136,9 @@ namespace sumi
         public static double Opacity { get; set; } = 50.0; // 0 to 100
         public static string LaunchHotKey { get; set; } = string.Empty;
         public static string QuitHotKey { get; set; } = "Alt+Q";
-        /// <summary>
-        /// 前回終了時に表示していたメモのID（再起動後の復元用）。
-        /// </summary>
         public static string LastNoteId { get; set; } = string.Empty;
+        public static bool IsSidebarPinned { get; set; } = false;
+        public static double SidebarWidth { get; set; } = 320.0;
 
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT
@@ -183,15 +267,23 @@ namespace sumi
                                 long ticks = long.Parse(parts[2]);
                                 var lastOpened = new DateTime(ticks, DateTimeKind.Utc);
 
-                                // 後方互換性に配慮しつつ、保存済みのTitleとCharCountをパース
+                                // 後方互換性に配慮しつつ、保存済みのTitle、CharCount、UncompletedTaskCountをパース
                                 string title = "Untitled";
                                 int charCount = 0;
+                                int uncompletedTaskCount = 0;
                                 if (parts.Length >= 5)
                                 {
                                     title = parts[3];
                                     if (int.TryParse(parts[4], out int count))
                                     {
                                         charCount = count;
+                                    }
+                                }
+                                if (parts.Length >= 6)
+                                {
+                                    if (int.TryParse(parts[5], out int taskCount))
+                                    {
+                                        uncompletedTaskCount = taskCount;
                                     }
                                 }
 
@@ -202,7 +294,8 @@ namespace sumi
                                     LastOpened = lastOpened,
                                     Content = string.Empty,
                                     Title = title,       // 起動直後に即座に表示可能
-                                    CharCount = charCount // 起動直後に即座に表示可能
+                                    CharCount = charCount, // 起動直後に即座に表示可能
+                                    UncompletedTaskCount = uncompletedTaskCount
                                 });
                             }
                         }
@@ -295,6 +388,9 @@ namespace sumi
                             latest.CharCount = content.Length > 0 ? content.Length : latest.CharCount;
                         }
 
+                        // カレントメモのタスクも同期でロード
+                        LoadTasksForNoteSync(latest);
+
                         // 残りのメモはバックグラウンドで非同期にロードする
                         _ = Task.Run(() => LoadRemainingNotesBackground());
                     }
@@ -366,6 +462,11 @@ namespace sumi
                             note.Title = GetTitleFromContent(content);
                             note.CharCount = content.Length;
                         }
+                    }
+
+                    if (note.UncompletedTaskCount > 0)
+                    {
+                        LoadTasksForNoteSync(note);
                     }
                 }
             }
@@ -872,6 +973,12 @@ namespace sumi
                                 case "LastNoteId":
                                     LastNoteId = val;
                                     break;
+                                case "IsSidebarPinned":
+                                    if (bool.TryParse(val, out bool pinned)) IsSidebarPinned = pinned;
+                                    break;
+                                case "SidebarWidth":
+                                    if (double.TryParse(val, out double w)) SidebarWidth = Math.Clamp(w, 200, 600);
+                                    break;
                             }
                         }
                     }
@@ -907,6 +1014,8 @@ namespace sumi
                 sb.AppendLine($"QuitHotKey={QuitHotKey}");
                 sb.AppendLine($"LaunchHotKey={LaunchHotKey}");
                 sb.AppendLine($"LastNoteId={LastNoteId}");
+                sb.AppendLine($"IsSidebarPinned={IsSidebarPinned}");
+                sb.AppendLine($"SidebarWidth={SidebarWidth}");
                 byte[] bytes = Utf8NoBom.GetBytes(sb.ToString());
 
                 string tempPath = SettingsPath + ".tmp";
@@ -933,6 +1042,155 @@ namespace sumi
             catch (Exception ex)
             {
                 Debug.WriteLine($"[SaveSettings Error] {ex.Message}");
+            }
+        }
+
+        public static Action<string>? TaskChangedAction { get; set; }
+
+        public static void LoadTasksForNoteSync(NoteData note)
+        {
+            if (note.HasLoadedTasks) return;
+
+            string tasksFile = Path.Combine(NotesFolderPath, $"note_{note.Id}.tasks");
+            if (File.Exists(tasksFile))
+            {
+                try
+                {
+                    string json = File.ReadAllText(tasksFile, Utf8NoBom);
+                    var items = JsonSerializer.Deserialize(json, TaskJsonContext.Default.ListTaskItem);
+                    if (items != null)
+                    {
+                        lock (note.Tasks)
+                        {
+                            foreach (var item in items)
+                            {
+                                var vm = new TaskItemViewModel(
+                                    item.Id,
+                                    note.Id,
+                                    item.Title,
+                                    item.IsCompleted,
+                                    item.CreatedAt,
+                                    () => TaskChangedAction?.Invoke(note.Id)
+                                );
+                                note.Tasks.Add(vm);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[LoadTasksForNoteSync Error] {ex.Message}");
+                }
+            }
+            note.HasLoadedTasks = true;
+        }
+
+        public static async Task<bool> SaveTasksAtomicAsync(string id, List<TaskItem> tasks)
+        {
+            try
+            {
+                string tasksFile = Path.Combine(NotesFolderPath, $"note_{id}.tasks");
+                string tempFile = Path.Combine(NotesFolderPath, $"note_{id}.tasks.tmp");
+
+                string json = JsonSerializer.Serialize(tasks, TaskJsonContext.Default.ListTaskItem);
+
+                int maxRetries = 5;
+                int delayMs = 100;
+                for (int i = 0; i < maxRetries; i++)
+                {
+                    try
+                    {
+                        using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true))
+                        using (var writer = new StreamWriter(fs, Utf8NoBom))
+                        {
+                            await writer.WriteAsync(json);
+                            await writer.FlushAsync();
+                            fs.Flush(true);
+                        }
+
+                        if (File.Exists(tasksFile))
+                        {
+                            File.Replace(tempFile, tasksFile, null);
+                            using (var fs = new FileStream(tasksFile, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
+                            {
+                                fs.Flush(true);
+                            }
+                        }
+                        else
+                        {
+                            File.Move(tempFile, tasksFile);
+                        }
+
+                        return true;
+                    }
+                    catch (IOException ex) when (i < maxRetries - 1)
+                    {
+                        Debug.WriteLine($"[SaveTasksAtomicAsync Retry {i + 1}] IOException: {ex.Message}");
+                        await Task.Delay(delayMs);
+                        delayMs *= 2;
+                    }
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SaveTasksAtomicAsync Error] {ex.Message}");
+                return false;
+            }
+        }
+
+        public static bool SaveTasksSync(string id, List<TaskItem> tasks)
+        {
+            try
+            {
+                string tasksFile = Path.Combine(NotesFolderPath, $"note_{id}.tasks");
+                string tempFile = Path.Combine(NotesFolderPath, $"note_{id}.tasks.tmp");
+
+                string json = JsonSerializer.Serialize(tasks, TaskJsonContext.Default.ListTaskItem);
+
+                int maxRetries = 5;
+                int delayMs = 100;
+                for (int i = 0; i < maxRetries; i++)
+                {
+                    try
+                    {
+                        using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: false))
+                        using (var writer = new StreamWriter(fs, Utf8NoBom))
+                        {
+                            writer.Write(json);
+                            writer.Flush();
+                            fs.Flush(true);
+                        }
+
+                        if (File.Exists(tasksFile))
+                        {
+                            File.Replace(tempFile, tasksFile, null);
+                            using (var fs = new FileStream(tasksFile, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
+                            {
+                                fs.Flush(true);
+                            }
+                        }
+                        else
+                        {
+                            File.Move(tempFile, tasksFile);
+                        }
+
+                        return true;
+                    }
+                    catch (IOException) when (i < maxRetries - 1)
+                    {
+                        System.Threading.Thread.Sleep(delayMs);
+                        delayMs *= 2;
+                    }
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SaveTasksSync Error] {ex.Message}");
+                return false;
             }
         }
     }

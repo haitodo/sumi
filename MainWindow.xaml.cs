@@ -16,7 +16,22 @@ namespace sumi
     /// </summary>
     public sealed partial class MainWindow : Window, IDisposable
     {
+        public static MainWindow? Instance { get; private set; }
         private readonly SaveScheduler _scheduler;
+        private readonly SaveScheduler _taskSaveScheduler;
+        private readonly HashSet<string> _dirtyTaskNoteIds = new();
+        private SidebarView _currentSidebarView = SidebarView.Notes;
+        private bool _isResizing;
+        private double _startOpenPaneLength;
+        private double _startPointerPositionX;
+
+        private enum SidebarView
+        {
+            Notes,
+            Tasks,
+            RecentTasks
+        }
+
         private readonly AppWindow _appWindow;
         private bool _isRestoring = false;
         private bool _isDirty = false;
@@ -74,6 +89,8 @@ namespace sumi
 
         public MainWindow()
         {
+            Instance = this;
+            MemoStorage.TaskChangedAction = OnTaskChanged;
             this.InitializeComponent();
 
             _highlightTimer = new DispatcherTimer();
@@ -157,6 +174,9 @@ namespace sumi
             }
 
             // 5. スケジューラ初期化 (DispatcherQueue を渡し、タイマー内のアロケーションをゼロ化)
+            _taskSaveScheduler = new SaveScheduler(this.DispatcherQueue, SaveDirtyTasksAsync);
+            _taskSaveScheduler.Interval = TimeSpan.FromMilliseconds(300);
+
             _scheduler = new SaveScheduler(this.DispatcherQueue, async () =>
             {
                 long currentRevision = _revision;
@@ -194,8 +214,7 @@ namespace sumi
             _appWindow.Closing += AppWindow_Closing;
             _appWindow.Changed += AppWindow_Changed;
 
-            // 7. メモ一覧 Flyout の初期イベントフック
-            NotesFlyout.Opened += NotesFlyout_Opened;
+
 
             // 8. テキストボックスのロード／アンロードイベント (スクロールバー取得／解除用)
             MemoTextBox.Loaded += MemoTextBox_Loaded;
@@ -240,6 +259,16 @@ namespace sumi
             {
                 brush.Color = Microsoft.UI.ColorHelper.FromArgb(255, 0x14, 0x14, 0x14);
                 brush.Opacity = MemoStorage.Opacity / 100.0;
+            }
+
+            if (SidebarSplitView != null)
+            {
+                SidebarSplitView.DisplayMode = MemoStorage.IsSidebarPinned ? SplitViewDisplayMode.CompactInline : SplitViewDisplayMode.CompactOverlay;
+                SidebarSplitView.OpenPaneLength = MemoStorage.SidebarWidth;
+            }
+            if (PinSidebarButton != null)
+            {
+                PinSidebarButton.IsChecked = MemoStorage.IsSidebarPinned;
             }
         }
 
@@ -681,6 +710,93 @@ namespace sumi
             _settingsSaveTimer.Start();
         }
 
+        private void OnTaskChanged(string noteId)
+        {
+            lock (_dirtyTaskNoteIds)
+            {
+                _dirtyTaskNoteIds.Add(noteId);
+            }
+
+            // Update UncompletedTaskCount in NoteData
+            NoteData? note = null;
+            lock (MemoStorage.Notes)
+            {
+                note = MemoStorage.Notes.Find(n => n.Id == noteId);
+            }
+            if (note != null)
+            {
+                int count = 0;
+                lock (note.Tasks)
+                {
+                    foreach (var t in note.Tasks)
+                    {
+                        if (!t.IsCompleted) count++;
+                    }
+                }
+                note.UncompletedTaskCount = count;
+            }
+
+            _taskSaveScheduler.Schedule();
+        }
+
+        private async Task SaveDirtyTasksAsync()
+        {
+            List<string> noteIdsToSave;
+            lock (_dirtyTaskNoteIds)
+            {
+                noteIdsToSave = new List<string>(_dirtyTaskNoteIds);
+                _dirtyTaskNoteIds.Clear();
+            }
+
+            if (noteIdsToSave.Count == 0) return;
+
+            foreach (var noteId in noteIdsToSave)
+            {
+                NoteData? note = null;
+                lock (MemoStorage.Notes)
+                {
+                    note = MemoStorage.Notes.Find(n => n.Id == noteId);
+                }
+                if (note != null)
+                {
+                    List<TaskItem> tasksToSave = new List<TaskItem>();
+                    lock (note.Tasks)
+                    {
+                        foreach (var t in note.Tasks)
+                        {
+                            tasksToSave.Add(new TaskItem
+                            {
+                                Id = t.Id,
+                                Title = t.Title,
+                                IsCompleted = t.IsCompleted,
+                                CreatedAt = t.CreatedAt
+                            });
+                        }
+                    }
+                    await MemoStorage.SaveTasksAtomicAsync(noteId, tasksToSave);
+                }
+            }
+
+            // Save metadata
+            await Task.Run(() => MemoStorage.SaveMetadata());
+
+            // Refresh UI list if visible
+            this.DispatcherQueue.TryEnqueue(() =>
+            {
+                if (SidebarSplitView != null && SidebarSplitView.IsPaneOpen)
+                {
+                    if (_currentSidebarView == SidebarView.Notes)
+                    {
+                        PopulateSidebarNotesList(SidebarNoteSearchBox.Text);
+                    }
+                    else if (_currentSidebarView == SidebarView.RecentTasks)
+                    {
+                        PopulateRecentTasks();
+                    }
+                }
+            });
+        }
+
         private void OnShutdown()
         {
             // 二重呼び出しを防止（AppWindow_Closing が複数回発火するケースへの対策）
@@ -689,6 +805,43 @@ namespace sumi
 
             // デバウンス保存タイマーを即座にキャンセルし、終了処理中の非同期保存コールバックと競合させない
             _scheduler?.Cancel();
+            _taskSaveScheduler?.Cancel();
+
+            // 未保存タスクデータを終了直前に同期的に永続化
+            lock (_dirtyTaskNoteIds)
+            {
+                if (_dirtyTaskNoteIds.Count > 0)
+                {
+                    foreach (var noteId in _dirtyTaskNoteIds)
+                    {
+                        NoteData? note = null;
+                        lock (MemoStorage.Notes)
+                        {
+                            note = MemoStorage.Notes.Find(n => n.Id == noteId);
+                        }
+                        if (note != null)
+                        {
+                            List<TaskItem> tasksToSave = new List<TaskItem>();
+                            lock (note.Tasks)
+                            {
+                                foreach (var t in note.Tasks)
+                                {
+                                    tasksToSave.Add(new TaskItem
+                                    {
+                                        Id = t.Id,
+                                        Title = t.Title,
+                                        IsCompleted = t.IsCompleted,
+                                        CreatedAt = t.CreatedAt
+                                    });
+                                }
+                            }
+                            MemoStorage.SaveTasksSync(noteId, tasksToSave);
+                        }
+                    }
+                    _dirtyTaskNoteIds.Clear();
+                    MemoStorage.SaveMetadata();
+                }
+            }
 
             // 1. 未保存データを終了直前に同期的に安全にディスク永続化
             if (_isDirty)
@@ -1178,30 +1331,348 @@ namespace sumi
             SettingsFlyout.Hide();
         }
 
-        /// <summary>
-        /// メモ一覧ボタンクリック時のハンドラです（WinUIにより自動でFlyoutが開かれます）。
-        /// </summary>
+        private void HamburgerButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (SidebarSplitView != null)
+            {
+                SidebarSplitView.IsPaneOpen = !SidebarSplitView.IsPaneOpen;
+            }
+        }
+
+        private void NotesMenuButton_Click(object sender, RoutedEventArgs e)
+        {
+            SetSidebarView(SidebarView.Notes);
+        }
+
         private void NotesButton_Click(object sender, RoutedEventArgs e)
         {
+            SetSidebarView(SidebarView.Notes);
         }
 
-        private void NotesFlyout_Opened(object? sender, object? e)
+        private void TasksMenuButton_Click(object sender, RoutedEventArgs e)
         {
-            UpdateFlyoutMaxHeights();
-            NoteSearchBox.Text = string.Empty;
-            PopulateNotesList();
-            NoteSearchBox.Focus(FocusState.Programmatic);
+            SetSidebarView(SidebarView.Tasks);
         }
 
-        private void NotesFlyout_Closed(object? sender, object? e)
+        private void RecentTasksMenuButton_Click(object sender, RoutedEventArgs e)
         {
-            PinnedListView.ItemsSource = null;
-            NotesListView.ItemsSource = null;
+            SetSidebarView(SidebarView.RecentTasks);
+        }
 
-            // ★能動的なクリーンアップを実行してメモリを一掃する
+        private void SetSidebarView(SidebarView view)
+        {
+            _currentSidebarView = view;
+
+            // Update Title Text
+            if (PaneTitleTextBlock != null)
+            {
+                PaneTitleTextBlock.Text = view switch
+                {
+                    SidebarView.Notes => "Notes",
+                    SidebarView.Tasks => "Tasks",
+                    SidebarView.RecentTasks => "Recent Tasks",
+                    _ => ""
+                };
+            }
+
+            // Update Indicators
+            if (NotesActiveIndicator != null) NotesActiveIndicator.Visibility = view == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
+            if (TasksActiveIndicator != null) TasksActiveIndicator.Visibility = view == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
+            if (RecentTasksActiveIndicator != null) RecentTasksActiveIndicator.Visibility = view == SidebarView.RecentTasks ? Visibility.Visible : Visibility.Collapsed;
+
+            // Update Containers Visibility
+            if (NotesViewContainer != null) NotesViewContainer.Visibility = view == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
+            if (TasksViewContainer != null) TasksViewContainer.Visibility = view == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
+            if (RecentTasksViewContainer != null) RecentTasksViewContainer.Visibility = view == SidebarView.RecentTasks ? Visibility.Visible : Visibility.Collapsed;
+
+            // Open pane if closed
+            if (SidebarSplitView != null && !SidebarSplitView.IsPaneOpen)
+            {
+                SidebarSplitView.IsPaneOpen = true;
+            }
+            else
+            {
+                // Pane is already open, populate directly
+                PopulateSidebarView(view);
+            }
+        }
+
+        private void PopulateSidebarView(SidebarView view)
+        {
+            if (view == SidebarView.Notes)
+            {
+                if (SidebarNoteSearchBox != null) SidebarNoteSearchBox.Text = string.Empty;
+                PopulateSidebarNotesList();
+                SidebarNoteSearchBox?.Focus(FocusState.Programmatic);
+            }
+            else if (view == SidebarView.Tasks)
+            {
+                PopulateCurrentTasks();
+                AddTaskBox?.Focus(FocusState.Programmatic);
+            }
+            else if (view == SidebarView.RecentTasks)
+            {
+                PopulateRecentTasks();
+            }
+        }
+
+        private void PopulateCurrentTasks()
+        {
+            NoteData? currentNote = null;
+            lock (MemoStorage.Notes)
+            {
+                currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId);
+            }
+
+            if (currentNote != null)
+            {
+                MemoStorage.LoadTasksForNoteSync(currentNote);
+                if (CurrentTasksListView != null)
+                {
+                    CurrentTasksListView.ItemsSource = null;
+                    CurrentTasksListView.ItemsSource = currentNote.Tasks;
+                }
+            }
+            else
+            {
+                if (CurrentTasksListView != null) CurrentTasksListView.ItemsSource = null;
+            }
+        }
+
+        private void PopulateRecentTasks()
+        {
+            var groups = new List<RecentTasksGroupViewModel>();
+            List<NoteData> notes;
+            lock (MemoStorage.Notes)
+            {
+                notes = new List<NoteData>(MemoStorage.Notes);
+            }
+
+            foreach (var note in notes)
+            {
+                MemoStorage.LoadTasksForNoteSync(note);
+                var uncompletedTasks = new System.Collections.ObjectModel.ObservableCollection<TaskItemViewModel>();
+                lock (note.Tasks)
+                {
+                    foreach (var t in note.Tasks)
+                    {
+                        if (!t.IsCompleted)
+                        {
+                            uncompletedTasks.Add(t);
+                        }
+                    }
+                }
+                if (uncompletedTasks.Count > 0)
+                {
+                    groups.Add(new RecentTasksGroupViewModel(note.Id, note.Title, uncompletedTasks));
+                }
+            }
+
+            if (RecentTasksGroupsControl != null)
+            {
+                RecentTasksGroupsControl.ItemsSource = null;
+                RecentTasksGroupsControl.ItemsSource = groups;
+            }
+        }
+
+        private void SidebarSplitView_PaneOpened(SplitView sender, object args)
+        {
+            PopulateSidebarView(_currentSidebarView);
+        }
+
+        private void SidebarSplitView_PaneClosed(SplitView sender, object args)
+        {
+            //能動的なクリーンアップを実行してメモリを一掃する
+            if (SidebarPinnedListView != null) SidebarPinnedListView.ItemsSource = null;
+            if (SidebarNotesListView != null) SidebarNotesListView.ItemsSource = null;
+            if (CurrentTasksListView != null) CurrentTasksListView.ItemsSource = null;
+            if (RecentTasksGroupsControl != null) RecentTasksGroupsControl.ItemsSource = null;
+
             System.GC.Collect();
             System.GC.WaitForPendingFinalizers();
         }
+
+        private void AddTaskBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                string text = AddTaskBox.Text.Trim();
+                if (!string.IsNullOrEmpty(text))
+                {
+                    NoteData? currentNote = null;
+                    lock (MemoStorage.Notes)
+                    {
+                        currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId);
+                    }
+                    if (currentNote != null)
+                    {
+                        MemoStorage.LoadTasksForNoteSync(currentNote);
+                        var newTask = new TaskItemViewModel(
+                            Guid.NewGuid().ToString(),
+                            currentNote.Id,
+                            text,
+                            false,
+                            DateTime.UtcNow,
+                            () => OnTaskChanged(currentNote.Id)
+                        );
+                        lock (currentNote.Tasks)
+                        {
+                            currentNote.Tasks.Add(newTask);
+                        }
+                        OnTaskChanged(currentNote.Id);
+
+                        AddTaskBox.Text = string.Empty;
+                        PopulateCurrentTasks();
+                    }
+                }
+                e.Handled = true;
+            }
+        }
+
+        private void DeleteTaskButton_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                btn.Click += DeleteTaskButton_Click;
+            }
+        }
+
+        private void DeleteTaskButton_Unloaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                btn.Click -= DeleteTaskButton_Click;
+            }
+        }
+
+        private void DeleteTaskButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.DataContext is TaskItemViewModel vm)
+            {
+                NoteData? note = null;
+                lock (MemoStorage.Notes)
+                {
+                    note = MemoStorage.Notes.Find(n => n.Id == vm.ParentNoteId);
+                }
+                if (note != null)
+                {
+                    lock (note.Tasks)
+                    {
+                        note.Tasks.Remove(vm);
+                    }
+                    OnTaskChanged(vm.ParentNoteId);
+                    PopulateCurrentTasks();
+                }
+            }
+        }
+
+        private void TaskItemGrid_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is Grid grid)
+            {
+                var deleteBtn = grid.FindName("DeleteTaskButton") as UIElement;
+                if (deleteBtn != null)
+                {
+                    deleteBtn.Visibility = Visibility.Visible;
+                }
+            }
+        }
+
+        private void TaskItemGrid_PointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is Grid grid)
+            {
+                var deleteBtn = grid.FindName("DeleteTaskButton") as UIElement;
+                if (deleteBtn != null)
+                {
+                    deleteBtn.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
+
+        private void RecentTasksGroupHeader_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.DataContext is RecentTasksGroupViewModel group)
+            {
+                SwitchToNote(group.NoteId);
+                SetSidebarView(SidebarView.Tasks);
+            }
+        }
+
+        private void RecentTaskItem_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            var originalSource = e.OriginalSource as DependencyObject;
+            var parent = originalSource;
+            while (parent != null)
+            {
+                if (parent is CheckBox)
+                {
+                    return; // CheckBoxクリック時はジャンプしない
+                }
+                parent = VisualTreeHelper.GetParent(parent);
+            }
+
+            if (sender is Grid grid && grid.DataContext is TaskItemViewModel vm)
+            {
+                SwitchToNote(vm.ParentNoteId);
+                SetSidebarView(SidebarView.Tasks);
+                e.Handled = true;
+            }
+        }
+
+        private void PinSidebarButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (PinSidebarButton != null && SidebarSplitView != null)
+            {
+                bool pinned = PinSidebarButton.IsChecked ?? false;
+                MemoStorage.IsSidebarPinned = pinned;
+                SidebarSplitView.DisplayMode = pinned ? SplitViewDisplayMode.CompactInline : SplitViewDisplayMode.CompactOverlay;
+                QueueSaveSettings();
+            }
+        }
+
+        private void Resizer_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is FrameworkElement element && SidebarSplitView != null)
+            {
+                _isResizing = true;
+                element.CapturePointer(e.Pointer);
+                var pt = e.GetCurrentPoint(this.Content);
+                _startPointerPositionX = pt.Position.X;
+                _startOpenPaneLength = SidebarSplitView.OpenPaneLength;
+                e.Handled = true;
+            }
+        }
+
+        private void Resizer_PointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (_isResizing && SidebarSplitView != null)
+            {
+                var pt = e.GetCurrentPoint(this.Content);
+                double deltaX = pt.Position.X - _startPointerPositionX;
+                double newWidth = _startOpenPaneLength + deltaX;
+                newWidth = Math.Clamp(newWidth, 200, 600);
+                SidebarSplitView.OpenPaneLength = newWidth;
+                e.Handled = true;
+            }
+        }
+
+        private void Resizer_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (_isResizing && SidebarSplitView != null)
+            {
+                if (sender is FrameworkElement element)
+                {
+                    element.ReleasePointerCapture(e.Pointer);
+                }
+                _isResizing = false;
+                MemoStorage.SidebarWidth = SidebarSplitView.OpenPaneLength;
+                QueueSaveSettings();
+                e.Handled = true;
+            }
+        }
+
+
 
         private void RootGrid_SizeChanged(object sender, SizeChangedEventArgs e)
         {
@@ -1230,7 +1701,7 @@ namespace sumi
         {
             _highlightTimer.Stop();
             _highlightedNoteId = null;
-            PopulateNotesList(NoteSearchBox.Text);
+            RefreshAllNotesLists();
         }
 
         private void NoteItemGrid_Loaded(object sender, RoutedEventArgs e)
@@ -1350,8 +1821,7 @@ namespace sumi
                 var pinnedVMs = PinnedListView.ItemsSource as List<NoteItemViewModel>;
                 if (pinnedVMs != null && pinnedVMs.Count > 0)
                 {
-                    SwitchToNote(pinnedVMs[0].Id);
-                    NotesFlyout.Hide();
+                    OnNoteSelected(pinnedVMs[0].Id);
                     e.Handled = true;
                     return;
                 }
@@ -1359,12 +1829,54 @@ namespace sumi
                 var normalVMs = NotesListView.ItemsSource as List<NoteItemViewModel>;
                 if (normalVMs != null && normalVMs.Count > 0)
                 {
-                    SwitchToNote(normalVMs[0].Id);
-                    NotesFlyout.Hide();
+                    OnNoteSelected(normalVMs[0].Id);
                     e.Handled = true;
                     return;
                 }
             }
+        }
+
+        private void SidebarNoteSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            PopulateSidebarNotesList(SidebarNoteSearchBox.Text);
+        }
+
+        private void SidebarNoteSearchBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                var pinnedVMs = SidebarPinnedListView.ItemsSource as List<NoteItemViewModel>;
+                if (pinnedVMs != null && pinnedVMs.Count > 0)
+                {
+                    OnNoteSelected(pinnedVMs[0].Id);
+                    e.Handled = true;
+                    return;
+                }
+
+                var normalVMs = SidebarNotesListView.ItemsSource as List<NoteItemViewModel>;
+                if (normalVMs != null && normalVMs.Count > 0)
+                {
+                    OnNoteSelected(normalVMs[0].Id);
+                    e.Handled = true;
+                    return;
+                }
+            }
+        }
+
+        private void NotesFlyout_Opened(object? sender, object? e)
+        {
+            if (NoteSearchBox != null) NoteSearchBox.Text = string.Empty;
+            PopulateNotesList();
+            NoteSearchBox?.Focus(FocusState.Programmatic);
+        }
+
+        private void NotesFlyout_Closed(object? sender, object? e)
+        {
+            if (PinnedListView != null) PinnedListView.ItemsSource = null;
+            if (NotesListView != null) NotesListView.ItemsSource = null;
+
+            System.GC.Collect();
+            System.GC.WaitForPendingFinalizers();
         }
 
         private void NoteItemGrid_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
@@ -1391,12 +1903,24 @@ namespace sumi
             }
         }
 
+        private void OnNoteSelected(string id)
+        {
+            SwitchToNote(id);
+            if (NotesFlyout != null && NotesFlyout.IsOpen)
+            {
+                NotesFlyout.Hide();
+            }
+            else if (SidebarSplitView != null && SidebarSplitView.IsPaneOpen && !MemoStorage.IsSidebarPinned)
+            {
+                SidebarSplitView.IsPaneOpen = false;
+            }
+        }
+
         private void NoteItem_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.DataContext is NoteItemViewModel vm)
             {
-                SwitchToNote(vm.Id);
-                NotesFlyout.Hide();
+                OnNoteSelected(vm.Id);
             }
         }
 
@@ -1422,7 +1946,7 @@ namespace sumi
                     _highlightTimer.Stop(); // 既に動いている場合は一旦停止
                     _highlightTimer.Start();
 
-                    PopulateNotesList(NoteSearchBox.Text);
+                    RefreshAllNotesLists();
                 }
             }
         }
@@ -1439,7 +1963,7 @@ namespace sumi
                 {
                     MemoStorage.DeleteNote(vm.Id);
                 }
-                PopulateNotesList(NoteSearchBox.Text);
+                RefreshAllNotesLists();
             }
         }
 
@@ -1505,6 +2029,18 @@ namespace sumi
                     if (plainText.EndsWith("\r") || plainText.EndsWith("\n"))
                         plainText = plainText.Substring(0, plainText.Length - 1);
                     PlaceholderTextBlock.Visibility = string.IsNullOrEmpty(plainText) ? Visibility.Visible : Visibility.Collapsed;
+                }
+
+                if (SidebarSplitView != null && SidebarSplitView.IsPaneOpen)
+                {
+                    if (_currentSidebarView == SidebarView.Tasks)
+                    {
+                        PopulateCurrentTasks();
+                    }
+                    else if (_currentSidebarView == SidebarView.Notes)
+                    {
+                        PopulateSidebarNotesList(SidebarNoteSearchBox.Text);
+                    }
                 }
 
                 this.DispatcherQueue.TryEnqueue(
@@ -1613,6 +2149,64 @@ namespace sumi
 
             PinnedSection.Visibility = pinnedVMs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             NotesSection.Visibility = normalVMs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void PopulateSidebarNotesList(string filter = "")
+        {
+            var query = filter.Trim();
+            var pinnedVMs = new List<NoteItemViewModel>();
+            var normalVMs = new List<NoteItemViewModel>();
+
+            List<NoteData> sortedNotes;
+            lock (MemoStorage.Notes)
+            {
+                sortedNotes = new List<NoteData>(MemoStorage.Notes);
+            }
+            sortedNotes.Sort((a, b) => b.LastOpened.CompareTo(a.LastOpened));
+
+            foreach (var note in sortedNotes)
+            {
+                if (!string.IsNullOrEmpty(query))
+                {
+                    bool matchTitle = note.Title.Contains(query, StringComparison.OrdinalIgnoreCase);
+                    bool matchContent = note.Content.Contains(query, StringComparison.OrdinalIgnoreCase);
+                    if (!matchTitle && !matchContent)
+                    {
+                        continue;
+                    }
+                }
+
+                bool isCurrent = note.Id == MemoStorage.CurrentNoteId;
+                string subtitle = isCurrent
+                    ? $"Current • {note.CharCount} characters"
+                    : $"{GetRelativeTimeText(note.LastOpened)} • {note.CharCount} characters";
+
+                bool isHighlighted = note.Id == _highlightedNoteId;
+                var vm = new NoteItemViewModel(note.Id, note.Title, subtitle, note.IsPinned, isCurrent, isHighlighted);
+
+                if (note.IsPinned) pinnedVMs.Add(vm);
+                else normalVMs.Add(vm);
+            }
+
+            if (SidebarPinnedListView != null)
+            {
+                SidebarPinnedListView.ItemsSource = null;
+                SidebarPinnedListView.ItemsSource = pinnedVMs;
+            }
+            if (SidebarNotesListView != null)
+            {
+                SidebarNotesListView.ItemsSource = null;
+                SidebarNotesListView.ItemsSource = normalVMs;
+            }
+
+            if (SidebarPinnedSection != null) SidebarPinnedSection.Visibility = pinnedVMs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (SidebarNotesSection != null) SidebarNotesSection.Visibility = normalVMs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void RefreshAllNotesLists()
+        {
+            PopulateNotesList(NoteSearchBox != null ? NoteSearchBox.Text : "");
+            PopulateSidebarNotesList(SidebarNoteSearchBox != null ? SidebarNoteSearchBox.Text : "");
         }
 
         private string GetRelativeTimeText(DateTime lastOpened)
@@ -2948,6 +3542,8 @@ namespace sumi
                     // マネージドリソースの解放
                     _scheduler?.Cancel();
                     _scheduler?.Dispose();
+                    _taskSaveScheduler?.Cancel();
+                    _taskSaveScheduler?.Dispose();
 
                     if (_windowPlacementTimer != null)
                     {
@@ -3100,6 +3696,43 @@ namespace sumi
             IsPinned = isPinned;
             IsCurrent = isCurrent;
             IsHighlighted = isHighlighted;
+        }
+    }
+
+    /// <summary>
+    /// 直近のタスクビューでノートごとにグループ化して表示するためのビューモデルです。
+    /// </summary>
+    public class RecentTasksGroupViewModel
+    {
+        public string NoteId { get; }
+        public string NoteTitle { get; }
+        public System.Collections.ObjectModel.ObservableCollection<TaskItemViewModel> Tasks { get; }
+
+        public RecentTasksGroupViewModel(string noteId, string noteTitle, System.Collections.ObjectModel.ObservableCollection<TaskItemViewModel> tasks)
+        {
+            NoteId = noteId;
+            NoteTitle = noteTitle;
+            Tasks = tasks;
+        }
+    }
+
+    /// <summary>
+    /// マウスポインターが乗ったときにリサイズカーソルとハイライトを表示する Grid です。
+    /// </summary>
+    public partial class ResizableGrid : Microsoft.UI.Xaml.Controls.Grid
+    {
+        public ResizableGrid()
+        {
+            this.PointerEntered += (s, e) =>
+            {
+                this.ProtectedCursor = Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast);
+                this.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.DimGray);
+            };
+            this.PointerExited += (s, e) =>
+            {
+                this.ProtectedCursor = null;
+                this.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            };
         }
     }
 }

@@ -465,10 +465,11 @@
                         </Flyout>
                     </Button.Flyout>
                 </Button>
+
                 <!-- メモ一覧ボタン -->
-                <Button x:Name="NotesButton" Content="&#xEE40;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="メモ一覧" Click="NotesButton_Click">
+                <Button x:Name="NotesButton" Content="&#xEE40;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="メモ一覧">
                     <Button.Flyout>
-                        <Flyout x:Name="NotesFlyout" Placement="BottomEdgeAlignedLeft" Closed="NotesFlyout_Closed">
+                        <Flyout x:Name="NotesFlyout" Placement="BottomEdgeAlignedLeft" Opened="NotesFlyout_Opened" Closed="NotesFlyout_Closed">
                             <Flyout.FlyoutPresenterStyle>
                                 <Style TargetType="FlyoutPresenter">
                                     <Setter Property="Background" Value="#ee1f1f1f" />
@@ -546,6 +547,7 @@
                         </Flyout>
                     </Button.Flyout>
                 </Button>
+
                 <!-- 新規追加ボタン -->
                 <Button x:Name="NewButton" Content="&#xE710;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="新規作成" Click="NewButton_Click" />
             </StackPanel>
@@ -559,159 +561,498 @@
             <Border Grid.Column="2" Width="140" Background="Transparent" />
         </Grid>
 
-        <!-- 2. テキストエディットエリア -->
-        <Grid Grid.Row="1">
-            <RichEditBox 
-                x:Name="MemoTextBox"
-                HorizontalAlignment="Stretch"
-                VerticalAlignment="Stretch"
-                BorderThickness="0"
-                Padding="16,12,16,12"
-                FontSize="14"
-                FontFamily="Noto Sans JP, Yu Gothic UI"
-                IsSpellCheckEnabled="False"
-                IsTextPredictionEnabled="False"
-                ScrollViewer.VerticalScrollBarVisibility="Auto"
-                ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                TextChanged="MemoTextBox_TextChanged"
-                SelectionChanged="MemoTextBox_SelectionChanged"
-                PreviewKeyDown="MemoTextBox_PreviewKeyDown"
-                SelectionFlyout="{x:Null}"
-                ContextMenuOpening="MemoTextBox_ContextMenuOpening">
-                
-                <RichEditBox.Resources>
-                    <!-- ホバーやフォーカスによる背景色変化と下部アクセント線を完全に無効化する軽量スタイル -->
-                    <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
-                    <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
-                    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
-                    <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
-                    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
-                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
-                    <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
-                    <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
-                </RichEditBox.Resources>
-            </RichEditBox>
+        <!-- 2. サイドバーおよびメインエリア (SplitViewによる統合) -->
+        <SplitView x:Name="SidebarSplitView"
+                   Grid.Row="1"
+                   Grid.RowSpan="2"
+                   DisplayMode="CompactOverlay"
+                   CompactPaneLength="48"
+                   OpenPaneLength="320"
+                   IsPaneOpen="False"
+                   PaneBackground="#ee1c1c1c"
+                   PaneClosed="SidebarSplitView_PaneClosed"
+                   PaneOpened="SidebarSplitView_PaneOpened">
             
-            <!-- カスタムプレースホルダーテキスト -->
-            <TextBlock
-                x:Name="PlaceholderTextBlock"
-                Text="Start writing..."
-                Foreground="#555555"
-                FontSize="14"
-                FontFamily="Noto Sans JP, Yu Gothic UI"
-                Padding="16,12,16,12"
-                IsHitTestVisible="False"
-                VerticalAlignment="Top"
-                HorizontalAlignment="Left" />
-        </Grid>
+            <SplitView.Pane>
+                <!-- サイドバーペインのレイアウト -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="48" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
 
-        <!-- 3. ステータスバー -->
-        <Grid Grid.Row="2" Height="36" Background="Transparent">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
+                    <!-- 左端のコンパクトアイコンバー (常に表示) -->
+                    <Grid Grid.Column="0" Background="Transparent" BorderBrush="#2d2d2d" BorderThickness="0,0,1,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" /> <!-- Hamburger -->
+                            <RowDefinition Height="*" />    <!-- Navigation Items -->
+                        </Grid.RowDefinitions>
 
-            <TextBlock 
-                Grid.Column="0"
-                x:Name="CharCountTextBlock"
-                Text="0 characters"
-                VerticalAlignment="Center"
-                HorizontalAlignment="Left"
-                Margin="16,0,0,0"
-                FontSize="11.5"
-                Foreground="#666666"
-                TextTrimming="CharacterEllipsis" />
+                        <Button x:Name="HamburgerButton"
+                                Grid.Row="0"
+                                Content="&#xE700;"
+                                Style="{StaticResource IconButtonStyle}"
+                                Width="36" Height="36"
+                                HorizontalAlignment="Center"
+                                Margin="0,8,0,0"
+                                Click="HamburgerButton_Click"
+                                ToolTipService.ToolTip="ナビゲーションの開閉" />
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0" Spacing="2">
-                
-                <ToggleButton x:Name="FormatBoldBtn" Content="&#xE19B;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="太字 (Ctrl+B)" Click="FormatBold_Click" />
-                <ToggleButton x:Name="FormatItalicBtn" Content="&#xE199;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="斜体 (Ctrl+I)" Click="FormatItalic_Click" />
-                <ToggleButton x:Name="FormatUnderlineBtn" Content="&#xE19A;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="下線 (Ctrl+U)" Click="FormatUnderline_Click" />
-                <ToggleButton x:Name="FormatStrikethroughBtn" Content="&#xEDE0;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="取り消し線 (Ctrl+T)" Click="FormatStrikethrough_Click" />
-                <ToggleButton x:Name="FormatHighlightBtn" Content="&#xE7E6;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="ハイライト (Ctrl+H)" Click="FormatHighlight_Click" />
-                
-                <ToggleButton x:Name="FormatBulletListBtn" Content="&#xE8FD;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="箇条書き (Ctrl+Shift+L)" Click="FormatBulletList_Click" />
-                <ToggleButton x:Name="FormatNumberListBtn" Content="&#xF146;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="番号付きリスト (Ctrl+Shift+N)" Click="FormatNumberList_Click" />
+                        <StackPanel Grid.Row="1" Spacing="8" Margin="0,16,0,0">
+                            <!-- メモ一覧 -->
+                            <Grid x:Name="NotesMenuGrid">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="3" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="NotesActiveIndicator" Grid.Column="0" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Visible" />
+                                <Button x:Name="NotesMenuButton"
+                                        Grid.Column="1"
+                                        Content="&#xEE40;"
+                                        Style="{StaticResource IconButtonStyle}"
+                                        Width="36" Height="36"
+                                        HorizontalAlignment="Center"
+                                        Click="NotesMenuButton_Click"
+                                        ToolTipService.ToolTip="メモ一覧" />
+                            </Grid>
 
-                <Button x:Name="FormatTableBtn" Content="&#xF232;" Style="{StaticResource IconButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="テーブルの挿入">
-                    <Button.Flyout>
-                        <Flyout x:Name="InsertTableFlyout">
-                            <Flyout.FlyoutPresenterStyle>
-                                <Style TargetType="FlyoutPresenter">
-                                    <Setter Property="Background" Value="#ee1f1f1f" />
-                                    <Setter Property="BorderBrush" Value="#333333" />
-                                    <Setter Property="BorderThickness" Value="1" />
-                                    <Setter Property="CornerRadius" Value="8" />
-                                    <Setter Property="Padding" Value="12" />
-                                </Style>
-                            </Flyout.FlyoutPresenterStyle>
-                            <StackPanel Spacing="8" Width="160">
-                                <TextBlock Text="テーブルの挿入" FontSize="12" FontWeight="SemiBold" Foreground="#ffffff" />
-                                <Grid ColumnSpacing="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
+                            <!-- 現在のタスク -->
+                            <Grid x:Name="TasksMenuGrid">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="3" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="TasksActiveIndicator" Grid.Column="0" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
+                                <Button x:Name="TasksMenuButton"
+                                        Grid.Column="1"
+                                        Content="&#xE73E;"
+                                        Style="{StaticResource IconButtonStyle}"
+                                        Width="36" Height="36"
+                                        HorizontalAlignment="Center"
+                                        Click="TasksMenuButton_Click"
+                                        ToolTipService.ToolTip="現在のタスク" />
+                            </Grid>
 
-                                    <StackPanel Grid.Column="0" Spacing="2">
-                                        <TextBlock Text="行数" FontSize="11" Foreground="#999999" />
-                                        <ComboBox x:Name="TableRowsComboBox" SelectedIndex="2" Height="28" Padding="8,0,24,0" HorizontalAlignment="Stretch" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4">
-                                            <x:String>1</x:String>
-                                            <x:String>2</x:String>
-                                            <x:String>3</x:String>
-                                            <x:String>4</x:String>
-                                            <x:String>5</x:String>
-                                            <x:String>6</x:String>
-                                            <x:String>7</x:String>
-                                            <x:String>8</x:String>
-                                            <x:String>9</x:String>
-                                            <x:String>10</x:String>
-                                        </ComboBox>
+                            <!-- 直近のタスク (横断ビュー) -->
+                            <Grid x:Name="RecentTasksMenuGrid">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="3" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="RecentTasksActiveIndicator" Grid.Column="0" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
+                                <Button x:Name="RecentTasksMenuButton"
+                                        Grid.Column="1"
+                                        Content="&#xE121;"
+                                        Style="{StaticResource IconButtonStyle}"
+                                        Width="36" Height="36"
+                                        HorizontalAlignment="Center"
+                                        Click="RecentTasksMenuButton_Click"
+                                        ToolTipService.ToolTip="直近のタスク" />
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- 右側の展開ペイン（開いているときのみ幅272） -->
+                    <Grid Grid.Column="1" Background="Transparent" Margin="12,8,12,12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <!-- 統合されたヘッダー (ビュータイトル & 固定ボタン) -->
+                        <Grid Grid.Row="0" Margin="4,0,4,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="PaneTitleTextBlock" Text="Notes" FontSize="15" FontWeight="SemiBold" Foreground="#ffffff" VerticalAlignment="Center" />
+                            <ToggleButton x:Name="PinSidebarButton" Grid.Column="1"
+                                          Content="&#xE718;" 
+                                          Style="{StaticResource IconToggleButtonStyle}"
+                                          Width="32" Height="32" FontSize="12"
+                                          Click="PinSidebarButton_Click"
+                                          ToolTipService.ToolTip="サイドバーを固定" />
+                        </Grid>
+
+                        <!-- メモ一覧ビュー -->
+                        <Grid x:Name="NotesViewContainer" Grid.Row="1" Visibility="Visible" RowSpacing="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            
+                            <TextBox x:Name="SidebarNoteSearchBox" 
+                                     Grid.Row="0"
+                                     PlaceholderText="Search for notes..."
+                                     HorizontalAlignment="Stretch"
+                                     TextChanged="SidebarNoteSearchBox_TextChanged"
+                                     KeyDown="SidebarNoteSearchBox_KeyDown">
+                                <TextBox.Resources>
+                                    <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
+                                    <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#2d2d2d" />
+                                    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
+                                    <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
+                                    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#444444" />
+                                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
+                                    <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                                    <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
+                                    <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
+                                    <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#777777" />
+                                    <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#777777" />
+                                    <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#777777" />
+                                </TextBox.Resources>
+                            </TextBox>
+                            
+                            <ScrollViewer x:Name="SidebarNotesScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                <StackPanel x:Name="SidebarNotesListContainer" Spacing="8">
+                                    <!-- Pinned セクション -->
+                                    <StackPanel x:Name="SidebarPinnedSection" Spacing="4">
+                                        <TextBlock Text="Pinned" FontSize="11" Foreground="#666666" FontWeight="SemiBold" Margin="4,4,0,2" />
+                                        <ItemsControl x:Name="SidebarPinnedListView" ItemTemplate="{StaticResource NoteItemTemplate}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Spacing="2" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                        </ItemsControl>
                                     </StackPanel>
-
-                                    <StackPanel Grid.Column="1" Spacing="2">
-                                        <TextBlock Text="列数" FontSize="11" Foreground="#999999" />
-                                        <ComboBox x:Name="TableColsComboBox" SelectedIndex="2" Height="28" Padding="8,0,24,0" HorizontalAlignment="Stretch" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4">
-                                            <x:String>1</x:String>
-                                            <x:String>2</x:String>
-                                            <x:String>3</x:String>
-                                            <x:String>4</x:String>
-                                            <x:String>5</x:String>
-                                            <x:String>6</x:String>
-                                            <x:String>7</x:String>
-                                            <x:String>8</x:String>
-                                            <x:String>9</x:String>
-                                            <x:String>10</x:String>
-                                        </ComboBox>
+                                    
+                                    <!-- Notes セクション -->
+                                    <StackPanel x:Name="SidebarNotesSection" Spacing="4">
+                                        <TextBlock Text="Notes" FontSize="11" Foreground="#666666" FontWeight="SemiBold" Margin="4,4,0,2" />
+                                        <ItemsControl x:Name="SidebarNotesListView" ItemTemplate="{StaticResource NoteItemTemplate}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Spacing="2" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                        </ItemsControl>
                                     </StackPanel>
-                                </Grid>
-                                <Button Content="挿入" HorizontalAlignment="Stretch" Height="28" Click="InsertTableConfirm_Click" CornerRadius="4">
-                                    <Button.Resources>
-                                        <SolidColorBrush x:Key="ButtonBackground" Color="#0078d4" />
-                                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1084da" />
-                                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#005a9e" />
-                                        <SolidColorBrush x:Key="ButtonForeground" Color="#ffffff" />
-                                        <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#ffffff" />
-                                        <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#ffffff" />
-                                    </Button.Resources>
-                                </Button>
-                            </StackPanel>
-                        </Flyout>
-                    </Button.Flyout>
-                </Button>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
 
-                <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
+                        <!-- 現在のタスクビュー -->
+                        <Grid x:Name="TasksViewContainer" Grid.Row="1" Visibility="Collapsed" RowSpacing="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            
+                            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl x:Name="CurrentTasksListView">
+                                    <ItemsControl.ItemContainerTransitions>
+                                        <TransitionCollection>
+                                            <AddDeleteThemeTransition />
+                                        </TransitionCollection>
+                                    </ItemsControl.ItemContainerTransitions>
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Spacing="4" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="local:TaskItemViewModel">
+                                            <Grid Padding="4" CornerRadius="4" Background="Transparent"
+                                                  PointerEntered="TaskItemGrid_PointerEntered"
+                                                  PointerExited="TaskItemGrid_PointerExited">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                
+                                                <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCompleted, Mode=TwoWay}" MinWidth="32" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                                
+                                                <TextBox Grid.Column="1" Text="{x:Bind Title, Mode=TwoWay}"
+                                                         FontSize="13" Foreground="#ffffff"
+                                                         VerticalAlignment="Center"
+                                                         BorderThickness="0" Background="Transparent"
+                                                         Padding="0,4"
+                                                         TextWrapping="Wrap">
+                                                    <TextBox.Resources>
+                                                        <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                                                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                                                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#252525" />
+                                                        <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+                                                        <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+                                                        <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#333333" />
+                                                        <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                                                        <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
+                                                        <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
+                                                    </TextBox.Resources>
+                                                </TextBox>
+                                                
+                                                <Button x:Name="DeleteTaskButton"
+                                                        Grid.Column="2" Content="&#xE74D;"
+                                                        Style="{StaticResource IconButtonStyle}"
+                                                        Width="28" Height="28" FontSize="11"
+                                                        Foreground="#FF453A"
+                                                        Visibility="Collapsed"
+                                                        Loaded="DeleteTaskButton_Loaded"
+                                                        Unloaded="DeleteTaskButton_Unloaded"
+                                                        ToolTipService.ToolTip="タスクを削除" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
 
-                <ToggleButton x:Name="FormatHeading1Btn" Content="H1" Style="{StaticResource IconToggleButtonStyle}" FontFamily="Georgia" FontSize="12" FontWeight="Bold" AllowFocusOnInteraction="False" ToolTipService.ToolTip="見出し 1 (Ctrl+1)" Click="FormatHeading1_Click" />
-                <ToggleButton x:Name="FormatHeading2Btn" Content="H2" Style="{StaticResource IconToggleButtonStyle}" FontFamily="Georgia" FontSize="12" FontWeight="Bold" AllowFocusOnInteraction="False" ToolTipService.ToolTip="見出し 2 (Ctrl+2)" Click="FormatHeading2_Click" />
+                            <TextBox x:Name="AddTaskBox"
+                                     Grid.Row="1"
+                                     PlaceholderText="Add task..."
+                                     BorderThickness="0,1,0,0"
+                                     CornerRadius="0"
+                                     Padding="4,8"
+                                     KeyDown="AddTaskBox_KeyDown">
+                                <TextBox.Resources>
+                                    <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                                    <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                                    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+                                    <SolidColorBrush x:Key="TextControlBorderBrush" Color="#2d2d2d" />
+                                    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#2d2d2d" />
+                                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#2d2d2d" />
+                                    <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                                    <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#555555" />
+                                </TextBox.Resources>
+                            </TextBox>
+                        </Grid>
 
-                <Button Content="&#xE75C;" Style="{StaticResource IconButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="装飾をクリア (Ctrl+Space)" Click="FormatClear_Click" />
-                
-                <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
+                        <!-- 直近のタスクビュー (横断ビュー) -->
+                        <Grid x:Name="RecentTasksViewContainer" Grid.Row="1" Visibility="Collapsed" RowSpacing="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            
+                            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl x:Name="RecentTasksGroupsControl">
+                                    <ItemsControl.ItemContainerTransitions>
+                                        <TransitionCollection>
+                                            <AddDeleteThemeTransition />
+                                        </TransitionCollection>
+                                    </ItemsControl.ItemContainerTransitions>
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Spacing="16" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="local:RecentTasksGroupViewModel">
+                                            <StackPanel Spacing="4">
+                                                <Button Content="{x:Bind NoteTitle}"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        Foreground="#0078d4"
+                                                        FontWeight="SemiBold"
+                                                        FontSize="12"
+                                                        Padding="4,2"
+                                                        HorizontalAlignment="Left"
+                                                        Click="RecentTasksGroupHeader_Click"
+                                                        DataContext="{x:Bind}" />
+                                                
+                                                <ItemsControl ItemsSource="{x:Bind Tasks}">
+                                                    <ItemsControl.ItemContainerTransitions>
+                                                        <TransitionCollection>
+                                                            <AddDeleteThemeTransition />
+                                                        </TransitionCollection>
+                                                    </ItemsControl.ItemContainerTransitions>
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Spacing="2" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="local:TaskItemViewModel">
+                                                            <Grid Padding="4,2" Background="Transparent"
+                                                                  PointerPressed="RecentTaskItem_PointerPressed">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCompleted, Mode=TwoWay}" MinWidth="32" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                                                <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </Grid>
+                    <!-- リサイズ用スプリッター領域 -->
+                    <local:ResizableGrid Grid.Column="2" 
+                                         Width="6" 
+                                         Background="Transparent" 
+                                         PointerPressed="Resizer_PointerPressed"
+                                         PointerMoved="Resizer_PointerMoved"
+                                         PointerReleased="Resizer_PointerReleased" />
+                </Grid>
+            </SplitView.Pane>
 
-                <Button x:Name="WordWrapButton" Content="T" Style="{StaticResource IconButtonStyle}" FontFamily="Georgia" FontSize="16" FontWeight="Normal" ToolTipService.ToolTip="右端折り返し切り替え" Click="WordWrapButton_Click" />
-            </StackPanel>
-        </Grid>
+            <!-- メインコンテンツ領域 -->
+            <SplitView.Content>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />    <!-- エディタ -->
+                        <RowDefinition Height="Auto" /> <!-- ステータスバー -->
+                    </Grid.RowDefinitions>
+
+                    <!-- エディタ -->
+                    <Grid Grid.Row="0">
+                        <RichEditBox 
+                            x:Name="MemoTextBox"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            BorderThickness="0"
+                            Padding="16,12,16,12"
+                            FontSize="14"
+                            FontFamily="Noto Sans JP, Yu Gothic UI"
+                            IsSpellCheckEnabled="False"
+                            IsTextPredictionEnabled="False"
+                            ScrollViewer.VerticalScrollBarVisibility="Auto"
+                            ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                            TextChanged="MemoTextBox_TextChanged"
+                            SelectionChanged="MemoTextBox_SelectionChanged"
+                            PreviewKeyDown="MemoTextBox_PreviewKeyDown"
+                            SelectionFlyout="{x:Null}"
+                            ContextMenuOpening="MemoTextBox_ContextMenuOpening">
+                            
+                            <RichEditBox.Resources>
+                                <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                                <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                                <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+                                <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+                                <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+                                <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
+                                <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
+                                <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+                            </RichEditBox.Resources>
+                        </RichEditBox>
+                        
+                        <TextBlock
+                            x:Name="PlaceholderTextBlock"
+                            Text="Start writing..."
+                            Foreground="#555555"
+                            FontSize="14"
+                            FontFamily="Noto Sans JP, Yu Gothic UI"
+                            Padding="16,12,16,12"
+                            IsHitTestVisible="False"
+                            VerticalAlignment="Top"
+                            HorizontalAlignment="Left" />
+                    </Grid>
+
+                    <Grid Grid.Row="1" Height="36" Background="Transparent">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock 
+                            Grid.Column="0"
+                            x:Name="CharCountTextBlock"
+                            Text="0 characters"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Left"
+                            Margin="16,0,0,0"
+                            FontSize="11.5"
+                            Foreground="#666666"
+                            TextTrimming="CharacterEllipsis" />
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0" Spacing="2">
+                            <ToggleButton x:Name="FormatBoldBtn" Content="&#xE19B;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="太字 (Ctrl+B)" Click="FormatBold_Click" />
+                            <ToggleButton x:Name="FormatItalicBtn" Content="&#xE199;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="斜体 (Ctrl+I)" Click="FormatItalic_Click" />
+                            <ToggleButton x:Name="FormatUnderlineBtn" Content="&#xE19A;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="下線 (Ctrl+U)" Click="FormatUnderline_Click" />
+                            <ToggleButton x:Name="FormatStrikethroughBtn" Content="&#xEDE0;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="取り消し線 (Ctrl+T)" Click="FormatStrikethrough_Click" />
+                            <ToggleButton x:Name="FormatHighlightBtn" Content="&#xE7E6;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="ハイライト (Ctrl+H)" Click="FormatHighlight_Click" />
+                            
+                            <ToggleButton x:Name="FormatBulletListBtn" Content="&#xE8FD;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="箇条書き (Ctrl+Shift+L)" Click="FormatBulletList_Click" />
+                            <ToggleButton x:Name="FormatNumberListBtn" Content="&#xF146;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="番号付きリスト (Ctrl+Shift+N)" Click="FormatNumberList_Click" />
+
+                            <Button x:Name="FormatTableBtn" Content="&#xF232;" Style="{StaticResource IconButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="テーブルの挿入">
+                                <Button.Flyout>
+                                    <Flyout x:Name="InsertTableFlyout">
+                                        <Flyout.FlyoutPresenterStyle>
+                                            <Style TargetType="FlyoutPresenter">
+                                                <Setter Property="Background" Value="#ee1f1f1f" />
+                                                <Setter Property="BorderBrush" Value="#333333" />
+                                                <Setter Property="BorderThickness" Value="1" />
+                                                <Setter Property="CornerRadius" Value="8" />
+                                                <Setter Property="Padding" Value="12" />
+                                            </Style>
+                                        </Flyout.FlyoutPresenterStyle>
+                                        <StackPanel Spacing="8" Width="160">
+                                            <TextBlock Text="テーブルの挿入" FontSize="12" FontWeight="SemiBold" Foreground="#ffffff" />
+                                            <Grid ColumnSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel Grid.Column="0" Spacing="2">
+                                                    <TextBlock Text="行数" FontSize="11" Foreground="#999999" />
+                                                    <ComboBox x:Name="TableRowsComboBox" SelectedIndex="2" Height="28" Padding="8,0,24,0" HorizontalAlignment="Stretch" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4">
+                                                        <x:String>1</x:String>
+                                                        <x:String>2</x:String>
+                                                        <x:String>3</x:String>
+                                                        <x:String>4</x:String>
+                                                        <x:String>5</x:String>
+                                                        <x:String>6</x:String>
+                                                        <x:String>7</x:String>
+                                                        <x:String>8</x:String>
+                                                        <x:String>9</x:String>
+                                                        <x:String>10</x:String>
+                                                    </ComboBox>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Column="1" Spacing="2">
+                                                    <TextBlock Text="列数" FontSize="11" Foreground="#999999" />
+                                                    <ComboBox x:Name="TableColsComboBox" SelectedIndex="2" Height="28" Padding="8,0,24,0" HorizontalAlignment="Stretch" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4">
+                                                        <x:String>1</x:String>
+                                                        <x:String>2</x:String>
+                                                        <x:String>3</x:String>
+                                                        <x:String>4</x:String>
+                                                        <x:String>5</x:String>
+                                                        <x:String>6</x:String>
+                                                        <x:String>7</x:String>
+                                                        <x:String>8</x:String>
+                                                        <x:String>9</x:String>
+                                                        <x:String>10</x:String>
+                                                    </ComboBox>
+                                                </StackPanel>
+                                            </Grid>
+                                            <Button Content="挿入" HorizontalAlignment="Stretch" Height="28" Click="InsertTableConfirm_Click" CornerRadius="4">
+                                                <Button.Resources>
+                                                    <SolidColorBrush x:Key="ButtonBackground" Color="#0078d4" />
+                                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1084da" />
+                                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#005a9e" />
+                                                    <SolidColorBrush x:Key="ButtonForeground" Color="#ffffff" />
+                                                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#ffffff" />
+                                                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#ffffff" />
+                                                </Button.Resources>
+                                            </Button>
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+
+                            <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
+
+                            <ToggleButton x:Name="FormatHeading1Btn" Content="H1" Style="{StaticResource IconToggleButtonStyle}" FontFamily="Georgia" FontSize="12" FontWeight="Bold" AllowFocusOnInteraction="False" ToolTipService.ToolTip="見出し 1 (Ctrl+1)" Click="FormatHeading1_Click" />
+                            <ToggleButton x:Name="FormatHeading2Btn" Content="H2" Style="{StaticResource IconToggleButtonStyle}" FontFamily="Georgia" FontSize="12" FontWeight="Bold" AllowFocusOnInteraction="False" ToolTipService.ToolTip="見出し 2 (Ctrl+2)" Click="FormatHeading2_Click" />
+
+                            <Button Content="&#xE75C;" Style="{StaticResource IconButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="装飾をクリア (Ctrl+Space)" Click="FormatClear_Click" />
+                            
+                            <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
+
+                            <Button x:Name="WordWrapButton" Content="T" Style="{StaticResource IconButtonStyle}" FontFamily="Georgia" FontSize="16" FontWeight="Normal" ToolTipService.ToolTip="右端折り返し切り替え" Click="WordWrapButton_Click" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </SplitView.Content>
+        </SplitView>
     </Grid>
 </Window>
