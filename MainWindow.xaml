@@ -602,7 +602,22 @@
                                         ToolTipService.ToolTip="すべてのタスク" />
                             </Grid>
 
-
+                            <!-- すぐやる (Just Do It) -->
+                            <Grid x:Name="JustDoItMenuGrid">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="3" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="JustDoItActiveIndicator" Grid.Column="0" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
+                                <Button x:Name="JustDoItMenuButton"
+                                        Grid.Column="1"
+                                        Content="&#xE945;"
+                                        Style="{StaticResource IconButtonStyle}"
+                                        Width="36" Height="36"
+                                        HorizontalAlignment="Center"
+                                        Click="JustDoItMenuButton_Click"
+                                        ToolTipService.ToolTip="すぐやる (Just Do It)" />
+                            </Grid>
                         </StackPanel>
                     </Grid>
 
@@ -897,7 +912,72 @@
                             </ScrollViewer>
                         </Grid>
 
-
+                        <!-- すぐやるビュー (Just Do It - 左) -->
+                        <Grid x:Name="JustDoItViewContainer" Grid.Row="1" Visibility="Collapsed" RowSpacing="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            
+                            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl x:Name="LeftJustDoItTasksGroupsControl">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Spacing="16" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="local:AllTasksGroupViewModel">
+                                            <StackPanel Spacing="4">
+                                                <Button Content="{x:Bind NoteTitle}"
+                                                        Background="#002D2D2D"
+                                                        BorderThickness="0"
+                                                        Foreground="#0078d4"
+                                                        FontWeight="SemiBold"
+                                                        FontSize="12"
+                                                        Padding="4,2"
+                                                        HorizontalAlignment="Left"
+                                                        Click="AllTasksGroupHeader_Click"
+                                                        DataContext="{x:Bind}" />
+                                                
+                                                <ItemsControl ItemsSource="{x:Bind Tasks}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Spacing="2" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="local:TaskItemViewModel">
+                                                            <Grid Padding="4,2" Background="Transparent"
+                                                                  PointerPressed="AllTaskItem_PointerPressed"
+                                                                  PointerEntered="JustDoItTaskItemGrid_PointerEntered"
+                                                                  PointerExited="JustDoItTaskItemGrid_PointerExited">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCompleted, Mode=TwoWay}" MinWidth="32" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                                                <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                                
+                                                                <Button x:Name="JustDoItToggleBtn"
+                                                                        Grid.Column="2" Content="&#xE945;"
+                                                                        Style="{StaticResource IconButtonStyle}"
+                                                                        Width="28" Height="28" FontSize="11"
+                                                                        Foreground="{x:Bind local:MainWindow.GetJustDoItBrush(IsJustDoIt), Mode=OneWay}"
+                                                                        Visibility="Collapsed"
+                                                                        Loaded="JustDoItToggleBtn_Loaded"
+                                                                        Unloaded="JustDoItToggleBtn_Unloaded"
+                                                                        ToolTipService.ToolTip="すぐやるから解除" />
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
                     </Grid>
                     <!-- リサイズ用スプリッター領域 -->
                     <local:ResizableGrid Grid.Column="2" 
@@ -979,7 +1059,236 @@
                                     </ToggleButton>
                                 </Grid>
 
-                                <Grid x:Name="RightJustDoItTasksViewContainer" Grid.Row="1" Visibility="Visible" RowSpacing="8">
+                                <!-- メモ一覧ビュー (右) -->
+                                <Grid x:Name="RightNotesViewContainer" Grid.Row="1" Visibility="Collapsed" RowSpacing="8">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    
+                                    <TextBox x:Name="RightSidebarNoteSearchBox" 
+                                             Grid.Row="0"
+                                             PlaceholderText="Search for notes..."
+                                             HorizontalAlignment="Stretch"
+                                             TextChanged="RightSidebarNoteSearchBox_TextChanged"
+                                             KeyDown="RightSidebarNoteSearchBox_KeyDown">
+                                        <TextBox.Resources>
+                                            <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
+                                            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#2d2d2d" />
+                                            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
+                                            <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
+                                            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#444444" />
+                                            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
+                                            <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                                            <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
+                                            <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
+                                            <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#777777" />
+                                            <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#777777" />
+                                            <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#777777" />
+                                        </TextBox.Resources>
+                                    </TextBox>
+                                    
+                                    <ScrollViewer x:Name="RightSidebarNotesScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                        <StackPanel x:Name="RightSidebarNotesListContainer" Spacing="8">
+                                            <!-- Recent セクション -->
+                                            <StackPanel x:Name="RightSidebarRecentSection" Spacing="4">
+                                                <TextBlock Text="Recent" FontSize="11" Foreground="#666666" FontWeight="SemiBold" Margin="4,4,0,2" />
+                                                <ItemsControl x:Name="RightSidebarRecentListView" ItemTemplate="{StaticResource NoteItemTemplate}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Spacing="2" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                </ItemsControl>
+                                            </StackPanel>
+
+                                            <!-- Pinned セクション -->
+                                            <StackPanel x:Name="RightSidebarPinnedSection" Spacing="4">
+                                                <TextBlock Text="Pinned" FontSize="11" Foreground="#666666" FontWeight="SemiBold" Margin="4,4,0,2" />
+                                                <ItemsControl x:Name="RightSidebarPinnedListView" ItemTemplate="{StaticResource NoteItemTemplate}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Spacing="2" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                            
+                                            <!-- Notes セクション -->
+                                            <StackPanel x:Name="RightSidebarNotesSection" Spacing="4">
+                                                <TextBlock Text="Notes" FontSize="11" Foreground="#666666" FontWeight="SemiBold" Margin="4,4,0,2" />
+                                                <ItemsControl x:Name="RightSidebarNotesListView" ItemTemplate="{StaticResource NoteItemTemplate}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Spacing="2" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </Grid>
+
+                                <!-- 現在のタスクビュー (右) -->
+                                <Grid x:Name="RightTasksViewContainer" Grid.Row="1" Visibility="Collapsed" RowSpacing="8">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    
+                                    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl x:Name="RightCurrentTasksListView">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Spacing="4" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="local:TaskItemViewModel">
+                                                    <Grid Padding="4" CornerRadius="4" Background="Transparent"
+                                                          PointerEntered="TaskItemGrid_PointerEntered"
+                                                          PointerExited="TaskItemGrid_PointerExited">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        
+                                                        <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCompleted, Mode=TwoWay}" MinWidth="32" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                                        
+                                                        <TextBox Grid.Column="1" Text="{x:Bind Title, Mode=TwoWay}"
+                                                                 FontSize="13" Foreground="#ffffff"
+                                                                 VerticalAlignment="Center"
+                                                                 BorderThickness="0" Background="Transparent"
+                                                                 Padding="0,4"
+                                                                 TextWrapping="Wrap">
+                                                            <TextBox.Resources>
+                                                                <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                                                                <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                                                                <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#252525" />
+                                                                <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+                                                                <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+                                                                <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#333333" />
+                                                                <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                                                                <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
+                                                                <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
+                                                            </TextBox.Resources>
+                                                        </TextBox>
+                                                        
+                                                        <Button x:Name="JustDoItTaskButton"
+                                                                Grid.Column="2" Content="&#xE945;"
+                                                                Style="{StaticResource IconButtonStyle}"
+                                                                Width="28" Height="28" FontSize="11"
+                                                                Foreground="{x:Bind local:MainWindow.GetJustDoItBrush(IsJustDoIt), Mode=OneWay}"
+                                                                Visibility="{x:Bind local:MainWindow.BoolToVisibility(IsJustDoIt), Mode=OneWay}"
+                                                                Loaded="JustDoItTaskButton_Loaded"
+                                                                Unloaded="JustDoItTaskButton_Unloaded"
+                                                                ToolTipService.ToolTip="すぐやるに追加/解除" />
+                                                        
+                                                        <Button x:Name="DeleteTaskButton"
+                                                                Grid.Column="3" Content="&#xE74D;"
+                                                                Style="{StaticResource IconButtonStyle}"
+                                                                Width="28" Height="28" FontSize="11"
+                                                                Foreground="#FF453A"
+                                                                Visibility="Collapsed"
+                                                                Loaded="DeleteTaskButton_Loaded"
+                                                                Unloaded="DeleteTaskButton_Unloaded"
+                                                                ToolTipService.ToolTip="タスクを削除" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+
+                                    <TextBox x:Name="RightAddTaskBox"
+                                             Grid.Row="1"
+                                             PlaceholderText="Add task..."
+                                             BorderThickness="0,1,0,0"
+                                             CornerRadius="0"
+                                             Padding="4,8"
+                                             KeyDown="RightAddTaskBox_KeyDown">
+                                        <TextBox.Resources>
+                                            <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                                            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                                            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+                                            <SolidColorBrush x:Key="TextControlBorderBrush" Color="#2d2d2d" />
+                                            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#2d2d2d" />
+                                            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#2d2d2d" />
+                                            <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                                            <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#555555" />
+                                        </TextBox.Resources>
+                                    </TextBox>
+                                </Grid>
+
+                                <!-- すべてのタスクビュー (右) -->
+                                <Grid x:Name="RightAllTasksViewContainer" Grid.Row="1" Visibility="Collapsed" RowSpacing="8">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    
+                                    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl x:Name="RightAllTasksGroupsControl">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Spacing="16" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="local:AllTasksGroupViewModel">
+                                                    <StackPanel Spacing="4">
+                                                        <Button Content="{x:Bind NoteTitle}"
+                                                                Background="#002D2D2D"
+                                                                BorderThickness="0"
+                                                                Foreground="#0078d4"
+                                                                FontWeight="SemiBold"
+                                                                FontSize="12"
+                                                                Padding="4,2"
+                                                                HorizontalAlignment="Left"
+                                                                Click="AllTasksGroupHeader_Click"
+                                                                DataContext="{x:Bind}" />
+                                                        
+                                                        <ItemsControl ItemsSource="{x:Bind Tasks}">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <StackPanel Spacing="2" />
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="local:TaskItemViewModel">
+                                                                    <Grid Padding="4,2" Background="Transparent"
+                                                                          PointerPressed="AllTaskItem_PointerPressed"
+                                                                          PointerEntered="AllTaskItemGrid_PointerEntered"
+                                                                          PointerExited="AllTaskItemGrid_PointerExited">
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="Auto" />
+                                                                            <ColumnDefinition Width="*" />
+                                                                            <ColumnDefinition Width="Auto" />
+                                                                        </Grid.ColumnDefinitions>
+                                                                        <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCompleted, Mode=TwoWay}" MinWidth="32" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                                                        <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                                        
+                                                                        <Button x:Name="AllJustDoItButton"
+                                                                                Grid.Column="2" Content="&#xE945;"
+                                                                                Style="{StaticResource IconButtonStyle}"
+                                                                                Width="28" Height="28" FontSize="11"
+                                                                                Foreground="{x:Bind local:MainWindow.GetJustDoItBrush(IsJustDoIt), Mode=OneWay}"
+                                                                                Visibility="{x:Bind local:MainWindow.BoolToVisibility(IsJustDoIt), Mode=OneWay}"
+                                                                                Loaded="AllJustDoItButton_Loaded"
+                                                                                Unloaded="AllJustDoItButton_Unloaded"
+                                                                                ToolTipService.ToolTip="すぐやるに追加/解除" />
+                                                                    </Grid>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Grid>
+
+                                <Grid x:Name="RightJustDoItTasksViewContainer" Grid.Row="1" Visibility="Collapsed" RowSpacing="8">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="*" />
                                     </Grid.RowDefinitions>
@@ -1063,6 +1372,58 @@
                                         ToolTipService.ToolTip="ナビゲーションの開閉" />
 
                                 <StackPanel Grid.Row="1" Spacing="8" Margin="0,16,0,0">
+                                    <!-- メモ一覧 (右) -->
+                                    <Grid x:Name="RightNotesMenuGrid">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="3" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button x:Name="RightNotesMenuButton"
+                                                Grid.Column="0"
+                                                Content="&#xEE40;"
+                                                Style="{StaticResource IconButtonStyle}"
+                                                Width="36" Height="36"
+                                                HorizontalAlignment="Center"
+                                                Click="RightNotesMenuButton_Click"
+                                                ToolTipService.ToolTip="メモ一覧" />
+                                        <Border x:Name="RightNotesActiveIndicator" Grid.Column="1" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
+                                    </Grid>
+
+                                    <!-- 現在のタスク (右) -->
+                                    <Grid x:Name="RightTasksMenuGrid">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="3" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button x:Name="RightTasksMenuButton"
+                                                Grid.Column="0"
+                                                Content="&#xE73E;"
+                                                Style="{StaticResource IconButtonStyle}"
+                                                Width="36" Height="36"
+                                                HorizontalAlignment="Center"
+                                                Click="RightTasksMenuButton_Click"
+                                                ToolTipService.ToolTip="現在のタスク" />
+                                        <Border x:Name="RightTasksActiveIndicator" Grid.Column="1" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
+                                    </Grid>
+
+                                    <!-- すべてのタスク (右) -->
+                                    <Grid x:Name="RightAllTasksMenuGrid">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="3" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button x:Name="RightAllTasksMenuButton"
+                                                Grid.Column="0"
+                                                Content="&#xE9D5;"
+                                                Style="{StaticResource IconButtonStyle}"
+                                                Width="36" Height="36"
+                                                HorizontalAlignment="Center"
+                                                Click="RightAllTasksMenuButton_Click"
+                                                ToolTipService.ToolTip="すべてのタスク" />
+                                        <Border x:Name="RightAllTasksActiveIndicator" Grid.Column="1" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
+                                    </Grid>
+
+                                    <!-- すぐやる (右) -->
                                     <Grid x:Name="RightJustDoItMenuGrid">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />

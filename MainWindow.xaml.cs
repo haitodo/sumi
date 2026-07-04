@@ -22,6 +22,7 @@ namespace sumi
         private readonly SaveScheduler _taskSaveScheduler;
         private readonly HashSet<string> _dirtyTaskNoteIds = new();
         private SidebarView _currentSidebarView = SidebarView.Notes;
+        private SidebarView _currentRightSidebarView = SidebarView.JustDoIt;
         private bool _isResizing;
         private double _startOpenPaneLength;
         private double _startPointerPositionX;
@@ -30,7 +31,8 @@ namespace sumi
         {
             Notes,
             Tasks,
-            AllTasks
+            AllTasks,
+            JustDoIt
         }
 
         private bool _isRightResizing;
@@ -290,7 +292,17 @@ namespace sumi
                 _currentSidebarView = SidebarView.Notes;
             }
 
-            // タイトル、インジケーター、コンテナの表示状態を更新
+            // 右サイドバーの現在のビュー（タブ）を復元
+            if (Enum.TryParse<SidebarView>(MemoStorage.LastRightSidebarView, out var savedRightView))
+            {
+                _currentRightSidebarView = savedRightView;
+            }
+            else
+            {
+                _currentRightSidebarView = SidebarView.JustDoIt;
+            }
+
+            // タイトル、インジケーター、コンテナの表示状態を更新 (左)
             if (PaneTitleTextBlock != null)
             {
                 PaneTitleTextBlock.Text = _currentSidebarView switch
@@ -298,6 +310,7 @@ namespace sumi
                     SidebarView.Notes => "Notes",
                     SidebarView.Tasks => "Tasks",
                     SidebarView.AllTasks => "All Tasks",
+                    SidebarView.JustDoIt => "Just Do It",
                     _ => ""
                 };
             }
@@ -305,10 +318,35 @@ namespace sumi
             if (NotesActiveIndicator != null) NotesActiveIndicator.Visibility = _currentSidebarView == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
             if (TasksActiveIndicator != null) TasksActiveIndicator.Visibility = _currentSidebarView == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
             if (AllTasksActiveIndicator != null) AllTasksActiveIndicator.Visibility = _currentSidebarView == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
+            if (JustDoItActiveIndicator != null) JustDoItActiveIndicator.Visibility = _currentSidebarView == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
 
             if (NotesViewContainer != null) NotesViewContainer.Visibility = _currentSidebarView == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
             if (TasksViewContainer != null) TasksViewContainer.Visibility = _currentSidebarView == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
             if (AllTasksViewContainer != null) AllTasksViewContainer.Visibility = _currentSidebarView == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
+            if (JustDoItViewContainer != null) JustDoItViewContainer.Visibility = _currentSidebarView == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
+
+            // タイトル、インジケーター、コンテナの表示状態を更新 (右)
+            if (RightPaneTitleTextBlock != null)
+            {
+                RightPaneTitleTextBlock.Text = _currentRightSidebarView switch
+                {
+                    SidebarView.Notes => "Notes",
+                    SidebarView.Tasks => "Tasks",
+                    SidebarView.AllTasks => "All Tasks",
+                    SidebarView.JustDoIt => "Just Do It",
+                    _ => ""
+                };
+            }
+
+            if (RightNotesActiveIndicator != null) RightNotesActiveIndicator.Visibility = _currentRightSidebarView == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
+            if (RightTasksActiveIndicator != null) RightTasksActiveIndicator.Visibility = _currentRightSidebarView == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
+            if (RightAllTasksActiveIndicator != null) RightAllTasksActiveIndicator.Visibility = _currentRightSidebarView == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
+            if (RightJustDoItActiveIndicator != null) RightJustDoItActiveIndicator.Visibility = _currentRightSidebarView == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
+
+            if (RightNotesViewContainer != null) RightNotesViewContainer.Visibility = _currentRightSidebarView == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
+            if (RightTasksViewContainer != null) RightTasksViewContainer.Visibility = _currentRightSidebarView == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
+            if (RightAllTasksViewContainer != null) RightAllTasksViewContainer.Visibility = _currentRightSidebarView == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
+            if (RightJustDoItTasksViewContainer != null) RightJustDoItTasksViewContainer.Visibility = _currentRightSidebarView == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
 
             if (SidebarSplitView != null)
             {
@@ -336,13 +374,9 @@ namespace sumi
                 RightSidebarSplitView.DisplayMode = MemoStorage.IsRightSidebarPinned ? SplitViewDisplayMode.CompactInline : SplitViewDisplayMode.CompactOverlay;
                 RightSidebarSplitView.OpenPaneLength = MemoStorage.RightSidebarWidth;
                 RightSidebarSplitView.IsPaneOpen = MemoStorage.IsRightSidebarOpen;
-                if (RightJustDoItActiveIndicator != null)
-                {
-                    RightJustDoItActiveIndicator.Visibility = MemoStorage.IsRightSidebarOpen ? Visibility.Visible : Visibility.Collapsed;
-                }
                 if (MemoStorage.IsRightSidebarOpen)
                 {
-                    PopulateJustDoItTasks();
+                    PopulateRightSidebarView(_currentRightSidebarView);
                 }
             }
             if (PinRightSidebarButton != null)
@@ -876,10 +910,25 @@ namespace sumi
                     {
                         PopulateAllTasks();
                     }
+                    else if (_currentSidebarView == SidebarView.JustDoIt)
+                    {
+                        PopulateJustDoItTasks();
+                    }
                 }
                 if (RightSidebarSplitView != null && RightSidebarSplitView.IsPaneOpen)
                 {
-                    PopulateJustDoItTasks();
+                    if (_currentRightSidebarView == SidebarView.Notes)
+                    {
+                        PopulateRightSidebarNotesList(RightSidebarNoteSearchBox.Text);
+                    }
+                    else if (_currentRightSidebarView == SidebarView.AllTasks)
+                    {
+                        PopulateRightAllTasks();
+                    }
+                    else if (_currentRightSidebarView == SidebarView.JustDoIt)
+                    {
+                        PopulateJustDoItTasks();
+                    }
                 }
             });
         }
@@ -1514,17 +1563,29 @@ namespace sumi
             SetSidebarView(SidebarView.AllTasks);
         }
 
+        private void JustDoItMenuButton_Click(object sender, RoutedEventArgs e)
+        {
+            SetSidebarView(SidebarView.JustDoIt);
+        }
+
+        private void RightNotesMenuButton_Click(object sender, RoutedEventArgs e)
+        {
+            SetRightSidebarView(SidebarView.Notes);
+        }
+
+        private void RightTasksMenuButton_Click(object sender, RoutedEventArgs e)
+        {
+            SetRightSidebarView(SidebarView.Tasks);
+        }
+
+        private void RightAllTasksMenuButton_Click(object sender, RoutedEventArgs e)
+        {
+            SetRightSidebarView(SidebarView.AllTasks);
+        }
+
         private void RightJustDoItMenuButton_Click(object sender, RoutedEventArgs e)
         {
-            if (RightSidebarSplitView != null)
-            {
-                bool targetOpen = !RightSidebarSplitView.IsPaneOpen;
-                RightSidebarSplitView.IsPaneOpen = targetOpen;
-                if (targetOpen)
-                {
-                    PopulateJustDoItTasks();
-                }
-            }
+            SetRightSidebarView(SidebarView.JustDoIt);
         }
 
         private void RightHamburgerButton_Click(object sender, RoutedEventArgs e)
@@ -1535,7 +1596,7 @@ namespace sumi
                 RightSidebarSplitView.IsPaneOpen = targetOpen;
                 if (targetOpen)
                 {
-                    PopulateJustDoItTasks();
+                    PopulateRightSidebarView(_currentRightSidebarView);
                 }
             }
         }
@@ -1554,6 +1615,7 @@ namespace sumi
                     SidebarView.Notes => "Notes",
                     SidebarView.Tasks => "Tasks",
                     SidebarView.AllTasks => "All Tasks",
+                    SidebarView.JustDoIt => "Just Do It",
                     _ => ""
                 };
             }
@@ -1562,11 +1624,13 @@ namespace sumi
             if (NotesActiveIndicator != null) NotesActiveIndicator.Visibility = view == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
             if (TasksActiveIndicator != null) TasksActiveIndicator.Visibility = view == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
             if (AllTasksActiveIndicator != null) AllTasksActiveIndicator.Visibility = view == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
+            if (JustDoItActiveIndicator != null) JustDoItActiveIndicator.Visibility = view == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
 
             // Update Containers Visibility
             if (NotesViewContainer != null) NotesViewContainer.Visibility = view == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
             if (TasksViewContainer != null) TasksViewContainer.Visibility = view == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
             if (AllTasksViewContainer != null) AllTasksViewContainer.Visibility = view == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
+            if (JustDoItViewContainer != null) JustDoItViewContainer.Visibility = view == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
 
             // Open pane if closed
             if (SidebarSplitView != null && !SidebarSplitView.IsPaneOpen)
@@ -1578,6 +1642,50 @@ namespace sumi
             {
                 // Pane is already open, populate directly
                 PopulateSidebarView(view);
+            }
+        }
+
+        private void SetRightSidebarView(SidebarView view)
+        {
+            _currentRightSidebarView = view;
+            MemoStorage.LastRightSidebarView = view.ToString();
+            QueueSaveSettings();
+
+            // Update Title Text
+            if (RightPaneTitleTextBlock != null)
+            {
+                RightPaneTitleTextBlock.Text = view switch
+                {
+                    SidebarView.Notes => "Notes",
+                    SidebarView.Tasks => "Tasks",
+                    SidebarView.AllTasks => "All Tasks",
+                    SidebarView.JustDoIt => "Just Do It",
+                    _ => ""
+                };
+            }
+
+            // Update Indicators
+            if (RightNotesActiveIndicator != null) RightNotesActiveIndicator.Visibility = view == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
+            if (RightTasksActiveIndicator != null) RightTasksActiveIndicator.Visibility = view == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
+            if (RightAllTasksActiveIndicator != null) RightAllTasksActiveIndicator.Visibility = view == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
+            if (RightJustDoItActiveIndicator != null) RightJustDoItActiveIndicator.Visibility = view == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
+
+            // Update Containers Visibility
+            if (RightNotesViewContainer != null) RightNotesViewContainer.Visibility = view == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
+            if (RightTasksViewContainer != null) RightTasksViewContainer.Visibility = view == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
+            if (RightAllTasksViewContainer != null) RightAllTasksViewContainer.Visibility = view == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
+            if (RightJustDoItTasksViewContainer != null) RightJustDoItTasksViewContainer.Visibility = view == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
+
+            // Open pane if closed
+            if (RightSidebarSplitView != null && !RightSidebarSplitView.IsPaneOpen)
+            {
+                PopulateRightSidebarView(view);
+                RightSidebarSplitView.IsPaneOpen = true;
+            }
+            else
+            {
+                // Pane is already open, populate directly
+                PopulateRightSidebarView(view);
             }
         }
 
@@ -1597,6 +1705,33 @@ namespace sumi
             else if (view == SidebarView.AllTasks)
             {
                 PopulateAllTasks();
+            }
+            else if (view == SidebarView.JustDoIt)
+            {
+                PopulateJustDoItTasks();
+            }
+        }
+
+        private void PopulateRightSidebarView(SidebarView view)
+        {
+            if (view == SidebarView.Notes)
+            {
+                if (RightSidebarNoteSearchBox != null) RightSidebarNoteSearchBox.Text = string.Empty;
+                PopulateRightSidebarNotesList();
+                RightSidebarNoteSearchBox?.Focus(FocusState.Programmatic);
+            }
+            else if (view == SidebarView.Tasks)
+            {
+                PopulateRightCurrentTasks();
+                RightAddTaskBox?.Focus(FocusState.Programmatic);
+            }
+            else if (view == SidebarView.AllTasks)
+            {
+                PopulateRightAllTasks();
+            }
+            else if (view == SidebarView.JustDoIt)
+            {
+                PopulateJustDoItTasks();
             }
         }
 
@@ -1668,6 +1803,74 @@ namespace sumi
             }
         }
 
+        private void PopulateRightCurrentTasks()
+        {
+            NoteData? currentNote = null;
+            lock (MemoStorage.Notes)
+            {
+                currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId);
+            }
+
+            if (currentNote != null)
+            {
+                MemoStorage.LoadTasksForNoteSync(currentNote);
+                if (RightCurrentTasksListView != null)
+                {
+                    if (RightCurrentTasksListView.ItemsSource != currentNote.Tasks)
+                    {
+                        RightCurrentTasksListView.ItemsSource = currentNote.Tasks;
+                    }
+                }
+            }
+            else
+            {
+                if (RightCurrentTasksListView != null && RightCurrentTasksListView.ItemsSource != null)
+                {
+                    RightCurrentTasksListView.ItemsSource = null;
+                }
+            }
+        }
+
+        private void PopulateRightAllTasks()
+        {
+            var groups = new List<AllTasksGroupViewModel>();
+            List<NoteData> notes;
+            lock (MemoStorage.Notes)
+            {
+                notes = new List<NoteData>(MemoStorage.Notes);
+            }
+
+            foreach (var note in notes)
+            {
+                MemoStorage.LoadTasksForNoteSync(note);
+                var uncompletedTasks = new System.Collections.ObjectModel.ObservableCollection<TaskItemViewModel>();
+                lock (note.Tasks)
+                {
+                    foreach (var t in note.Tasks)
+                    {
+                        if (!t.IsCompleted)
+                        {
+                            uncompletedTasks.Add(t);
+                        }
+                    }
+                }
+                if (uncompletedTasks.Count > 0)
+                {
+                    groups.Add(new AllTasksGroupViewModel(note.Id, note.Title, uncompletedTasks));
+                }
+            }
+
+            if (RightAllTasksGroupsControl != null)
+            {
+                var currentList = RightAllTasksGroupsControl.ItemsSource as List<AllTasksGroupViewModel>;
+                if (!AreAllTasksGroupsEqual(currentList, groups))
+                {
+                    RightAllTasksGroupsControl.ItemsSource = null;
+                    RightAllTasksGroupsControl.ItemsSource = groups;
+                }
+            }
+        }
+
         private void PopulateJustDoItTasks()
         {
             var groups = new List<AllTasksGroupViewModel>();
@@ -1704,6 +1907,16 @@ namespace sumi
                 {
                     JustDoItTasksGroupsControl.ItemsSource = null;
                     JustDoItTasksGroupsControl.ItemsSource = groups;
+                }
+            }
+
+            if (LeftJustDoItTasksGroupsControl != null)
+            {
+                var currentList = LeftJustDoItTasksGroupsControl.ItemsSource as List<AllTasksGroupViewModel>;
+                if (!AreAllTasksGroupsEqual(currentList, groups))
+                {
+                    LeftJustDoItTasksGroupsControl.ItemsSource = null;
+                    LeftJustDoItTasksGroupsControl.ItemsSource = groups;
                 }
             }
         }
@@ -1761,6 +1974,45 @@ namespace sumi
 
                         AddTaskBox.Text = string.Empty;
                         PopulateCurrentTasks();
+                        PopulateRightCurrentTasks();
+                    }
+                }
+                e.Handled = true;
+            }
+        }
+
+        private void RightAddTaskBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                string text = RightAddTaskBox.Text.Trim();
+                if (!string.IsNullOrEmpty(text))
+                {
+                    NoteData? currentNote = null;
+                    lock (MemoStorage.Notes)
+                    {
+                        currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId);
+                    }
+                    if (currentNote != null)
+                    {
+                        MemoStorage.LoadTasksForNoteSync(currentNote);
+                        var newTask = new TaskItemViewModel(
+                            Guid.NewGuid().ToString(),
+                            currentNote.Id,
+                            text,
+                            false,
+                            DateTime.UtcNow,
+                            () => OnTaskChanged(currentNote.Id)
+                        );
+                        lock (currentNote.Tasks)
+                        {
+                            currentNote.Tasks.Add(newTask);
+                        }
+                        OnTaskChanged(currentNote.Id);
+
+                        RightAddTaskBox.Text = string.Empty;
+                        PopulateCurrentTasks();
+                        PopulateRightCurrentTasks();
                     }
                 }
                 e.Handled = true;
@@ -1800,6 +2052,7 @@ namespace sumi
                     }
                     OnTaskChanged(vm.ParentNoteId);
                     PopulateCurrentTasks();
+                    PopulateRightCurrentTasks();
                 }
             }
         }
@@ -1934,6 +2187,19 @@ namespace sumi
             }
         }
 
+        private bool IsInRightSidebar(DependencyObject? obj)
+        {
+            while (obj != null)
+            {
+                if (obj == RightSidebarSplitView)
+                    return true;
+                if (obj == SidebarSplitView)
+                    return false;
+                obj = VisualTreeHelper.GetParent(obj);
+            }
+            return false;
+        }
+
         private void JustDoItButton_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.DataContext is TaskItemViewModel vm)
@@ -1945,7 +2211,9 @@ namespace sumi
                 
                 // Immediately refresh views
                 PopulateCurrentTasks();
+                PopulateRightCurrentTasks();
                 PopulateAllTasks();
+                PopulateRightAllTasks();
                 PopulateJustDoItTasks();
             }
         }
@@ -1955,7 +2223,14 @@ namespace sumi
             if (sender is Button btn && btn.DataContext is AllTasksGroupViewModel group)
             {
                 SwitchToNote(group.NoteId);
-                SetSidebarView(SidebarView.Tasks);
+                if (IsInRightSidebar(btn))
+                {
+                    SetRightSidebarView(SidebarView.Tasks);
+                }
+                else
+                {
+                    SetSidebarView(SidebarView.Tasks);
+                }
             }
         }
 
@@ -1975,7 +2250,14 @@ namespace sumi
             if (sender is Grid grid && grid.DataContext is TaskItemViewModel vm)
             {
                 SwitchToNote(vm.ParentNoteId);
-                SetSidebarView(SidebarView.Tasks);
+                if (IsInRightSidebar(grid))
+                {
+                    SetRightSidebarView(SidebarView.Tasks);
+                }
+                else
+                {
+                    SetSidebarView(SidebarView.Tasks);
+                }
                 e.Handled = true;
             }
         }
@@ -2095,20 +2377,22 @@ namespace sumi
         private void RightSidebarSplitView_PaneOpened(SplitView sender, object args)
         {
             MemoStorage.IsRightSidebarOpen = true;
-            if (RightJustDoItActiveIndicator != null)
-            {
-                RightJustDoItActiveIndicator.Visibility = Visibility.Visible;
-            }
             QueueSaveSettings();
+
+            // Focus the appropriate input control once the pane is fully opened
+            if (_currentRightSidebarView == SidebarView.Notes)
+            {
+                RightSidebarNoteSearchBox?.Focus(FocusState.Programmatic);
+            }
+            else if (_currentRightSidebarView == SidebarView.Tasks)
+            {
+                RightAddTaskBox?.Focus(FocusState.Programmatic);
+            }
         }
 
         private void RightSidebarSplitView_PaneClosed(SplitView sender, object args)
         {
             MemoStorage.IsRightSidebarOpen = false;
-            if (RightJustDoItActiveIndicator != null)
-            {
-                RightJustDoItActiveIndicator.Visibility = Visibility.Collapsed;
-            }
             QueueSaveSettings();
         }
 
@@ -2443,6 +2727,17 @@ namespace sumi
                         PopulateSidebarNotesList(SidebarNoteSearchBox.Text);
                     }
                 }
+                if (RightSidebarSplitView != null && RightSidebarSplitView.IsPaneOpen)
+                {
+                    if (_currentRightSidebarView == SidebarView.Tasks)
+                    {
+                        PopulateRightCurrentTasks();
+                    }
+                    else if (_currentRightSidebarView == SidebarView.Notes)
+                    {
+                        PopulateRightSidebarNotesList(RightSidebarNoteSearchBox.Text);
+                    }
+                }
 
                 this.DispatcherQueue.TryEnqueue(
                     Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
@@ -2713,6 +3008,134 @@ namespace sumi
         {
             PopulateNotesList(NoteSearchBox != null ? NoteSearchBox.Text : "");
             PopulateSidebarNotesList(SidebarNoteSearchBox != null ? SidebarNoteSearchBox.Text : "");
+            PopulateRightSidebarNotesList(RightSidebarNoteSearchBox != null ? RightSidebarNoteSearchBox.Text : "");
+        }
+
+        private void PopulateRightSidebarNotesList(string filter = "")
+        {
+            var query = filter.Trim();
+            var pinnedVMs = new List<NoteItemViewModel>();
+            var normalVMs = new List<NoteItemViewModel>();
+            var recentVMs = new List<NoteItemViewModel>();
+
+            List<NoteData> filteredNotes = new List<NoteData>();
+            lock (MemoStorage.Notes)
+            {
+                foreach (var note in MemoStorage.Notes)
+                {
+                    if (!string.IsNullOrEmpty(query))
+                    {
+                        bool matchTitle = note.Title.Contains(query, StringComparison.OrdinalIgnoreCase);
+                        bool matchContent = note.Content.Contains(query, StringComparison.OrdinalIgnoreCase);
+                        if (!matchTitle && !matchContent)
+                        {
+                            continue;
+                        }
+                    }
+                    filteredNotes.Add(note);
+                }
+            }
+
+            // Pinned/Notes 用に作成日時（Id）の数値降順でソート（順番が変わらないようにするため）
+            filteredNotes.Sort((a, b) =>
+            {
+                if (long.TryParse(a.Id, out long aTicks) && long.TryParse(b.Id, out long bTicks))
+                {
+                    return bTicks.CompareTo(aTicks);
+                }
+                return string.Compare(b.Id, a.Id, StringComparison.Ordinal);
+            });
+
+            foreach (var note in filteredNotes)
+            {
+                bool isCurrent = note.Id == MemoStorage.CurrentNoteId;
+                string subtitle = isCurrent
+                    ? $"Current • {note.CharCount} characters"
+                    : $"{GetRelativeTimeText(note.LastOpened)} • {note.CharCount} characters";
+
+                bool isHighlighted = note.Id == _highlightedNoteId;
+                var vm = new NoteItemViewModel(note.Id, note.Title, subtitle, note.IsPinned, isCurrent, isHighlighted);
+
+                if (note.IsPinned) pinnedVMs.Add(vm);
+                else normalVMs.Add(vm);
+            }
+
+            // Recent 用に LastOpened 降順でソート
+            if (MemoStorage.RecentNotesCount > 0)
+            {
+                var recentNotes = new List<NoteData>(filteredNotes);
+                recentNotes.Sort((a, b) => b.LastOpened.CompareTo(a.LastOpened));
+                foreach (var note in recentNotes.Take(MemoStorage.RecentNotesCount))
+                {
+                    bool isCurrent = note.Id == MemoStorage.CurrentNoteId;
+                    string subtitle = isCurrent
+                        ? $"Current • {note.CharCount} characters"
+                        : $"{GetRelativeTimeText(note.LastOpened)} • {note.CharCount} characters";
+
+                    bool isHighlighted = note.Id == _highlightedNoteId;
+                    var vm = new NoteItemViewModel(note.Id, note.Title, subtitle, note.IsPinned, isCurrent, isHighlighted);
+                    recentVMs.Add(vm);
+                }
+            }
+
+            if (RightSidebarRecentListView != null)
+            {
+                var currentList = RightSidebarRecentListView.ItemsSource as IList<NoteItemViewModel>;
+                if (!AreNoteListsEqual(currentList, recentVMs))
+                {
+                    RightSidebarRecentListView.ItemsSource = null;
+                    RightSidebarRecentListView.ItemsSource = recentVMs;
+                }
+            }
+            if (RightSidebarPinnedListView != null)
+            {
+                var currentList = RightSidebarPinnedListView.ItemsSource as IList<NoteItemViewModel>;
+                if (!AreNoteListsEqual(currentList, pinnedVMs))
+                {
+                    RightSidebarPinnedListView.ItemsSource = null;
+                    RightSidebarPinnedListView.ItemsSource = pinnedVMs;
+                }
+            }
+            if (RightSidebarNotesListView != null)
+            {
+                var currentList = RightSidebarNotesListView.ItemsSource as IList<NoteItemViewModel>;
+                if (!AreNoteListsEqual(currentList, normalVMs))
+                {
+                    RightSidebarNotesListView.ItemsSource = null;
+                    RightSidebarNotesListView.ItemsSource = normalVMs;
+                }
+            }
+
+            if (RightSidebarRecentSection != null) RightSidebarRecentSection.Visibility = (recentVMs.Count > 0 && MemoStorage.RecentNotesCount > 0) ? Visibility.Visible : Visibility.Collapsed;
+            if (RightSidebarPinnedSection != null) RightSidebarPinnedSection.Visibility = pinnedVMs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (RightSidebarNotesSection != null) RightSidebarNotesSection.Visibility = normalVMs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void RightSidebarNoteSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            PopulateRightSidebarNotesList(RightSidebarNoteSearchBox.Text);
+        }
+
+        private void RightSidebarNoteSearchBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                var pinnedVMs = RightSidebarPinnedListView.ItemsSource as List<NoteItemViewModel>;
+                if (pinnedVMs != null && pinnedVMs.Count > 0)
+                {
+                    OnNoteSelected(pinnedVMs[0].Id);
+                    e.Handled = true;
+                    return;
+                }
+
+                var normalVMs = RightSidebarNotesListView.ItemsSource as List<NoteItemViewModel>;
+                if (normalVMs != null && normalVMs.Count > 0)
+                {
+                    OnNoteSelected(normalVMs[0].Id);
+                    e.Handled = true;
+                    return;
+                }
+            }
         }
 
         private string GetRelativeTimeText(DateTime lastOpened)

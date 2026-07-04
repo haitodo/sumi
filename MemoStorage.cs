@@ -166,6 +166,7 @@ namespace sumi
         public static bool IsRightSidebarOpen { get; set; } = false;
         public static double RightSidebarWidth { get; set; } = 320.0;
         public static string LastSidebarView { get; set; } = "Notes";
+        public static string LastRightSidebarView { get; set; } = "JustDoIt";
         public static int RecentNotesCount { get; set; } = 1;
         public static bool ShowDeleteButton { get; set; } = false;
 
@@ -1023,6 +1024,9 @@ namespace sumi
                                 case "LastSidebarView":
                                     LastSidebarView = val;
                                     break;
+                                case "LastRightSidebarView":
+                                    LastRightSidebarView = val;
+                                    break;
                                 case "RecentNotesCount":
                                     if (int.TryParse(val, out int rnc)) RecentNotesCount = Math.Max(0, rnc);
                                     break;
@@ -1071,6 +1075,7 @@ namespace sumi
                 sb.AppendLine($"IsRightSidebarOpen={IsRightSidebarOpen}");
                 sb.AppendLine($"RightSidebarWidth={RightSidebarWidth}");
                 sb.AppendLine($"LastSidebarView={LastSidebarView}");
+                sb.AppendLine($"LastRightSidebarView={LastRightSidebarView}");
                 sb.AppendLine($"RecentNotesCount={RecentNotesCount}");
                 sb.AppendLine($"ShowDeleteButton={ShowDeleteButton}");
                 byte[] bytes = Utf8NoBom.GetBytes(sb.ToString());
