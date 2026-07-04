@@ -308,6 +308,10 @@ namespace sumi
             if (PinSidebarButton != null)
             {
                 PinSidebarButton.IsChecked = MemoStorage.IsSidebarPinned;
+                if (SidebarPinFilledIcon != null)
+                {
+                    SidebarPinFilledIcon.Visibility = MemoStorage.IsSidebarPinned ? Visibility.Visible : Visibility.Collapsed;
+                }
             }
         }
 
@@ -1885,6 +1889,10 @@ namespace sumi
                 bool pinned = PinSidebarButton.IsChecked ?? false;
                 MemoStorage.IsSidebarPinned = pinned;
                 SidebarSplitView.DisplayMode = pinned ? SplitViewDisplayMode.CompactInline : SplitViewDisplayMode.CompactOverlay;
+                if (SidebarPinFilledIcon != null)
+                {
+                    SidebarPinFilledIcon.Visibility = pinned ? Visibility.Visible : Visibility.Collapsed;
+                }
                 QueueSaveSettings();
             }
         }
@@ -3960,7 +3968,7 @@ namespace sumi
     /// </summary>
     public class NoteItemViewModel
     {
-        private static readonly Microsoft.UI.Xaml.Media.Brush PinForegroundPinned = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 255, 176, 0));
+        private static readonly Microsoft.UI.Xaml.Media.Brush PinForegroundPinned = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
         private static readonly Microsoft.UI.Xaml.Media.Brush PinForegroundUnpinned = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 204, 204, 204));
         private static readonly Microsoft.UI.Xaml.Media.Brush BackgroundBrushHighlighted = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(30, 255, 176, 0));
         private static readonly Microsoft.UI.Xaml.Media.Brush BackgroundBrushTransparent = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);

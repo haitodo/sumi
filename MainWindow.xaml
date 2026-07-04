@@ -66,6 +66,7 @@
                 <Setter Property="FontSize" Value="14" />
             </Style>
 
+
             <!-- メモアイテムの表示テンプレート -->
             <DataTemplate x:Key="NoteItemTemplate" x:DataType="local:NoteItemViewModel">
                 <Grid Padding="0" Background="{x:Bind BackgroundBrush, Mode=OneTime}" CornerRadius="4" 
@@ -708,19 +709,58 @@
                         </Grid.RowDefinitions>
 
                         <!-- 統合されたヘッダー (ビュータイトル & 固定ボタン) -->
-                        <Grid Grid.Row="0" Margin="4,0,4,8">
+                        <Grid Grid.Row="0" Margin="4,0,-8,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBlock x:Name="PaneTitleTextBlock" Text="Notes" FontSize="15" FontWeight="SemiBold" Foreground="#ffffff" VerticalAlignment="Center" />
                             <ToggleButton x:Name="PinSidebarButton" Grid.Column="1"
-                                          Content="&#xE718;" 
                                           Style="{StaticResource IconToggleButtonStyle}"
-                                          Width="32" Height="32" FontSize="12"
+                                          Width="32" Height="32"
                                           Click="PinSidebarButton_Click"
-                                          ToolTipService.ToolTip="サイドバーを固定" />
+                                          ToolTipService.ToolTip="サイドバーを固定">
+                                <ToggleButton.Resources>
+                                    <!-- Unchecked States -->
+                                    <SolidColorBrush x:Key="ToggleButtonBackground" Color="Transparent" />
+                                    <SolidColorBrush x:Key="ToggleButtonBackgroundPointerOver" Color="#22FFFFFF" />
+                                    <SolidColorBrush x:Key="ToggleButtonBackgroundPressed" Color="#33FFFFFF" />
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrush" Color="Transparent" />
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrushPointerOver" Color="Transparent" />
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrushPressed" Color="Transparent" />
+                                    
+                                    <!-- Checked States: Make background transparent/hover-only to avoid highlight -->
+                                    <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="Transparent" />
+                                    <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#22FFFFFF" />
+                                    <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="#33FFFFFF" />
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrushChecked" Color="Transparent" />
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPointerOver" Color="Transparent" />
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPressed" Color="Transparent" />
+                                    
+                                    <!-- Foregrounds -->
+                                    <SolidColorBrush x:Key="ToggleButtonForeground" Color="#ffffff" />
+                                    <SolidColorBrush x:Key="ToggleButtonForegroundPointerOver" Color="#ffffff" />
+                                    <SolidColorBrush x:Key="ToggleButtonForegroundPressed" Color="#ffffff" />
+                                    <SolidColorBrush x:Key="ToggleButtonForegroundChecked" Color="#ffffff" />
+                                    <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPointerOver" Color="#ffffff" />
+                                    <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPressed" Color="#ffffff" />
+                                </ToggleButton.Resources>
+                                <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <!-- Base outline pin (always visible, draws the needle) -->
+                                    <FontIcon Glyph="&#xE718;" 
+                                              FontFamily="Segoe Fluent Icons" 
+                                              FontSize="12"
+                                              Foreground="#ffffff" />
+                                    <!-- Filled pin overlay (only visible when pinned, fills the head) -->
+                                    <FontIcon x:Name="SidebarPinFilledIcon" Glyph="&#xE841;" 
+                                              FontFamily="Segoe Fluent Icons" 
+                                              FontSize="12"
+                                              Foreground="#ffffff"
+                                              Visibility="Collapsed" />
+                                </Grid>
+                            </ToggleButton>
                         </Grid>
+
 
                         <!-- メモ一覧ビュー -->
                         <Grid x:Name="NotesViewContainer" Grid.Row="1" Visibility="Visible" RowSpacing="8">
