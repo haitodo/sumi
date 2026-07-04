@@ -254,16 +254,20 @@ namespace sumi
             if (MemoTextBox == null) return;
 
             var doc = MemoTextBox.Document;
-            doc.BatchDisplayUpdates(); // 描画を一時停止し、パフォーマンスを最大化
+            doc.BatchDisplayUpdates();
             try
             {
-                var defaultFormat = doc.GetDefaultCharacterFormat();
-                if (defaultFormat != null)
+                // ★ 修正箇所：if (!preserveFormatting) で囲み、RTFロード時はデフォルト書式の上書きをスキップする
+                if (!preserveFormatting)
                 {
-                    defaultFormat.Name = MemoStorage.FontFamily;
-                    defaultFormat.Size = (float)MemoStorage.FontSize;
-                    defaultFormat.Weight = GetDefaultFontWeight();
-                    doc.SetDefaultCharacterFormat(defaultFormat);
+                    var defaultFormat = doc.GetDefaultCharacterFormat();
+                    if (defaultFormat != null)
+                    {
+                        defaultFormat.Name = MemoStorage.FontFamily;
+                        defaultFormat.Size = (float)MemoStorage.FontSize;
+                        defaultFormat.Weight = GetDefaultFontWeight();
+                        doc.SetDefaultCharacterFormat(defaultFormat);
+                    }
                 }
 
                 var range = doc.GetRange(0, int.MaxValue);
