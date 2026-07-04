@@ -503,7 +503,10 @@
             </StackPanel>
 
             <!-- ドラッグ検出領域 -->
-            <Grid Grid.Column="1" x:Name="TitleDragRegion" Background="Transparent" />
+            <Grid Grid.Column="1" x:Name="TitleDragRegion" Background="Transparent">
+                <!-- メモタイトル表示 -->
+                <TextBlock x:Name="TitleTextBlock" Text="Untitled" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" Foreground="#ffffff" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1" />
+            </Grid>
 
             <!-- システムボタン（最小化・最大化・閉じる）用のスペースを確保 -->
             <Border Grid.Column="2" Width="140" Background="Transparent" />
@@ -1125,9 +1128,6 @@
                             <!-- 新規追加ボタン -->
                             <Button x:Name="NewButton" Content="&#xE710;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="新規作成" Click="NewButton_Click" />
                         </StackPanel>
-
-                        <!-- メモタイトル表示 -->
-                        <TextBlock Grid.Column="1" x:Name="TitleTextBlock" Text="Untitled" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="16,0,16,0" FontSize="13" Foreground="#ffffff" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1" />
                     </Grid>
 
                     <!-- エディタ -->
