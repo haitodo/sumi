@@ -2136,6 +2136,21 @@ namespace sumi
                 {
                     actionsPanel.Visibility = Visibility.Visible;
                 }
+
+                // ホバー時にアクションボタン（ピン留め・削除）とテキストが重ならないよう、ボタンの右パディングを動的に調整
+                var noteButton = grid.FindName("NoteButton") as Button;
+                if (noteButton != null)
+                {
+                    double rightPadding = 44; // ピン留めボタンのみ表示時の幅（ボタン幅28 + 左右余白16）
+                    if (grid.DataContext is NoteItemViewModel vm)
+                    {
+                        if (vm.DeleteButtonVisibility == Visibility.Visible)
+                        {
+                            rightPadding = 74; // ピン留めと削除ボタン両方表示時の幅（ボタン2個分56 + 隙間2 + 左右余白16）
+                        }
+                    }
+                    noteButton.Padding = new Thickness(12, 10, rightPadding, 10);
+                }
             }
         }
 
@@ -2147,6 +2162,13 @@ namespace sumi
                 if (actionsPanel != null)
                 {
                     actionsPanel.Visibility = Visibility.Collapsed;
+                }
+
+                // ホバー解除時はパディングをデフォルト値（左右対称の12）に戻し、タイトル表示領域を最大化する
+                var noteButton = grid.FindName("NoteButton") as Button;
+                if (noteButton != null)
+                {
+                    noteButton.Padding = new Thickness(12, 10, 12, 10);
                 }
             }
         }

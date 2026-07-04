@@ -73,12 +73,13 @@
                       PointerEntered="NoteItemGrid_PointerEntered" 
                       PointerExited="NoteItemGrid_PointerExited">
 
-                    <!-- メモ選択領域 (横いっぱいに広げ、右側のアクションボタンと重ならないようPaddingで隙間を開ける) -->
-                    <Button HorizontalAlignment="Stretch" 
+                    <!-- メモ選択領域 (横いっぱいに広げ、ホバー時にのみ右側のアクションボタン用の隙間を動的に空ける) -->
+                    <Button x:Name="NoteButton"
+                            HorizontalAlignment="Stretch" 
                             HorizontalContentAlignment="Stretch" 
                             Background="#002D2D2D" 
                             BorderThickness="0"
-                            Padding="12,10,64,10"
+                            Padding="12,10,12,10"
                             CornerRadius="4"
                             Loaded="NoteItemButton_Loaded"
                             Unloaded="NoteItemButton_Unloaded">
