@@ -68,22 +68,16 @@
 
             <!-- メモアイテムの表示テンプレート -->
             <DataTemplate x:Key="NoteItemTemplate" x:DataType="local:NoteItemViewModel">
-                <!-- 変更点: 直接のPointerイベント等を廃止し、Loaded/Unloadedで制御 -->
                 <Grid Padding="4" Background="{x:Bind BackgroundBrush, Mode=OneTime}" CornerRadius="4" 
-                      Loaded="NoteItemGrid_Loaded" Unloaded="NoteItemGrid_Unloaded">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+                      PointerEntered="NoteItemGrid_PointerEntered" 
+                      PointerExited="NoteItemGrid_PointerExited">
 
-                    <!-- メモ選択領域 -->
-                    <!-- 変更点: Clickイベントを直接繋がず、Loaded/Unloaded経由でハンドラを着脱 -->
-                    <Button Grid.Column="0" 
-                            HorizontalAlignment="Stretch" 
+                    <!-- メモ選択領域 (横いっぱいに広げ、右側のアクションボタンと重ならないようPaddingで隙間を開ける) -->
+                    <Button HorizontalAlignment="Stretch" 
                             HorizontalContentAlignment="Stretch" 
                             Background="Transparent" 
                             BorderThickness="0"
-                            Padding="8,6"
+                            Padding="8,6,60,6"
                             CornerRadius="4"
                             Loaded="NoteItemButton_Loaded"
                             Unloaded="NoteItemButton_Unloaded">
@@ -100,8 +94,14 @@
                         </Grid>
                     </Button>
 
-                    <!-- アクション領域（ホバー時にのみ表示） -->
-                    <StackPanel x:Name="ActionsPanel" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Spacing="2" Padding="0,0,4,0" Visibility="Collapsed">
+                    <!-- アクション領域（ホバー時にのみ表示。右上に重ねて表示する） -->
+                    <StackPanel x:Name="ActionsPanel" 
+                                HorizontalAlignment="Right" 
+                                Orientation="Horizontal" 
+                                VerticalAlignment="Center" 
+                                Spacing="2" 
+                                Padding="8,0,4,0" 
+                                Visibility="Collapsed">
                         <Button Style="{StaticResource IconButtonStyle}" 
                                 Width="28" Height="28"
                                 ToolTipService.ToolTip="{x:Bind PinToolTip}"

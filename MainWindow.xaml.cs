@@ -1704,27 +1704,6 @@ namespace sumi
             RefreshAllNotesLists();
         }
 
-        private void NoteItemGrid_Loaded(object sender, RoutedEventArgs e)
-        {
-            if (sender is Grid grid)
-            {
-                grid.PointerEntered += NoteItemGrid_PointerEntered;
-                grid.PointerExited += NoteItemGrid_PointerExited;
-                grid.SizeChanged += NoteItemGrid_SizeChanged;
-                CheckPointerOverGrid(grid);
-            }
-        }
-
-        private void NoteItemGrid_Unloaded(object sender, RoutedEventArgs e)
-        {
-            if (sender is Grid grid)
-            {
-                grid.PointerEntered -= NoteItemGrid_PointerEntered;
-                grid.PointerExited -= NoteItemGrid_PointerExited;
-                grid.SizeChanged -= NoteItemGrid_SizeChanged;
-            }
-        }
-
         private void NoteItemButton_Loaded(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn)
@@ -1773,41 +1752,6 @@ namespace sumi
             }
         }
 
-        private void NoteItemGrid_SizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            if (sender is Grid grid)
-            {
-                CheckPointerOverGrid(grid);
-            }
-        }
-
-        private void CheckPointerOverGrid(Grid grid)
-        {
-            if (grid.ActualWidth == 0 || grid.ActualHeight == 0 || _hWnd == IntPtr.Zero) return;
-            try
-            {
-                POINT pt;
-                if (GetCursorPos(out pt))
-                {
-                    ScreenToClient(_hWnd, ref pt);
-                    var transform = grid.TransformToVisual(this.Content);
-                    var bounds = transform.TransformBounds(new Windows.Foundation.Rect(0, 0, grid.ActualWidth, grid.ActualHeight));
-                    double scale = grid.XamlRoot?.RasterizationScale ?? 1.0;
-                    double mouseX = pt.X / scale;
-                    double mouseY = pt.Y / scale;
-
-                    if (bounds.Contains(new Windows.Foundation.Point(mouseX, mouseY)))
-                    {
-                        var actionsPanel = grid.FindName("ActionsPanel") as UIElement;
-                        if (actionsPanel != null)
-                        {
-                            actionsPanel.Visibility = Visibility.Visible;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[PointerOver Check Error] {ex.Message}"); }
-        }
 
         private void NoteSearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {

@@ -139,6 +139,7 @@ namespace sumi
         public static string LastNoteId { get; set; } = string.Empty;
         public static bool IsSidebarPinned { get; set; } = false;
         public static double SidebarWidth { get; set; } = 320.0;
+        public static string LastSidebarView { get; set; } = "Notes";
 
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT
@@ -979,6 +980,9 @@ namespace sumi
                                 case "SidebarWidth":
                                     if (double.TryParse(val, out double w)) SidebarWidth = Math.Clamp(w, 200, 600);
                                     break;
+                                case "LastSidebarView":
+                                    LastSidebarView = val;
+                                    break;
                             }
                         }
                     }
@@ -1016,6 +1020,7 @@ namespace sumi
                 sb.AppendLine($"LastNoteId={LastNoteId}");
                 sb.AppendLine($"IsSidebarPinned={IsSidebarPinned}");
                 sb.AppendLine($"SidebarWidth={SidebarWidth}");
+                sb.AppendLine($"LastSidebarView={LastSidebarView}");
                 byte[] bytes = Utf8NoBom.GetBytes(sb.ToString());
 
                 string tempPath = SettingsPath + ".tmp";
