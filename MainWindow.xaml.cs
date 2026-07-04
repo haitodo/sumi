@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using System;
+using System.Linq;
 using Windows.Graphics;
 using WinRT;
 
@@ -1026,6 +1027,9 @@ namespace sumi
 
                 OpacitySlider.Value = MemoStorage.Opacity;
                 OpacityValueText.Text = $"{(int)MemoStorage.Opacity}%";
+
+                RecentNotesCountSlider.Value = MemoStorage.RecentNotesCount;
+                RecentNotesCountValueText.Text = MemoStorage.RecentNotesCount.ToString();
             }
             finally
             {
@@ -1039,7 +1043,9 @@ namespace sumi
             FontWeightItem.Visibility = Visibility.Visible;
             FontSizeItem.Visibility = Visibility.Visible;
             LineSpacingItem.Visibility = Visibility.Visible;
+            ParagraphSpacingItem.Visibility = Visibility.Visible;
             OpacityItem.Visibility = Visibility.Visible;
+            RecentNotesCountItem.Visibility = Visibility.Visible;
             LaunchHotKeyItem.Visibility = Visibility.Visible;
             QuitHotKeyItem.Visibility = Visibility.Visible;
             DeleteNoteItem.Visibility = Visibility.Visible;
@@ -1058,6 +1064,7 @@ namespace sumi
                 LineSpacingItem.Visibility = Visibility.Visible;
                 ParagraphSpacingItem.Visibility = Visibility.Visible;
                 OpacityItem.Visibility = Visibility.Visible;
+                RecentNotesCountItem.Visibility = Visibility.Visible;
                 LaunchHotKeyItem.Visibility = Visibility.Visible;
                 QuitHotKeyItem.Visibility = Visibility.Visible;
                 DeleteNoteItem.Visibility = Visibility.Visible;
@@ -1070,6 +1077,7 @@ namespace sumi
             LineSpacingItem.Visibility = "line spacing 行間 行の高さ 高さ".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
             ParagraphSpacingItem.Visibility = "paragraph spacing 段落間 行間 行の高さ 高さ 余白 改行".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
             OpacityItem.Visibility = "opacity 不透明度 透明度 背景 透け".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
+            RecentNotesCountItem.Visibility = "recent notes count 直近 メモ 件数 表示 履歴 順番".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
             LaunchHotKeyItem.Visibility = "launch hotkey ショートカット キーボード 起動 ホットキー ランチ".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
             QuitHotKeyItem.Visibility = "quit hotkey ショートカット キーボード 終了 ホットキー クイック".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
             DeleteNoteItem.Visibility = "delete note メモを削除 削除 ゴミ箱".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
@@ -1178,6 +1186,35 @@ namespace sumi
             {
                 OpacitySlider.Value = Math.Min(OpacitySlider.Maximum, OpacitySlider.Value + 1);
             }
+        }
+
+        private void RecentNotesCountDecreaseButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (RecentNotesCountSlider != null)
+            {
+                RecentNotesCountSlider.Value = Math.Max(RecentNotesCountSlider.Minimum, RecentNotesCountSlider.Value - 1);
+            }
+        }
+
+        private void RecentNotesCountIncreaseButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (RecentNotesCountSlider != null)
+            {
+                RecentNotesCountSlider.Value = Math.Min(RecentNotesCountSlider.Maximum, RecentNotesCountSlider.Value + 1);
+            }
+        }
+
+        private void RecentNotesCountSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+        {
+            if (_isInitializing || _isInitializingSettings) return;
+            int count = (int)RecentNotesCountSlider.Value;
+            if (RecentNotesCountValueText != null)
+            {
+                RecentNotesCountValueText.Text = count.ToString();
+            }
+            MemoStorage.RecentNotesCount = count;
+            QueueSaveSettings();
+            RefreshAllNotesLists();
         }
 
         private void FontSizeSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
@@ -1580,6 +1617,7 @@ namespace sumi
             QueueSaveSettings();
 
             //能動的なクリーンアップを実行してメモリを一掃する
+            if (SidebarRecentListView != null) SidebarRecentListView.ItemsSource = null;
             if (SidebarPinnedListView != null) SidebarPinnedListView.ItemsSource = null;
             if (SidebarNotesListView != null) SidebarNotesListView.ItemsSource = null;
             if (CurrentTasksListView != null) CurrentTasksListView.ItemsSource = null;
@@ -2036,6 +2074,7 @@ namespace sumi
 
         private void NotesFlyout_Closed(object? sender, object? e)
         {
+            if (RecentListView != null) RecentListView.ItemsSource = null;
             if (PinnedListView != null) PinnedListView.ItemsSource = null;
             if (NotesListView != null) NotesListView.ItemsSource = null;
 
@@ -2257,11 +2296,15 @@ namespace sumi
             {
                 notes = new List<NoteData>(MemoStorage.Notes);
             }
-            // ピン留め→通常の順、各グループ内はLastOpened降順
+            // ピン留め→通常の順、各グループ内は作成日時（Id）数値降順
             notes.Sort((a, b) =>
             {
                 if (a.IsPinned != b.IsPinned) return a.IsPinned ? -1 : 1;
-                return b.LastOpened.CompareTo(a.LastOpened);
+                if (long.TryParse(a.Id, out long aTicks) && long.TryParse(b.Id, out long bTicks))
+                {
+                    return bTicks.CompareTo(aTicks);
+                }
+                return string.Compare(b.Id, a.Id, StringComparison.Ordinal);
             });
             return notes.ConvertAll(n => n.Id);
         }
@@ -2271,26 +2314,38 @@ namespace sumi
             var query = filter.Trim();
             var pinnedVMs = new List<NoteItemViewModel>();
             var normalVMs = new List<NoteItemViewModel>();
+            var recentVMs = new List<NoteItemViewModel>();
 
-            List<NoteData> sortedNotes;
+            List<NoteData> filteredNotes = new List<NoteData>();
             lock (MemoStorage.Notes)
             {
-                sortedNotes = new List<NoteData>(MemoStorage.Notes);
-            }
-            sortedNotes.Sort((a, b) => b.LastOpened.CompareTo(a.LastOpened));
-
-            foreach (var note in sortedNotes)
-            {
-                if (!string.IsNullOrEmpty(query))
+                foreach (var note in MemoStorage.Notes)
                 {
-                    bool matchTitle = note.Title.Contains(query, StringComparison.OrdinalIgnoreCase);
-                    bool matchContent = note.Content.Contains(query, StringComparison.OrdinalIgnoreCase);
-                    if (!matchTitle && !matchContent)
+                    if (!string.IsNullOrEmpty(query))
                     {
-                        continue;
+                        bool matchTitle = note.Title.Contains(query, StringComparison.OrdinalIgnoreCase);
+                        bool matchContent = note.Content.Contains(query, StringComparison.OrdinalIgnoreCase);
+                        if (!matchTitle && !matchContent)
+                        {
+                            continue;
+                        }
                     }
+                    filteredNotes.Add(note);
                 }
+            }
 
+            // Pinned/Notes 用に作成日時（Id）の数値降順でソート（順番が変わらないようにするため）
+            filteredNotes.Sort((a, b) =>
+            {
+                if (long.TryParse(a.Id, out long aTicks) && long.TryParse(b.Id, out long bTicks))
+                {
+                    return bTicks.CompareTo(aTicks);
+                }
+                return string.Compare(b.Id, a.Id, StringComparison.Ordinal);
+            });
+
+            foreach (var note in filteredNotes)
+            {
                 bool isCurrent = note.Id == MemoStorage.CurrentNoteId;
                 string subtitle = isCurrent
                     ? $"Current • {note.CharCount} characters"
@@ -2303,14 +2358,34 @@ namespace sumi
                 else normalVMs.Add(vm);
             }
 
-            // ★ メモリリーク対策: ItemsSource に新しいリストを設定する前に
-            // 一度 null を代入してネイティブ側の古いツリー要素の解放処理を走らせる
+            // Recent 用に LastOpened 降順でソート
+            if (MemoStorage.RecentNotesCount > 0)
+            {
+                var recentNotes = new List<NoteData>(filteredNotes);
+                recentNotes.Sort((a, b) => b.LastOpened.CompareTo(a.LastOpened));
+                foreach (var note in recentNotes.Take(MemoStorage.RecentNotesCount))
+                {
+                    bool isCurrent = note.Id == MemoStorage.CurrentNoteId;
+                    string subtitle = isCurrent
+                        ? $"Current • {note.CharCount} characters"
+                        : $"{GetRelativeTimeText(note.LastOpened)} • {note.CharCount} characters";
+
+                    bool isHighlighted = note.Id == _highlightedNoteId;
+                    var vm = new NoteItemViewModel(note.Id, note.Title, subtitle, note.IsPinned, isCurrent, isHighlighted);
+                    recentVMs.Add(vm);
+                }
+            }
+
+            RecentListView.ItemsSource = null;
+            RecentListView.ItemsSource = recentVMs;
+
             PinnedListView.ItemsSource = null;
             PinnedListView.ItemsSource = pinnedVMs;
 
             NotesListView.ItemsSource = null;
             NotesListView.ItemsSource = normalVMs;
 
+            RecentSection.Visibility = (recentVMs.Count > 0 && MemoStorage.RecentNotesCount > 0) ? Visibility.Visible : Visibility.Collapsed;
             PinnedSection.Visibility = pinnedVMs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             NotesSection.Visibility = normalVMs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -2320,26 +2395,38 @@ namespace sumi
             var query = filter.Trim();
             var pinnedVMs = new List<NoteItemViewModel>();
             var normalVMs = new List<NoteItemViewModel>();
+            var recentVMs = new List<NoteItemViewModel>();
 
-            List<NoteData> sortedNotes;
+            List<NoteData> filteredNotes = new List<NoteData>();
             lock (MemoStorage.Notes)
             {
-                sortedNotes = new List<NoteData>(MemoStorage.Notes);
-            }
-            sortedNotes.Sort((a, b) => b.LastOpened.CompareTo(a.LastOpened));
-
-            foreach (var note in sortedNotes)
-            {
-                if (!string.IsNullOrEmpty(query))
+                foreach (var note in MemoStorage.Notes)
                 {
-                    bool matchTitle = note.Title.Contains(query, StringComparison.OrdinalIgnoreCase);
-                    bool matchContent = note.Content.Contains(query, StringComparison.OrdinalIgnoreCase);
-                    if (!matchTitle && !matchContent)
+                    if (!string.IsNullOrEmpty(query))
                     {
-                        continue;
+                        bool matchTitle = note.Title.Contains(query, StringComparison.OrdinalIgnoreCase);
+                        bool matchContent = note.Content.Contains(query, StringComparison.OrdinalIgnoreCase);
+                        if (!matchTitle && !matchContent)
+                        {
+                            continue;
+                        }
                     }
+                    filteredNotes.Add(note);
                 }
+            }
 
+            // Pinned/Notes 用に作成日時（Id）の数値降順でソート（順番が変わらないようにするため）
+            filteredNotes.Sort((a, b) =>
+            {
+                if (long.TryParse(a.Id, out long aTicks) && long.TryParse(b.Id, out long bTicks))
+                {
+                    return bTicks.CompareTo(aTicks);
+                }
+                return string.Compare(b.Id, a.Id, StringComparison.Ordinal);
+            });
+
+            foreach (var note in filteredNotes)
+            {
                 bool isCurrent = note.Id == MemoStorage.CurrentNoteId;
                 string subtitle = isCurrent
                     ? $"Current • {note.CharCount} characters"
@@ -2352,6 +2439,29 @@ namespace sumi
                 else normalVMs.Add(vm);
             }
 
+            // Recent 用に LastOpened 降順でソート
+            if (MemoStorage.RecentNotesCount > 0)
+            {
+                var recentNotes = new List<NoteData>(filteredNotes);
+                recentNotes.Sort((a, b) => b.LastOpened.CompareTo(a.LastOpened));
+                foreach (var note in recentNotes.Take(MemoStorage.RecentNotesCount))
+                {
+                    bool isCurrent = note.Id == MemoStorage.CurrentNoteId;
+                    string subtitle = isCurrent
+                        ? $"Current • {note.CharCount} characters"
+                        : $"{GetRelativeTimeText(note.LastOpened)} • {note.CharCount} characters";
+
+                    bool isHighlighted = note.Id == _highlightedNoteId;
+                    var vm = new NoteItemViewModel(note.Id, note.Title, subtitle, note.IsPinned, isCurrent, isHighlighted);
+                    recentVMs.Add(vm);
+                }
+            }
+
+            if (SidebarRecentListView != null)
+            {
+                SidebarRecentListView.ItemsSource = null;
+                SidebarRecentListView.ItemsSource = recentVMs;
+            }
             if (SidebarPinnedListView != null)
             {
                 SidebarPinnedListView.ItemsSource = null;
@@ -2363,6 +2473,7 @@ namespace sumi
                 SidebarNotesListView.ItemsSource = normalVMs;
             }
 
+            if (SidebarRecentSection != null) SidebarRecentSection.Visibility = (recentVMs.Count > 0 && MemoStorage.RecentNotesCount > 0) ? Visibility.Visible : Visibility.Collapsed;
             if (SidebarPinnedSection != null) SidebarPinnedSection.Visibility = pinnedVMs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             if (SidebarNotesSection != null) SidebarNotesSection.Visibility = normalVMs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         }

@@ -163,6 +163,7 @@ namespace sumi
         public static bool IsSidebarOpen { get; set; } = false;
         public static double SidebarWidth { get; set; } = 320.0;
         public static string LastSidebarView { get; set; } = "Notes";
+        public static int RecentNotesCount { get; set; } = 1;
 
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT
@@ -1009,6 +1010,9 @@ namespace sumi
                                 case "LastSidebarView":
                                     LastSidebarView = val;
                                     break;
+                                case "RecentNotesCount":
+                                    if (int.TryParse(val, out int rnc)) RecentNotesCount = Math.Max(0, rnc);
+                                    break;
                             }
                         }
                     }
@@ -1048,6 +1052,7 @@ namespace sumi
                 sb.AppendLine($"IsSidebarOpen={IsSidebarOpen}");
                 sb.AppendLine($"SidebarWidth={SidebarWidth}");
                 sb.AppendLine($"LastSidebarView={LastSidebarView}");
+                sb.AppendLine($"RecentNotesCount={RecentNotesCount}");
                 byte[] bytes = Utf8NoBom.GetBytes(sb.ToString());
 
                 string tempPath = SettingsPath + ".tmp";

@@ -318,6 +318,24 @@
                                             </StackPanel>
                                         </Grid>
                                         
+                                        <!-- Recent Notes Count -->
+                                        <Grid x:Name="RecentNotesCountItem" Padding="6,6" CornerRadius="4" Background="Transparent"
+                                              PointerEntered="SettingItem_PointerEntered" PointerExited="SettingItem_PointerExited">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="&#xE81C;" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="#cccccc" VerticalAlignment="Center" Margin="4,0,10,0" />
+                                            <TextBlock Grid.Column="1" Text="Recent Notes Count" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                <Button x:Name="RecentNotesCountDecreaseButton" Content="&#xE108;" Style="{StaticResource IconButtonStyle}" Width="24" Height="24" FontSize="10" Click="RecentNotesCountDecreaseButton_Click" VerticalAlignment="Center" />
+                                                <Slider x:Name="RecentNotesCountSlider" Minimum="0" Maximum="10" StepFrequency="1" Width="72" Margin="0,-6,0,-6" ValueChanged="RecentNotesCountSlider_ValueChanged" />
+                                                <Button x:Name="RecentNotesCountIncreaseButton" Content="&#xE109;" Style="{StaticResource IconButtonStyle}" Width="24" Height="24" FontSize="10" Click="RecentNotesCountIncreaseButton_Click" VerticalAlignment="Center" />
+                                                <TextBlock x:Name="RecentNotesCountValueText" Text="1" FontSize="12" Foreground="#999999" Width="28" TextAlignment="Right" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Grid>
+                                        
                                         <!-- Launch Hotkey -->
                                         <Grid x:Name="LaunchHotKeyItem" Padding="6,6" CornerRadius="4" Background="Transparent"
                                               PointerEntered="SettingItem_PointerEntered" PointerExited="SettingItem_PointerExited">
@@ -518,6 +536,18 @@
                                 <!-- 一覧スクロール領域 -->
                                 <ScrollViewer x:Name="NotesScrollViewer" Grid.Row="1" MaxHeight="300" VerticalScrollBarVisibility="Auto">
                                     <StackPanel x:Name="NotesListContainer" Spacing="8">
+                                        <!-- Recent セクション -->
+                                        <StackPanel x:Name="RecentSection" Spacing="4">
+                                            <TextBlock Text="Recent" FontSize="11" Foreground="#666666" FontWeight="SemiBold" Margin="4,4,0,2" />
+                                            <ItemsControl x:Name="RecentListView" ItemTemplate="{StaticResource NoteItemTemplate}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <StackPanel Spacing="2" />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                            </ItemsControl>
+                                        </StackPanel>
+
                                         <!-- Pinned セクション -->
                                         <StackPanel x:Name="PinnedSection" Spacing="4">
                                             <TextBlock Text="Pinned" FontSize="11" Foreground="#666666" FontWeight="SemiBold" Margin="4,4,0,2" />
@@ -723,6 +753,18 @@
                             
                             <ScrollViewer x:Name="SidebarNotesScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto">
                                 <StackPanel x:Name="SidebarNotesListContainer" Spacing="8">
+                                    <!-- Recent セクション -->
+                                    <StackPanel x:Name="SidebarRecentSection" Spacing="4">
+                                        <TextBlock Text="Recent" FontSize="11" Foreground="#666666" FontWeight="SemiBold" Margin="4,4,0,2" />
+                                        <ItemsControl x:Name="SidebarRecentListView" ItemTemplate="{StaticResource NoteItemTemplate}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Spacing="2" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                        </ItemsControl>
+                                    </StackPanel>
+
                                     <!-- Pinned セクション -->
                                     <StackPanel x:Name="SidebarPinnedSection" Spacing="4">
                                         <TextBlock Text="Pinned" FontSize="11" Foreground="#666666" FontWeight="SemiBold" Margin="4,4,0,2" />
