@@ -30,7 +30,7 @@ namespace sumi
         {
             Notes,
             Tasks,
-            RecentTasks,
+            AllTasks,
             JustDoIt
         }
 
@@ -278,6 +278,10 @@ namespace sumi
             {
                 _currentSidebarView = savedView;
             }
+            else if (MemoStorage.LastSidebarView == "RecentTasks")
+            {
+                _currentSidebarView = SidebarView.AllTasks;
+            }
             else
             {
                 _currentSidebarView = SidebarView.Notes;
@@ -290,18 +294,18 @@ namespace sumi
                 {
                     SidebarView.Notes => "Notes",
                     SidebarView.Tasks => "Tasks",
-                    SidebarView.RecentTasks => "Recent Tasks",
+                    SidebarView.AllTasks => "All Tasks",
                     _ => ""
                 };
             }
 
             if (NotesActiveIndicator != null) NotesActiveIndicator.Visibility = _currentSidebarView == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
             if (TasksActiveIndicator != null) TasksActiveIndicator.Visibility = _currentSidebarView == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
-            if (RecentTasksActiveIndicator != null) RecentTasksActiveIndicator.Visibility = _currentSidebarView == SidebarView.RecentTasks ? Visibility.Visible : Visibility.Collapsed;
+            if (AllTasksActiveIndicator != null) AllTasksActiveIndicator.Visibility = _currentSidebarView == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
 
             if (NotesViewContainer != null) NotesViewContainer.Visibility = _currentSidebarView == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
             if (TasksViewContainer != null) TasksViewContainer.Visibility = _currentSidebarView == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
-            if (RecentTasksViewContainer != null) RecentTasksViewContainer.Visibility = _currentSidebarView == SidebarView.RecentTasks ? Visibility.Visible : Visibility.Collapsed;
+            if (AllTasksViewContainer != null) AllTasksViewContainer.Visibility = _currentSidebarView == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
 
             if (SidebarSplitView != null)
             {
@@ -842,9 +846,9 @@ namespace sumi
                     {
                         PopulateSidebarNotesList(SidebarNoteSearchBox.Text);
                     }
-                    else if (_currentSidebarView == SidebarView.RecentTasks)
+                    else if (_currentSidebarView == SidebarView.AllTasks)
                     {
-                        PopulateRecentTasks();
+                        PopulateAllTasks();
                     }
                     else if (_currentSidebarView == SidebarView.JustDoIt)
                     {
@@ -1479,9 +1483,9 @@ namespace sumi
             SetSidebarView(SidebarView.Tasks);
         }
 
-        private void RecentTasksMenuButton_Click(object sender, RoutedEventArgs e)
+        private void AllTasksMenuButton_Click(object sender, RoutedEventArgs e)
         {
-            SetSidebarView(SidebarView.RecentTasks);
+            SetSidebarView(SidebarView.AllTasks);
         }
 
         private void JustDoItMenuButton_Click(object sender, RoutedEventArgs e)
@@ -1502,7 +1506,7 @@ namespace sumi
                 {
                     SidebarView.Notes => "Notes",
                     SidebarView.Tasks => "Tasks",
-                    SidebarView.RecentTasks => "Recent Tasks",
+                    SidebarView.AllTasks => "All Tasks",
                     SidebarView.JustDoIt => "Just Do It",
                     _ => ""
                 };
@@ -1511,13 +1515,13 @@ namespace sumi
             // Update Indicators
             if (NotesActiveIndicator != null) NotesActiveIndicator.Visibility = view == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
             if (TasksActiveIndicator != null) TasksActiveIndicator.Visibility = view == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
-            if (RecentTasksActiveIndicator != null) RecentTasksActiveIndicator.Visibility = view == SidebarView.RecentTasks ? Visibility.Visible : Visibility.Collapsed;
+            if (AllTasksActiveIndicator != null) AllTasksActiveIndicator.Visibility = view == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
             if (JustDoItActiveIndicator != null) JustDoItActiveIndicator.Visibility = view == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
 
             // Update Containers Visibility
             if (NotesViewContainer != null) NotesViewContainer.Visibility = view == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
             if (TasksViewContainer != null) TasksViewContainer.Visibility = view == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
-            if (RecentTasksViewContainer != null) RecentTasksViewContainer.Visibility = view == SidebarView.RecentTasks ? Visibility.Visible : Visibility.Collapsed;
+            if (AllTasksViewContainer != null) AllTasksViewContainer.Visibility = view == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
             if (JustDoItTasksViewContainer != null) JustDoItTasksViewContainer.Visibility = view == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
 
             // Open pane if closed
@@ -1546,9 +1550,9 @@ namespace sumi
                 PopulateCurrentTasks();
                 AddTaskBox?.Focus(FocusState.Programmatic);
             }
-            else if (view == SidebarView.RecentTasks)
+            else if (view == SidebarView.AllTasks)
             {
-                PopulateRecentTasks();
+                PopulateAllTasks();
             }
             else if (view == SidebarView.JustDoIt)
             {
@@ -1584,9 +1588,9 @@ namespace sumi
             }
         }
 
-        private void PopulateRecentTasks()
+        private void PopulateAllTasks()
         {
-            var groups = new List<RecentTasksGroupViewModel>();
+            var groups = new List<AllTasksGroupViewModel>();
             List<NoteData> notes;
             lock (MemoStorage.Notes)
             {
@@ -1609,24 +1613,24 @@ namespace sumi
                 }
                 if (uncompletedTasks.Count > 0)
                 {
-                    groups.Add(new RecentTasksGroupViewModel(note.Id, note.Title, uncompletedTasks));
+                    groups.Add(new AllTasksGroupViewModel(note.Id, note.Title, uncompletedTasks));
                 }
             }
 
-            if (RecentTasksGroupsControl != null)
+            if (AllTasksGroupsControl != null)
             {
-                var currentList = RecentTasksGroupsControl.ItemsSource as List<RecentTasksGroupViewModel>;
-                if (!AreRecentTasksGroupsEqual(currentList, groups))
+                var currentList = AllTasksGroupsControl.ItemsSource as List<AllTasksGroupViewModel>;
+                if (!AreAllTasksGroupsEqual(currentList, groups))
                 {
-                    RecentTasksGroupsControl.ItemsSource = null;
-                    RecentTasksGroupsControl.ItemsSource = groups;
+                    AllTasksGroupsControl.ItemsSource = null;
+                    AllTasksGroupsControl.ItemsSource = groups;
                 }
             }
         }
 
         private void PopulateJustDoItTasks()
         {
-            var groups = new List<RecentTasksGroupViewModel>();
+            var groups = new List<AllTasksGroupViewModel>();
             List<NoteData> notes;
             lock (MemoStorage.Notes)
             {
@@ -1649,14 +1653,14 @@ namespace sumi
                 }
                 if (justDoItTasks.Count > 0)
                 {
-                    groups.Add(new RecentTasksGroupViewModel(note.Id, note.Title, justDoItTasks));
+                    groups.Add(new AllTasksGroupViewModel(note.Id, note.Title, justDoItTasks));
                 }
             }
 
             if (JustDoItTasksGroupsControl != null)
             {
-                var currentList = JustDoItTasksGroupsControl.ItemsSource as List<RecentTasksGroupViewModel>;
-                if (!AreRecentTasksGroupsEqual(currentList, groups))
+                var currentList = JustDoItTasksGroupsControl.ItemsSource as List<AllTasksGroupViewModel>;
+                if (!AreAllTasksGroupsEqual(currentList, groups))
                 {
                     JustDoItTasksGroupsControl.ItemsSource = null;
                     JustDoItTasksGroupsControl.ItemsSource = groups;
@@ -1794,11 +1798,11 @@ namespace sumi
             }
         }
 
-        private void RecentTaskItemGrid_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        private void AllTaskItemGrid_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
             if (sender is Grid grid)
             {
-                var justDoItBtn = grid.FindName("RecentJustDoItButton") as FrameworkElement;
+                var justDoItBtn = grid.FindName("AllJustDoItButton") as FrameworkElement;
                 if (justDoItBtn != null)
                 {
                     justDoItBtn.Visibility = Visibility.Visible;
@@ -1806,11 +1810,11 @@ namespace sumi
             }
         }
 
-        private void RecentTaskItemGrid_PointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        private void AllTaskItemGrid_PointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
             if (sender is Grid grid)
             {
-                var justDoItBtn = grid.FindName("RecentJustDoItButton") as FrameworkElement;
+                var justDoItBtn = grid.FindName("AllJustDoItButton") as FrameworkElement;
                 if (justDoItBtn != null && justDoItBtn.DataContext is TaskItemViewModel vm && !vm.IsJustDoIt)
                 {
                     justDoItBtn.Visibility = Visibility.Collapsed;
@@ -1858,7 +1862,7 @@ namespace sumi
             }
         }
 
-        private void RecentJustDoItButton_Loaded(object sender, RoutedEventArgs e)
+        private void AllJustDoItButton_Loaded(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn)
             {
@@ -1866,7 +1870,7 @@ namespace sumi
             }
         }
 
-        private void RecentJustDoItButton_Unloaded(object sender, RoutedEventArgs e)
+        private void AllJustDoItButton_Unloaded(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn)
             {
@@ -1901,21 +1905,21 @@ namespace sumi
                 
                 // Immediately refresh views
                 PopulateCurrentTasks();
-                PopulateRecentTasks();
+                PopulateAllTasks();
                 PopulateJustDoItTasks();
             }
         }
 
-        private void RecentTasksGroupHeader_Click(object sender, RoutedEventArgs e)
+        private void AllTasksGroupHeader_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && btn.DataContext is RecentTasksGroupViewModel group)
+            if (sender is Button btn && btn.DataContext is AllTasksGroupViewModel group)
             {
                 SwitchToNote(group.NoteId);
                 SetSidebarView(SidebarView.Tasks);
             }
         }
 
-        private void RecentTaskItem_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        private void AllTaskItem_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
             var originalSource = e.OriginalSource as DependencyObject;
             var parent = originalSource;
@@ -2646,7 +2650,7 @@ namespace sumi
             return true;
         }
 
-        private bool AreRecentTasksGroupsEqual(System.Collections.Generic.List<RecentTasksGroupViewModel>? listA, System.Collections.Generic.List<RecentTasksGroupViewModel> listB)
+        private bool AreAllTasksGroupsEqual(System.Collections.Generic.List<AllTasksGroupViewModel>? listA, System.Collections.Generic.List<AllTasksGroupViewModel> listB)
         {
             if (listA == null) return false;
             if (listA.Count != listB.Count) return false;
@@ -4189,15 +4193,15 @@ namespace sumi
     }
 
     /// <summary>
-    /// 直近のタスクビューでノートごとにグループ化して表示するためのビューモデルです。
+    /// すべてのタスクビューでノートごとにグループ化して表示するためのビューモデルです。
     /// </summary>
-    public class RecentTasksGroupViewModel
+    public class AllTasksGroupViewModel
     {
         public string NoteId { get; }
         public string NoteTitle { get; }
         public System.Collections.ObjectModel.ObservableCollection<TaskItemViewModel> Tasks { get; }
 
-        public RecentTasksGroupViewModel(string noteId, string noteTitle, System.Collections.ObjectModel.ObservableCollection<TaskItemViewModel> tasks)
+        public AllTasksGroupViewModel(string noteId, string noteTitle, System.Collections.ObjectModel.ObservableCollection<TaskItemViewModel> tasks)
         {
             NoteId = noteId;
             NoteTitle = noteTitle;

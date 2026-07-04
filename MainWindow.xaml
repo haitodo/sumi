@@ -585,21 +585,21 @@
                                         ToolTipService.ToolTip="現在のタスク" />
                             </Grid>
 
-                            <!-- 直近のタスク (横断ビュー) -->
-                            <Grid x:Name="RecentTasksMenuGrid">
+                            <!-- すべてのタスク (横断ビュー) -->
+                            <Grid x:Name="AllTasksMenuGrid">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="3" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <Border x:Name="RecentTasksActiveIndicator" Grid.Column="0" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
-                                <Button x:Name="RecentTasksMenuButton"
+                                <Border x:Name="AllTasksActiveIndicator" Grid.Column="0" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
+                                <Button x:Name="AllTasksMenuButton"
                                         Grid.Column="1"
-                                        Content="&#xE121;"
+                                        Content="&#xE9D5;"
                                         Style="{StaticResource IconButtonStyle}"
                                         Width="36" Height="36"
                                         HorizontalAlignment="Center"
-                                        Click="RecentTasksMenuButton_Click"
-                                        ToolTipService.ToolTip="直近のタスク" />
+                                        Click="AllTasksMenuButton_Click"
+                                        ToolTipService.ToolTip="すべてのタスク" />
                             </Grid>
 
                             <!-- すぐやる (Just Do It) -->
@@ -845,21 +845,21 @@
                             </TextBox>
                         </Grid>
 
-                        <!-- 直近のタスクビュー (横断ビュー) -->
-                        <Grid x:Name="RecentTasksViewContainer" Grid.Row="1" Visibility="Collapsed" RowSpacing="8">
+                        <!-- すべてのタスクビュー (横断ビュー) -->
+                        <Grid x:Name="AllTasksViewContainer" Grid.Row="1" Visibility="Collapsed" RowSpacing="8">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
                             
                             <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
-                                <ItemsControl x:Name="RecentTasksGroupsControl">
+                                <ItemsControl x:Name="AllTasksGroupsControl">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <StackPanel Spacing="16" />
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="local:RecentTasksGroupViewModel">
+                                        <DataTemplate x:DataType="local:AllTasksGroupViewModel">
                                             <StackPanel Spacing="4">
                                                 <Button Content="{x:Bind NoteTitle}"
                                                         Background="#002D2D2D"
@@ -869,7 +869,7 @@
                                                         FontSize="12"
                                                         Padding="4,2"
                                                         HorizontalAlignment="Left"
-                                                        Click="RecentTasksGroupHeader_Click"
+                                                        Click="AllTasksGroupHeader_Click"
                                                         DataContext="{x:Bind}" />
                                                 
                                                 <ItemsControl ItemsSource="{x:Bind Tasks}">
@@ -881,9 +881,9 @@
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate x:DataType="local:TaskItemViewModel">
                                                             <Grid Padding="4,2" Background="Transparent"
-                                                                  PointerPressed="RecentTaskItem_PointerPressed"
-                                                                  PointerEntered="RecentTaskItemGrid_PointerEntered"
-                                                                  PointerExited="RecentTaskItemGrid_PointerExited">
+                                                                  PointerPressed="AllTaskItem_PointerPressed"
+                                                                  PointerEntered="AllTaskItemGrid_PointerEntered"
+                                                                  PointerExited="AllTaskItemGrid_PointerExited">
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="Auto" />
                                                                     <ColumnDefinition Width="*" />
@@ -892,14 +892,14 @@
                                                                 <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCompleted, Mode=TwoWay}" MinWidth="32" VerticalAlignment="Center" Margin="0,0,4,0" />
                                                                 <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                                                 
-                                                                <Button x:Name="RecentJustDoItButton"
+                                                                <Button x:Name="AllJustDoItButton"
                                                                         Grid.Column="2" Content="&#xE945;"
                                                                         Style="{StaticResource IconButtonStyle}"
                                                                         Width="28" Height="28" FontSize="11"
                                                                         Foreground="{x:Bind local:MainWindow.GetJustDoItBrush(IsJustDoIt), Mode=OneWay}"
                                                                         Visibility="{x:Bind local:MainWindow.BoolToVisibility(IsJustDoIt), Mode=OneWay}"
-                                                                        Loaded="RecentJustDoItButton_Loaded"
-                                                                        Unloaded="RecentJustDoItButton_Unloaded"
+                                                                        Loaded="AllJustDoItButton_Loaded"
+                                                                        Unloaded="AllJustDoItButton_Unloaded"
                                                                         ToolTipService.ToolTip="すぐやるに追加/解除" />
                                                             </Grid>
                                                         </DataTemplate>
@@ -926,7 +926,7 @@
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="local:RecentTasksGroupViewModel">
+                                        <DataTemplate x:DataType="local:AllTasksGroupViewModel">
                                             <StackPanel Spacing="4">
                                                 <Button Content="{x:Bind NoteTitle}"
                                                         Background="#002D2D2D"
@@ -936,7 +936,7 @@
                                                         FontSize="12"
                                                         Padding="4,2"
                                                         HorizontalAlignment="Left"
-                                                        Click="RecentTasksGroupHeader_Click"
+                                                        Click="AllTasksGroupHeader_Click"
                                                         DataContext="{x:Bind}" />
                                                 
                                                 <ItemsControl ItemsSource="{x:Bind Tasks}">
@@ -948,7 +948,7 @@
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate x:DataType="local:TaskItemViewModel">
                                                             <Grid Padding="4,2" Background="Transparent"
-                                                                  PointerPressed="RecentTaskItem_PointerPressed"
+                                                                  PointerPressed="AllTaskItem_PointerPressed"
                                                                   PointerEntered="JustDoItTaskItemGrid_PointerEntered"
                                                                   PointerExited="JustDoItTaskItemGrid_PointerExited">
                                                                 <Grid.ColumnDefinitions>
