@@ -1986,14 +1986,25 @@ namespace sumi
             float lineSpacing = (float)MemoStorage.LineSpacing;
             if (lineSpacing < 1.0f)
             {
-                float exactLineHeight = (float)(targetSize * 1.25f * lineSpacing);
+                float exactLineHeight = (float)(targetSize * 1.5f * lineSpacing);
                 paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Exactly, exactLineHeight);
             }
             else
             {
                 paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Multiple, lineSpacing);
             }
-            paraRange.ParagraphFormat.SpaceAfter = (float)MemoStorage.ParagraphSpacing;
+            if (isCurrentlyH1)
+            {
+                // H2を解除して通常テキストに戻る場合は、装飾クリアと同じタイトな余白にリセットする
+                paraRange.ParagraphFormat.SpaceBefore = 4.5f;
+                paraRange.ParagraphFormat.SpaceAfter = 1.5f;
+            }
+            else
+            {
+                // H2見出しにする場合
+                paraRange.ParagraphFormat.SpaceBefore = 0.0f;
+                paraRange.ParagraphFormat.SpaceAfter = (float)MemoStorage.ParagraphSpacing;
+            }
 
             // 5. 選択範囲（カーソル位置）を正確に復元
             selection.SetRange(savedSelection.StartPosition, savedSelection.EndPosition);
@@ -2038,14 +2049,25 @@ namespace sumi
             float lineSpacing = (float)MemoStorage.LineSpacing;
             if (lineSpacing < 1.0f)
             {
-                float exactLineHeight = (float)(targetSize * 1.25f * lineSpacing);
+                float exactLineHeight = (float)(targetSize * 1.5f * lineSpacing);
                 paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Exactly, exactLineHeight);
             }
             else
             {
                 paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Multiple, lineSpacing);
             }
-            paraRange.ParagraphFormat.SpaceAfter = (float)MemoStorage.ParagraphSpacing;
+            if (isCurrentlyH2)
+            {
+                // H1を解除して通常テキストに戻る場合は、装飾クリアと同じタイトな余白にリセットする
+                paraRange.ParagraphFormat.SpaceBefore = 4.5f;
+                paraRange.ParagraphFormat.SpaceAfter = 1.5f;
+            }
+            else
+            {
+                // H1見出しにする場合は、設定に準拠した余白（または見出し用の余白）にする
+                paraRange.ParagraphFormat.SpaceBefore = 0.0f; // 必要に応じて調整してください
+                paraRange.ParagraphFormat.SpaceAfter = (float)MemoStorage.ParagraphSpacing;
+            }
 
             // 5. 選択範囲（カーソル位置）を正確に復元
             selection.SetRange(savedSelection.StartPosition, savedSelection.EndPosition);
