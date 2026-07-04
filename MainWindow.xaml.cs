@@ -1145,7 +1145,51 @@ namespace sumi
             DeleteNoteItem.Visibility = Visibility.Visible;
             ShowDeleteButtonItem.Visibility = Visibility.Visible;
 
+            // タブをエディタにリセット
+            if (SettingsSelectorBar != null)
+            {
+                SettingsSelectorBar.SelectedItem = EditorTab;
+                SettingsSelectorBar.Visibility = Visibility.Visible;
+            }
+            UpdateSettingsTabVisibility();
+
             SettingsSearchBox.Focus(FocusState.Programmatic);
+        }
+
+        private void SettingsSelectorBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
+        {
+            UpdateSettingsTabVisibility();
+        }
+
+        private void UpdateSettingsTabVisibility()
+        {
+            // 検索中（クエリが存在する）は、タブごとの切り替えは適用せず、全パネルを表示状態にする
+            if (SettingsSearchBox != null && !string.IsNullOrEmpty(SettingsSearchBox.Text))
+            {
+                return;
+            }
+
+            if (SettingsSelectorBar == null) return;
+
+            var selectedItem = SettingsSelectorBar.SelectedItem;
+            if (selectedItem == EditorTab)
+            {
+                if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Visible;
+                if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Collapsed;
+                if (SystemSettingsPanel != null) SystemSettingsPanel.Visibility = Visibility.Collapsed;
+            }
+            else if (selectedItem == WindowTab)
+            {
+                if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Collapsed;
+                if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Visible;
+                if (SystemSettingsPanel != null) SystemSettingsPanel.Visibility = Visibility.Collapsed;
+            }
+            else if (selectedItem == SystemTab)
+            {
+                if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Collapsed;
+                if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Collapsed;
+                if (SystemSettingsPanel != null) SystemSettingsPanel.Visibility = Visibility.Visible;
+            }
         }
 
         private void SettingsSearchBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -1153,6 +1197,12 @@ namespace sumi
             string query = SettingsSearchBox.Text.Trim().ToLower();
             if (string.IsNullOrEmpty(query))
             {
+                if (SettingsSelectorBar != null)
+                {
+                    SettingsSelectorBar.Visibility = Visibility.Visible;
+                }
+
+                // 全項目を表示状態に戻した上で、選択中タブに対応するパネルのみを表示
                 FontItem.Visibility = Visibility.Visible;
                 FontWeightItem.Visibility = Visibility.Visible;
                 FontSizeItem.Visibility = Visibility.Visible;
@@ -1164,8 +1214,20 @@ namespace sumi
                 QuitHotKeyItem.Visibility = Visibility.Visible;
                 DeleteNoteItem.Visibility = Visibility.Visible;
                 ShowDeleteButtonItem.Visibility = Visibility.Visible;
+
+                UpdateSettingsTabVisibility();
                 return;
             }
+
+            if (SettingsSelectorBar != null)
+            {
+                SettingsSelectorBar.Visibility = Visibility.Collapsed;
+            }
+
+            // 検索中：項目が配置されているすべての StackPanel を表示状態にする
+            if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Visible;
+            if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Visible;
+            if (SystemSettingsPanel != null) SystemSettingsPanel.Visibility = Visibility.Visible;
 
             FontItem.Visibility = "font フォント 書体".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
             FontWeightItem.Visibility = "font weight フォント ウェイト 太さ 太字".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
