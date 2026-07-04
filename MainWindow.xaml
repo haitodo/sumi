@@ -761,11 +761,6 @@
                             
                             <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
                                 <ItemsControl x:Name="CurrentTasksListView">
-                                    <ItemsControl.ItemContainerTransitions>
-                                        <TransitionCollection>
-                                            <AddDeleteThemeTransition />
-                                        </TransitionCollection>
-                                    </ItemsControl.ItemContainerTransitions>
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <StackPanel Spacing="4" />
@@ -858,11 +853,6 @@
                             
                             <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
                                 <ItemsControl x:Name="RecentTasksGroupsControl">
-                                    <ItemsControl.ItemContainerTransitions>
-                                        <TransitionCollection>
-                                            <AddDeleteThemeTransition />
-                                        </TransitionCollection>
-                                    </ItemsControl.ItemContainerTransitions>
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <StackPanel Spacing="16" />
@@ -883,11 +873,6 @@
                                                         DataContext="{x:Bind}" />
                                                 
                                                 <ItemsControl ItemsSource="{x:Bind Tasks}">
-                                                    <ItemsControl.ItemContainerTransitions>
-                                                        <TransitionCollection>
-                                                            <AddDeleteThemeTransition />
-                                                        </TransitionCollection>
-                                                    </ItemsControl.ItemContainerTransitions>
                                                     <ItemsControl.ItemsPanel>
                                                         <ItemsPanelTemplate>
                                                             <StackPanel Spacing="2" />
@@ -935,11 +920,6 @@
                             
                             <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
                                 <ItemsControl x:Name="JustDoItTasksGroupsControl">
-                                    <ItemsControl.ItemContainerTransitions>
-                                        <TransitionCollection>
-                                            <AddDeleteThemeTransition />
-                                        </TransitionCollection>
-                                    </ItemsControl.ItemContainerTransitions>
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <StackPanel Spacing="16" />
@@ -960,11 +940,6 @@
                                                         DataContext="{x:Bind}" />
                                                 
                                                 <ItemsControl ItemsSource="{x:Bind Tasks}">
-                                                    <ItemsControl.ItemContainerTransitions>
-                                                        <TransitionCollection>
-                                                            <AddDeleteThemeTransition />
-                                                        </TransitionCollection>
-                                                    </ItemsControl.ItemContainerTransitions>
                                                     <ItemsControl.ItemsPanel>
                                                         <ItemsPanelTemplate>
                                                             <StackPanel Spacing="2" />
