@@ -138,6 +138,7 @@ namespace sumi
         public static string QuitHotKey { get; set; } = "Alt+Q";
         public static string LastNoteId { get; set; } = string.Empty;
         public static bool IsSidebarPinned { get; set; } = false;
+        public static bool IsSidebarOpen { get; set; } = false;
         public static double SidebarWidth { get; set; } = 320.0;
         public static string LastSidebarView { get; set; } = "Notes";
 
@@ -977,6 +978,9 @@ namespace sumi
                                 case "IsSidebarPinned":
                                     if (bool.TryParse(val, out bool pinned)) IsSidebarPinned = pinned;
                                     break;
+                                case "IsSidebarOpen":
+                                    if (bool.TryParse(val, out bool open)) IsSidebarOpen = open;
+                                    break;
                                 case "SidebarWidth":
                                     if (double.TryParse(val, out double w)) SidebarWidth = Math.Clamp(w, 200, 600);
                                     break;
@@ -1019,6 +1023,7 @@ namespace sumi
                 sb.AppendLine($"LaunchHotKey={LaunchHotKey}");
                 sb.AppendLine($"LastNoteId={LastNoteId}");
                 sb.AppendLine($"IsSidebarPinned={IsSidebarPinned}");
+                sb.AppendLine($"IsSidebarOpen={IsSidebarOpen}");
                 sb.AppendLine($"SidebarWidth={SidebarWidth}");
                 sb.AppendLine($"LastSidebarView={LastSidebarView}");
                 byte[] bytes = Utf8NoBom.GetBytes(sb.ToString());

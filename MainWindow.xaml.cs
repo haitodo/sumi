@@ -261,10 +261,47 @@ namespace sumi
                 brush.Opacity = MemoStorage.Opacity / 100.0;
             }
 
+            // サイドバーの現在のビュー（タブ）を復元
+            if (Enum.TryParse<SidebarView>(MemoStorage.LastSidebarView, out var savedView))
+            {
+                _currentSidebarView = savedView;
+            }
+            else
+            {
+                _currentSidebarView = SidebarView.Notes;
+            }
+
+            // タイトル、インジケーター、コンテナの表示状態を更新
+            if (PaneTitleTextBlock != null)
+            {
+                PaneTitleTextBlock.Text = _currentSidebarView switch
+                {
+                    SidebarView.Notes => "Notes",
+                    SidebarView.Tasks => "Tasks",
+                    SidebarView.RecentTasks => "Recent Tasks",
+                    _ => ""
+                };
+            }
+
+            if (NotesActiveIndicator != null) NotesActiveIndicator.Visibility = _currentSidebarView == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
+            if (TasksActiveIndicator != null) TasksActiveIndicator.Visibility = _currentSidebarView == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
+            if (RecentTasksActiveIndicator != null) RecentTasksActiveIndicator.Visibility = _currentSidebarView == SidebarView.RecentTasks ? Visibility.Visible : Visibility.Collapsed;
+
+            if (NotesViewContainer != null) NotesViewContainer.Visibility = _currentSidebarView == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
+            if (TasksViewContainer != null) TasksViewContainer.Visibility = _currentSidebarView == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
+            if (RecentTasksViewContainer != null) RecentTasksViewContainer.Visibility = _currentSidebarView == SidebarView.RecentTasks ? Visibility.Visible : Visibility.Collapsed;
+
             if (SidebarSplitView != null)
             {
                 SidebarSplitView.DisplayMode = MemoStorage.IsSidebarPinned ? SplitViewDisplayMode.CompactInline : SplitViewDisplayMode.CompactOverlay;
                 SidebarSplitView.OpenPaneLength = MemoStorage.SidebarWidth;
+                
+                // 開閉状態の復元
+                SidebarSplitView.IsPaneOpen = MemoStorage.IsSidebarOpen;
+                if (MemoStorage.IsSidebarOpen)
+                {
+                    PopulateSidebarView(_currentSidebarView);
+                }
             }
             if (PinSidebarButton != null)
             {
@@ -1362,6 +1399,8 @@ namespace sumi
         private void SetSidebarView(SidebarView view)
         {
             _currentSidebarView = view;
+            MemoStorage.LastSidebarView = view.ToString();
+            QueueSaveSettings();
 
             // Update Title Text
             if (PaneTitleTextBlock != null)
@@ -1477,11 +1516,16 @@ namespace sumi
 
         private void SidebarSplitView_PaneOpened(SplitView sender, object args)
         {
+            MemoStorage.IsSidebarOpen = true;
+            QueueSaveSettings();
             PopulateSidebarView(_currentSidebarView);
         }
 
         private void SidebarSplitView_PaneClosed(SplitView sender, object args)
         {
+            MemoStorage.IsSidebarOpen = false;
+            QueueSaveSettings();
+
             //能動的なクリーンアップを実行してメモリを一掃する
             if (SidebarPinnedListView != null) SidebarPinnedListView.ItemsSource = null;
             if (SidebarNotesListView != null) SidebarNotesListView.ItemsSource = null;
