@@ -1530,6 +1530,38 @@ namespace sumi
             SettingsFlyout.Hide();
         }
 
+        /// <summary>
+        /// 左右両方のサイドバーを表示します。
+        /// </summary>
+        private void ShowBothSidebarsButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (SidebarSplitView != null && !SidebarSplitView.IsPaneOpen)
+            {
+                PopulateSidebarView(_currentSidebarView);
+                SidebarSplitView.IsPaneOpen = true;
+            }
+            if (RightSidebarSplitView != null && !RightSidebarSplitView.IsPaneOpen)
+            {
+                PopulateRightSidebarView(_currentRightSidebarView);
+                RightSidebarSplitView.IsPaneOpen = true;
+            }
+        }
+
+        /// <summary>
+        /// 左右両方のサイドバーを非表示にします。
+        /// </summary>
+        private void HideBothSidebarsButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (SidebarSplitView != null)
+            {
+                SidebarSplitView.IsPaneOpen = false;
+            }
+            if (RightSidebarSplitView != null)
+            {
+                RightSidebarSplitView.IsPaneOpen = false;
+            }
+        }
+
         private void HamburgerButton_Click(object sender, RoutedEventArgs e)
         {
             if (SidebarSplitView != null)

@@ -500,6 +500,20 @@
                     </Button.Flyout>
                 </Button>
 
+                <!-- 両方表示ボタン -->
+                <Button x:Name="ShowBothSidebarsButton" 
+                        Content="&#xF57C;" 
+                        Style="{StaticResource IconButtonStyle}" 
+                        ToolTipService.ToolTip="両方表示" 
+                        Click="ShowBothSidebarsButton_Click" />
+
+                <!-- 両方非表示ボタン -->
+                <Button x:Name="HideBothSidebarsButton" 
+                        Content="&#xEDB4;" 
+                        Style="{StaticResource IconButtonStyle}" 
+                        ToolTipService.ToolTip="両方非表示" 
+                        Click="HideBothSidebarsButton_Click" />
+
             </StackPanel>
 
             <!-- ドラッグ検出領域 -->
