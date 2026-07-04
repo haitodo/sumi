@@ -162,6 +162,9 @@ namespace sumi
         public static bool IsSidebarPinned { get; set; } = false;
         public static bool IsSidebarOpen { get; set; } = false;
         public static double SidebarWidth { get; set; } = 320.0;
+        public static bool IsRightSidebarPinned { get; set; } = false;
+        public static bool IsRightSidebarOpen { get; set; } = false;
+        public static double RightSidebarWidth { get; set; } = 320.0;
         public static string LastSidebarView { get; set; } = "Notes";
         public static int RecentNotesCount { get; set; } = 1;
         public static bool ShowDeleteButton { get; set; } = false;
@@ -1008,6 +1011,15 @@ namespace sumi
                                 case "SidebarWidth":
                                     if (double.TryParse(val, out double w)) SidebarWidth = Math.Clamp(w, 200, 600);
                                     break;
+                                case "IsRightSidebarPinned":
+                                    if (bool.TryParse(val, out bool rpinned)) IsRightSidebarPinned = rpinned;
+                                    break;
+                                case "IsRightSidebarOpen":
+                                    if (bool.TryParse(val, out bool ropen)) IsRightSidebarOpen = ropen;
+                                    break;
+                                case "RightSidebarWidth":
+                                    if (double.TryParse(val, out double rw)) RightSidebarWidth = Math.Clamp(rw, 200, 600);
+                                    break;
                                 case "LastSidebarView":
                                     LastSidebarView = val;
                                     break;
@@ -1055,6 +1067,9 @@ namespace sumi
                 sb.AppendLine($"IsSidebarPinned={IsSidebarPinned}");
                 sb.AppendLine($"IsSidebarOpen={IsSidebarOpen}");
                 sb.AppendLine($"SidebarWidth={SidebarWidth}");
+                sb.AppendLine($"IsRightSidebarPinned={IsRightSidebarPinned}");
+                sb.AppendLine($"IsRightSidebarOpen={IsRightSidebarOpen}");
+                sb.AppendLine($"RightSidebarWidth={RightSidebarWidth}");
                 sb.AppendLine($"LastSidebarView={LastSidebarView}");
                 sb.AppendLine($"RecentNotesCount={RecentNotesCount}");
                 sb.AppendLine($"ShowDeleteButton={ShowDeleteButton}");

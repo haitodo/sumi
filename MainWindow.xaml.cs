@@ -30,9 +30,12 @@ namespace sumi
         {
             Notes,
             Tasks,
-            AllTasks,
-            JustDoIt
+            AllTasks
         }
+
+        private bool _isRightResizing;
+        private double _startRightOpenPaneLength;
+        private double _startRightPointerPositionX;
 
         private readonly AppWindow _appWindow;
         private bool _isRestoring = false;
@@ -325,6 +328,29 @@ namespace sumi
                 if (SidebarPinFilledIcon != null)
                 {
                     SidebarPinFilledIcon.Visibility = MemoStorage.IsSidebarPinned ? Visibility.Visible : Visibility.Collapsed;
+                }
+            }
+
+            if (RightSidebarSplitView != null)
+            {
+                RightSidebarSplitView.DisplayMode = MemoStorage.IsRightSidebarPinned ? SplitViewDisplayMode.CompactInline : SplitViewDisplayMode.CompactOverlay;
+                RightSidebarSplitView.OpenPaneLength = MemoStorage.RightSidebarWidth;
+                RightSidebarSplitView.IsPaneOpen = MemoStorage.IsRightSidebarOpen;
+                if (RightJustDoItActiveIndicator != null)
+                {
+                    RightJustDoItActiveIndicator.Visibility = MemoStorage.IsRightSidebarOpen ? Visibility.Visible : Visibility.Collapsed;
+                }
+                if (MemoStorage.IsRightSidebarOpen)
+                {
+                    PopulateJustDoItTasks();
+                }
+            }
+            if (PinRightSidebarButton != null)
+            {
+                PinRightSidebarButton.IsChecked = MemoStorage.IsRightSidebarPinned;
+                if (RightSidebarPinFilledIcon != null)
+                {
+                    RightSidebarPinFilledIcon.Visibility = MemoStorage.IsRightSidebarPinned ? Visibility.Visible : Visibility.Collapsed;
                 }
             }
         }
@@ -850,10 +876,10 @@ namespace sumi
                     {
                         PopulateAllTasks();
                     }
-                    else if (_currentSidebarView == SidebarView.JustDoIt)
-                    {
-                        PopulateJustDoItTasks();
-                    }
+                }
+                if (RightSidebarSplitView != null && RightSidebarSplitView.IsPaneOpen)
+                {
+                    PopulateJustDoItTasks();
                 }
             });
         }
@@ -1488,9 +1514,30 @@ namespace sumi
             SetSidebarView(SidebarView.AllTasks);
         }
 
-        private void JustDoItMenuButton_Click(object sender, RoutedEventArgs e)
+        private void RightJustDoItMenuButton_Click(object sender, RoutedEventArgs e)
         {
-            SetSidebarView(SidebarView.JustDoIt);
+            if (RightSidebarSplitView != null)
+            {
+                bool targetOpen = !RightSidebarSplitView.IsPaneOpen;
+                RightSidebarSplitView.IsPaneOpen = targetOpen;
+                if (targetOpen)
+                {
+                    PopulateJustDoItTasks();
+                }
+            }
+        }
+
+        private void RightHamburgerButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (RightSidebarSplitView != null)
+            {
+                bool targetOpen = !RightSidebarSplitView.IsPaneOpen;
+                RightSidebarSplitView.IsPaneOpen = targetOpen;
+                if (targetOpen)
+                {
+                    PopulateJustDoItTasks();
+                }
+            }
         }
 
         private void SetSidebarView(SidebarView view)
@@ -1507,7 +1554,6 @@ namespace sumi
                     SidebarView.Notes => "Notes",
                     SidebarView.Tasks => "Tasks",
                     SidebarView.AllTasks => "All Tasks",
-                    SidebarView.JustDoIt => "Just Do It",
                     _ => ""
                 };
             }
@@ -1516,13 +1562,11 @@ namespace sumi
             if (NotesActiveIndicator != null) NotesActiveIndicator.Visibility = view == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
             if (TasksActiveIndicator != null) TasksActiveIndicator.Visibility = view == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
             if (AllTasksActiveIndicator != null) AllTasksActiveIndicator.Visibility = view == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
-            if (JustDoItActiveIndicator != null) JustDoItActiveIndicator.Visibility = view == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
 
             // Update Containers Visibility
             if (NotesViewContainer != null) NotesViewContainer.Visibility = view == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
             if (TasksViewContainer != null) TasksViewContainer.Visibility = view == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
             if (AllTasksViewContainer != null) AllTasksViewContainer.Visibility = view == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
-            if (JustDoItTasksViewContainer != null) JustDoItTasksViewContainer.Visibility = view == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
 
             // Open pane if closed
             if (SidebarSplitView != null && !SidebarSplitView.IsPaneOpen)
@@ -1553,10 +1597,6 @@ namespace sumi
             else if (view == SidebarView.AllTasks)
             {
                 PopulateAllTasks();
-            }
-            else if (view == SidebarView.JustDoIt)
-            {
-                PopulateJustDoItTasks();
             }
         }
 
@@ -1994,6 +2034,82 @@ namespace sumi
                 QueueSaveSettings();
                 e.Handled = true;
             }
+        }
+
+        private void PinRightSidebarButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (PinRightSidebarButton != null && RightSidebarSplitView != null)
+            {
+                bool pinned = PinRightSidebarButton.IsChecked ?? false;
+                MemoStorage.IsRightSidebarPinned = pinned;
+                RightSidebarSplitView.DisplayMode = pinned ? SplitViewDisplayMode.CompactInline : SplitViewDisplayMode.CompactOverlay;
+                if (RightSidebarPinFilledIcon != null)
+                {
+                    RightSidebarPinFilledIcon.Visibility = pinned ? Visibility.Visible : Visibility.Collapsed;
+                }
+                QueueSaveSettings();
+            }
+        }
+
+        private void RightResizer_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is FrameworkElement element && RightSidebarSplitView != null)
+            {
+                _isRightResizing = true;
+                element.CapturePointer(e.Pointer);
+                var pt = e.GetCurrentPoint(this.Content);
+                _startRightPointerPositionX = pt.Position.X;
+                _startRightOpenPaneLength = RightSidebarSplitView.OpenPaneLength;
+                e.Handled = true;
+            }
+        }
+
+        private void RightResizer_PointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (_isRightResizing && RightSidebarSplitView != null)
+            {
+                var pt = e.GetCurrentPoint(this.Content);
+                double deltaX = pt.Position.X - _startRightPointerPositionX;
+                double newWidth = _startRightOpenPaneLength - deltaX;
+                newWidth = Math.Clamp(newWidth, 200, 600);
+                RightSidebarSplitView.OpenPaneLength = newWidth;
+                e.Handled = true;
+            }
+        }
+
+        private void RightResizer_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (_isRightResizing && RightSidebarSplitView != null)
+            {
+                if (sender is FrameworkElement element)
+                {
+                    element.ReleasePointerCapture(e.Pointer);
+                }
+                _isRightResizing = false;
+                MemoStorage.RightSidebarWidth = RightSidebarSplitView.OpenPaneLength;
+                QueueSaveSettings();
+                e.Handled = true;
+            }
+        }
+
+        private void RightSidebarSplitView_PaneOpened(SplitView sender, object args)
+        {
+            MemoStorage.IsRightSidebarOpen = true;
+            if (RightJustDoItActiveIndicator != null)
+            {
+                RightJustDoItActiveIndicator.Visibility = Visibility.Visible;
+            }
+            QueueSaveSettings();
+        }
+
+        private void RightSidebarSplitView_PaneClosed(SplitView sender, object args)
+        {
+            MemoStorage.IsRightSidebarOpen = false;
+            if (RightJustDoItActiveIndicator != null)
+            {
+                RightJustDoItActiveIndicator.Visibility = Visibility.Collapsed;
+            }
+            QueueSaveSettings();
         }
 
 
