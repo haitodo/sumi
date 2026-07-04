@@ -126,6 +126,7 @@
                                 Style="{StaticResource IconButtonStyle}" 
                                 Width="28" Height="28" FontSize="11"
                                 ToolTipService.ToolTip="削除"
+                                Visibility="{x:Bind DeleteButtonVisibility}"
                                 Loaded="DeleteItemButton_Loaded"
                                 Unloaded="DeleteItemButton_Unloaded" />
                     </StackPanel>
@@ -465,6 +466,19 @@
                                             </Button>
                                         </Grid>
                                         
+                                        <!-- Show Delete Button -->
+                                        <Grid x:Name="ShowDeleteButtonItem" Padding="6,6" CornerRadius="4" Background="Transparent"
+                                              PointerEntered="SettingItem_PointerEntered" PointerExited="SettingItem_PointerExited">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="&#xE74D;" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="#cccccc" VerticalAlignment="Center" Margin="4,0,10,0" />
+                                            <TextBlock Grid.Column="1" Text="Show Delete Button" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                                            <ToggleSwitch Grid.Column="2" x:Name="ShowDeleteButtonToggle" OnContent="" OffContent="" MinWidth="0" VerticalAlignment="Center" Toggled="ShowDeleteButtonToggle_Toggled" />
+                                        </Grid>
+
                                         <!-- Delete Note -->
                                         <Grid x:Name="DeleteNoteItem" Padding="6,6" CornerRadius="4" Background="Transparent"
                                               PointerEntered="SettingItem_PointerEntered" PointerExited="SettingItem_PointerExited"

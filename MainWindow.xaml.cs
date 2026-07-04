@@ -1034,6 +1034,7 @@ namespace sumi
 
                 RecentNotesCountSlider.Value = MemoStorage.RecentNotesCount;
                 RecentNotesCountValueText.Text = MemoStorage.RecentNotesCount.ToString();
+                ShowDeleteButtonToggle.IsOn = MemoStorage.ShowDeleteButton;
             }
             finally
             {
@@ -1053,6 +1054,7 @@ namespace sumi
             LaunchHotKeyItem.Visibility = Visibility.Visible;
             QuitHotKeyItem.Visibility = Visibility.Visible;
             DeleteNoteItem.Visibility = Visibility.Visible;
+            ShowDeleteButtonItem.Visibility = Visibility.Visible;
 
             SettingsSearchBox.Focus(FocusState.Programmatic);
         }
@@ -1072,6 +1074,7 @@ namespace sumi
                 LaunchHotKeyItem.Visibility = Visibility.Visible;
                 QuitHotKeyItem.Visibility = Visibility.Visible;
                 DeleteNoteItem.Visibility = Visibility.Visible;
+                ShowDeleteButtonItem.Visibility = Visibility.Visible;
                 return;
             }
 
@@ -1085,6 +1088,7 @@ namespace sumi
             LaunchHotKeyItem.Visibility = "launch hotkey ショートカット キーボード 起動 ホットキー ランチ".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
             QuitHotKeyItem.Visibility = "quit hotkey ショートカット キーボード 終了 ホットキー クイック".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
             DeleteNoteItem.Visibility = "delete note メモを削除 削除 ゴミ箱".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
+            ShowDeleteButtonItem.Visibility = "show delete button 削除ボタン 表示 非表示 設定 ゴミ箱".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void FontComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1219,6 +1223,17 @@ namespace sumi
             MemoStorage.RecentNotesCount = count;
             QueueSaveSettings();
             RefreshAllNotesLists();
+        }
+
+        private void ShowDeleteButtonToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing || _isInitializingSettings) return;
+            if (sender is ToggleSwitch ts)
+            {
+                MemoStorage.ShowDeleteButton = ts.IsOn;
+                RefreshAllNotesLists();
+                QueueSaveSettings();
+            }
         }
 
         private void FontSizeSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
@@ -3984,6 +3999,7 @@ namespace sumi
         public Microsoft.UI.Xaml.Media.Brush PinForeground => IsPinned ? PinForegroundPinned : PinForegroundUnpinned;
         public Visibility CurrentIndicatorVisibility => IsCurrent ? Visibility.Visible : Visibility.Collapsed;
         public Visibility PinnedFillVisibility => IsPinned ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility DeleteButtonVisibility => MemoStorage.ShowDeleteButton ? Visibility.Visible : Visibility.Collapsed;
         public Microsoft.UI.Xaml.Media.Brush BackgroundBrush => IsHighlighted ? BackgroundBrushHighlighted : (IsCurrent ? BackgroundBrushCurrent : BackgroundBrushTransparent);
 
         public NoteItemViewModel(string id, string title, string subtitle, bool isPinned, bool isCurrent, bool isHighlighted)
