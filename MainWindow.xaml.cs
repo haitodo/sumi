@@ -257,10 +257,20 @@ namespace sumi
                 ApplyGlobalThemeToEditor();
             }
 
+            double currentOpacity = MemoStorage.Opacity / 100.0;
             if (RootGrid != null && RootGrid.Background is Microsoft.UI.Xaml.Media.SolidColorBrush brush)
             {
                 brush.Color = Microsoft.UI.ColorHelper.FromArgb(255, 0x14, 0x14, 0x14);
-                brush.Opacity = MemoStorage.Opacity / 100.0;
+                brush.Opacity = currentOpacity;
+            }
+
+            if (App.Current.Resources.TryGetValue("SidebarBackgroundBrush", out object? sbBrushObj) && sbBrushObj is Microsoft.UI.Xaml.Media.SolidColorBrush sbBrush)
+            {
+                sbBrush.Opacity = currentOpacity;
+            }
+            if (App.Current.Resources.TryGetValue("FlyoutBackgroundBrush", out object? flBrushObj) && flBrushObj is Microsoft.UI.Xaml.Media.SolidColorBrush flBrush)
+            {
+                flBrush.Opacity = currentOpacity;
             }
 
             // サイドバーの現在のビュー（タブ）を復元
@@ -1416,10 +1426,22 @@ namespace sumi
                 OpacityValueText.Text = $"{(int)opacity}%";
             }
             MemoStorage.Opacity = opacity;
+
+            double currentOpacity = opacity / 100.0;
             if (RootGrid != null && RootGrid.Background is Microsoft.UI.Xaml.Media.SolidColorBrush brush)
             {
-                brush.Opacity = opacity / 100.0;
+                brush.Opacity = currentOpacity;
             }
+
+            if (App.Current.Resources.TryGetValue("SidebarBackgroundBrush", out object? sbBrushObj) && sbBrushObj is Microsoft.UI.Xaml.Media.SolidColorBrush sbBrush)
+            {
+                sbBrush.Opacity = currentOpacity;
+            }
+            if (App.Current.Resources.TryGetValue("FlyoutBackgroundBrush", out object? flBrushObj) && flBrushObj is Microsoft.UI.Xaml.Media.SolidColorBrush flBrush)
+            {
+                flBrush.Opacity = currentOpacity;
+            }
+
             QueueSaveSettings();
         }
 

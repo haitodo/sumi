@@ -156,7 +156,7 @@
                         <Flyout x:Name="SettingsFlyout" Placement="BottomEdgeAlignedLeft" Opened="SettingsFlyout_Opened">
                             <Flyout.FlyoutPresenterStyle>
                                 <Style TargetType="FlyoutPresenter">
-                                    <Setter Property="Background" Value="#ee1f1f1f" />
+                                    <Setter Property="Background" Value="{StaticResource OpaqueFlyoutBackgroundBrush}" />
                                     <Setter Property="BorderBrush" Value="#333333" />
                                     <Setter Property="BorderThickness" Value="1" />
                                     <Setter Property="CornerRadius" Value="8" />
@@ -366,7 +366,7 @@
                                                     <Flyout x:Name="LaunchHotKeyFlyout" Opened="HotKeyFlyout_Opened" Closed="HotKeyFlyout_Closed">
                                                         <Flyout.FlyoutPresenterStyle>
                                                             <Style TargetType="FlyoutPresenter">
-                                                                <Setter Property="Background" Value="#ee1f1f1f" />
+                                                                <Setter Property="Background" Value="{StaticResource FlyoutBackgroundBrush}" />
                                                                 <Setter Property="BorderBrush" Value="#333333" />
                                                                 <Setter Property="BorderThickness" Value="1" />
                                                                 <Setter Property="CornerRadius" Value="8" />
@@ -430,7 +430,7 @@
                                                     <Flyout x:Name="QuitHotKeyFlyout" Opened="HotKeyFlyout_Opened" Closed="HotKeyFlyout_Closed">
                                                         <Flyout.FlyoutPresenterStyle>
                                                             <Style TargetType="FlyoutPresenter">
-                                                                <Setter Property="Background" Value="#ee1f1f1f" />
+                                                                <Setter Property="Background" Value="{StaticResource FlyoutBackgroundBrush}" />
                                                                 <Setter Property="BorderBrush" Value="#333333" />
                                                                 <Setter Property="BorderThickness" Value="1" />
                                                                 <Setter Property="CornerRadius" Value="8" />
@@ -505,7 +505,7 @@
                         <Flyout x:Name="NotesFlyout" Placement="BottomEdgeAlignedLeft" Opened="NotesFlyout_Opened" Closed="NotesFlyout_Closed">
                             <Flyout.FlyoutPresenterStyle>
                                 <Style TargetType="FlyoutPresenter">
-                                    <Setter Property="Background" Value="#ee1f1f1f" />
+                                    <Setter Property="Background" Value="{StaticResource OpaqueFlyoutBackgroundBrush}" />
                                     <Setter Property="BorderBrush" Value="#333333" />
                                     <Setter Property="BorderThickness" Value="1" />
                                     <Setter Property="CornerRadius" Value="8" />
@@ -614,7 +614,7 @@
                    CompactPaneLength="48"
                    OpenPaneLength="320"
                    IsPaneOpen="False"
-                   PaneBackground="#ee1c1c1c"
+                   PaneBackground="{StaticResource SidebarBackgroundBrush}"
                    PaneClosed="SidebarSplitView_PaneClosed"
                    PaneOpened="SidebarSplitView_PaneOpened">
             
@@ -1192,7 +1192,7 @@
                                     <Flyout x:Name="InsertTableFlyout">
                                         <Flyout.FlyoutPresenterStyle>
                                             <Style TargetType="FlyoutPresenter">
-                                                <Setter Property="Background" Value="#ee1f1f1f" />
+                                                <Setter Property="Background" Value="{StaticResource FlyoutBackgroundBrush}" />
                                                 <Setter Property="BorderBrush" Value="#333333" />
                                                 <Setter Property="BorderThickness" Value="1" />
                                                 <Setter Property="CornerRadius" Value="8" />
