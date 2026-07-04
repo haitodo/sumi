@@ -43,7 +43,7 @@
 
             <!-- ヘッダーおよびステータスバーの共通ボタン用スタイル -->
             <Style x:Key="IconButtonStyle" TargetType="Button">
-                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Background" Value="#002D2D2D" />
                 <Setter Property="BorderThickness" Value="0" />
                 <Setter Property="CornerRadius" Value="4" />
                 <Setter Property="Padding" Value="0" />
@@ -55,7 +55,7 @@
             </Style>
 
             <Style x:Key="IconToggleButtonStyle" TargetType="ToggleButton">
-                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Background" Value="#002D2D2D" />
                 <Setter Property="BorderThickness" Value="0" />
                 <Setter Property="CornerRadius" Value="4" />
                 <Setter Property="Padding" Value="0" />
@@ -68,16 +68,16 @@
 
             <!-- メモアイテムの表示テンプレート -->
             <DataTemplate x:Key="NoteItemTemplate" x:DataType="local:NoteItemViewModel">
-                <Grid Padding="4" Background="{x:Bind BackgroundBrush, Mode=OneTime}" CornerRadius="4" 
+                <Grid Padding="0" Background="{x:Bind BackgroundBrush, Mode=OneTime}" CornerRadius="4" 
                       PointerEntered="NoteItemGrid_PointerEntered" 
                       PointerExited="NoteItemGrid_PointerExited">
 
                     <!-- メモ選択領域 (横いっぱいに広げ、右側のアクションボタンと重ならないようPaddingで隙間を開ける) -->
                     <Button HorizontalAlignment="Stretch" 
                             HorizontalContentAlignment="Stretch" 
-                            Background="Transparent" 
+                            Background="#002D2D2D" 
                             BorderThickness="0"
-                            Padding="8,6,60,6"
+                            Padding="12,10,64,10"
                             CornerRadius="4"
                             Loaded="NoteItemButton_Loaded"
                             Unloaded="NoteItemButton_Unloaded">
@@ -100,7 +100,7 @@
                                 Orientation="Horizontal" 
                                 VerticalAlignment="Center" 
                                 Spacing="2" 
-                                Padding="8,0,4,0" 
+                                Padding="8,0,8,0" 
                                 Visibility="Collapsed">
                         <Button Style="{StaticResource IconButtonStyle}" 
                                 Width="28" Height="28"
@@ -841,7 +841,7 @@
                                         <DataTemplate x:DataType="local:RecentTasksGroupViewModel">
                                             <StackPanel Spacing="4">
                                                 <Button Content="{x:Bind NoteTitle}"
-                                                        Background="Transparent"
+                                                        Background="#002D2D2D"
                                                         BorderThickness="0"
                                                         Foreground="#0078d4"
                                                         FontWeight="SemiBold"
