@@ -3291,10 +3291,50 @@ namespace sumi
                 menu.Items.Add(openItem);
             }
 
-            // 4. 右クリックされた座標（CursorLeft/CursorTop）にメニューを表示します
+            // 4. 右クリック時のメニュー表示座標の設定
+            Windows.Foundation.Point localPoint;
+            bool isMouse = (e.CursorLeft >= 0 && e.CursorTop >= 0);
+
+            if (isMouse)
+            {
+                // マウス操作の場合は、DPIスケールやマルチモニター、ウィンドウ位置に影響されないよう
+                // Win32 API（GetCursorPos, ScreenToClient）を使用して物理座標を取得し、
+                // アプリケーション内の論理座標（DIP）に変換してから MemoTextBox 相対座標へと変換します。
+                POINT screenPt;
+                if (GetCursorPos(out screenPt) && ScreenToClient(_hWnd, ref screenPt))
+                {
+                    double scale = 1.0;
+                    if (MemoTextBox.XamlRoot != null)
+                    {
+                        scale = MemoTextBox.XamlRoot.RasterizationScale;
+                    }
+
+                    var windowPoint = new Windows.Foundation.Point(screenPt.X / scale, screenPt.Y / scale);
+                    UIElement? relativeTo = RootGrid ?? (UIElement?)this.Content;
+                    var transform = MemoTextBox.TransformToVisual(relativeTo);
+                    if (transform != null && transform.Inverse != null)
+                    {
+                        localPoint = transform.Inverse.TransformPoint(windowPoint);
+                    }
+                    else
+                    {
+                        localPoint = new Windows.Foundation.Point(e.CursorLeft, e.CursorTop);
+                    }
+                }
+                else
+                {
+                    localPoint = new Windows.Foundation.Point(e.CursorLeft, e.CursorTop);
+                }
+            }
+            else
+            {
+                // キーボード操作などの場合は、システムから提供される座標をそのまま利用します。
+                localPoint = new Windows.Foundation.Point(e.CursorLeft, e.CursorTop);
+            }
+
             var options = new FlyoutShowOptions
             {
-                Position = new Windows.Foundation.Point(e.CursorLeft, e.CursorTop),
+                Position = localPoint,
                 ShowMode = FlyoutShowMode.Standard
             };
             menu.ShowAt(MemoTextBox, options);
