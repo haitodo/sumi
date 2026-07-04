@@ -36,6 +36,7 @@ namespace sumi
         public string Id { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public bool IsCompleted { get; set; }
+        public bool IsJustDoIt { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 
@@ -46,6 +47,7 @@ namespace sumi
     {
         private string _title = string.Empty;
         private bool _isCompleted;
+        private bool _isJustDoIt;
 
         public string Id { get; set; } = string.Empty;
         public string ParentNoteId { get; set; } = string.Empty;
@@ -79,14 +81,34 @@ namespace sumi
             }
         }
 
+        public bool IsJustDoIt
+        {
+            get => _isJustDoIt;
+            set
+            {
+                if (_isJustDoIt != value)
+                {
+                    _isJustDoIt = value;
+                    OnPropertyChanged(nameof(IsJustDoIt));
+                    _onChanged?.Invoke();
+                }
+            }
+        }
+
         private readonly Action? _onChanged;
 
         public TaskItemViewModel(string id, string parentNoteId, string title, bool isCompleted, DateTime createdAt, Action? onChanged)
+            : this(id, parentNoteId, title, isCompleted, false, createdAt, onChanged)
+        {
+        }
+
+        public TaskItemViewModel(string id, string parentNoteId, string title, bool isCompleted, bool isJustDoIt, DateTime createdAt, Action? onChanged)
         {
             Id = id;
             ParentNoteId = parentNoteId;
             _title = title;
             _isCompleted = isCompleted;
+            _isJustDoIt = isJustDoIt;
             CreatedAt = createdAt;
             _onChanged = onChanged;
         }
@@ -1079,6 +1101,7 @@ namespace sumi
                                     note.Id,
                                     item.Title,
                                     item.IsCompleted,
+                                    item.IsJustDoIt,
                                     item.CreatedAt,
                                     () => TaskChangedAction?.Invoke(note.Id)
                                 );

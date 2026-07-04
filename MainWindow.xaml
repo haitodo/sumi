@@ -650,6 +650,23 @@
                                         Click="RecentTasksMenuButton_Click"
                                         ToolTipService.ToolTip="直近のタスク" />
                             </Grid>
+
+                            <!-- すぐやる (Just Do It) -->
+                            <Grid x:Name="JustDoItMenuGrid">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="3" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="JustDoItActiveIndicator" Grid.Column="0" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
+                                <Button x:Name="JustDoItMenuButton"
+                                        Grid.Column="1"
+                                        Content="&#xE945;"
+                                        Style="{StaticResource IconButtonStyle}"
+                                        Width="36" Height="36"
+                                        HorizontalAlignment="Center"
+                                        Click="JustDoItMenuButton_Click"
+                                        ToolTipService.ToolTip="すぐやる (Just Do It)" />
+                            </Grid>
                         </StackPanel>
                     </Grid>
 
@@ -761,6 +778,7 @@
                                                     <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
                                                 
                                                 <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCompleted, Mode=TwoWay}" MinWidth="32" VerticalAlignment="Center" Margin="0,0,4,0" />
@@ -784,8 +802,19 @@
                                                     </TextBox.Resources>
                                                 </TextBox>
                                                 
+                                                <!-- すぐやるトグルボタン -->
+                                                <Button x:Name="JustDoItTaskButton"
+                                                        Grid.Column="2" Content="&#xE945;"
+                                                        Style="{StaticResource IconButtonStyle}"
+                                                        Width="28" Height="28" FontSize="11"
+                                                        Foreground="{x:Bind local:MainWindow.GetJustDoItBrush(IsJustDoIt), Mode=OneWay}"
+                                                        Visibility="{x:Bind local:MainWindow.BoolToVisibility(IsJustDoIt), Mode=OneWay}"
+                                                        Loaded="JustDoItTaskButton_Loaded"
+                                                        Unloaded="JustDoItTaskButton_Unloaded"
+                                                        ToolTipService.ToolTip="すぐやるに追加/解除" />
+                                                
                                                 <Button x:Name="DeleteTaskButton"
-                                                        Grid.Column="2" Content="&#xE74D;"
+                                                        Grid.Column="3" Content="&#xE74D;"
                                                         Style="{StaticResource IconButtonStyle}"
                                                         Width="28" Height="28" FontSize="11"
                                                         Foreground="#FF453A"
@@ -865,13 +894,103 @@
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate x:DataType="local:TaskItemViewModel">
                                                             <Grid Padding="4,2" Background="Transparent"
-                                                                  PointerPressed="RecentTaskItem_PointerPressed">
+                                                                  PointerPressed="RecentTaskItem_PointerPressed"
+                                                                  PointerEntered="RecentTaskItemGrid_PointerEntered"
+                                                                  PointerExited="RecentTaskItemGrid_PointerExited">
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="Auto" />
                                                                     <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
                                                                 </Grid.ColumnDefinitions>
                                                                 <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCompleted, Mode=TwoWay}" MinWidth="32" VerticalAlignment="Center" Margin="0,0,4,0" />
                                                                 <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                                
+                                                                <Button x:Name="RecentJustDoItButton"
+                                                                        Grid.Column="2" Content="&#xE945;"
+                                                                        Style="{StaticResource IconButtonStyle}"
+                                                                        Width="28" Height="28" FontSize="11"
+                                                                        Foreground="{x:Bind local:MainWindow.GetJustDoItBrush(IsJustDoIt), Mode=OneWay}"
+                                                                        Visibility="{x:Bind local:MainWindow.BoolToVisibility(IsJustDoIt), Mode=OneWay}"
+                                                                        Loaded="RecentJustDoItButton_Loaded"
+                                                                        Unloaded="RecentJustDoItButton_Unloaded"
+                                                                        ToolTipService.ToolTip="すぐやるに追加/解除" />
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+
+                        <!-- すぐやる (Just Do It) ビュー -->
+                        <Grid x:Name="JustDoItTasksViewContainer" Grid.Row="1" Visibility="Collapsed" RowSpacing="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            
+                            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl x:Name="JustDoItTasksGroupsControl">
+                                    <ItemsControl.ItemContainerTransitions>
+                                        <TransitionCollection>
+                                            <AddDeleteThemeTransition />
+                                        </TransitionCollection>
+                                    </ItemsControl.ItemContainerTransitions>
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Spacing="16" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="local:RecentTasksGroupViewModel">
+                                            <StackPanel Spacing="4">
+                                                <Button Content="{x:Bind NoteTitle}"
+                                                        Background="#002D2D2D"
+                                                        BorderThickness="0"
+                                                        Foreground="#0078d4"
+                                                        FontWeight="SemiBold"
+                                                        FontSize="12"
+                                                        Padding="4,2"
+                                                        HorizontalAlignment="Left"
+                                                        Click="RecentTasksGroupHeader_Click"
+                                                        DataContext="{x:Bind}" />
+                                                
+                                                <ItemsControl ItemsSource="{x:Bind Tasks}">
+                                                    <ItemsControl.ItemContainerTransitions>
+                                                        <TransitionCollection>
+                                                            <AddDeleteThemeTransition />
+                                                        </TransitionCollection>
+                                                    </ItemsControl.ItemContainerTransitions>
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Spacing="2" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="local:TaskItemViewModel">
+                                                            <Grid Padding="4,2" Background="Transparent"
+                                                                  PointerPressed="RecentTaskItem_PointerPressed"
+                                                                  PointerEntered="JustDoItTaskItemGrid_PointerEntered"
+                                                                  PointerExited="JustDoItTaskItemGrid_PointerExited">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCompleted, Mode=TwoWay}" MinWidth="32" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                                                <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                                
+                                                                <Button x:Name="JustDoItToggleBtn"
+                                                                        Grid.Column="2" Content="&#xE945;"
+                                                                        Style="{StaticResource IconButtonStyle}"
+                                                                        Width="28" Height="28" FontSize="11"
+                                                                        Foreground="{x:Bind local:MainWindow.GetJustDoItBrush(IsJustDoIt), Mode=OneWay}"
+                                                                        Visibility="Collapsed"
+                                                                        Loaded="JustDoItToggleBtn_Loaded"
+                                                                        Unloaded="JustDoItToggleBtn_Unloaded"
+                                                                        ToolTipService.ToolTip="すぐやるから解除" />
                                                             </Grid>
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>

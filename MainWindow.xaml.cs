@@ -29,7 +29,8 @@ namespace sumi
         {
             Notes,
             Tasks,
-            RecentTasks
+            RecentTasks,
+            JustDoIt
         }
 
         private readonly AppWindow _appWindow;
@@ -830,6 +831,10 @@ namespace sumi
                     {
                         PopulateRecentTasks();
                     }
+                    else if (_currentSidebarView == SidebarView.JustDoIt)
+                    {
+                        PopulateJustDoItTasks();
+                    }
                 }
             });
         }
@@ -1396,6 +1401,11 @@ namespace sumi
             SetSidebarView(SidebarView.RecentTasks);
         }
 
+        private void JustDoItMenuButton_Click(object sender, RoutedEventArgs e)
+        {
+            SetSidebarView(SidebarView.JustDoIt);
+        }
+
         private void SetSidebarView(SidebarView view)
         {
             _currentSidebarView = view;
@@ -1410,6 +1420,7 @@ namespace sumi
                     SidebarView.Notes => "Notes",
                     SidebarView.Tasks => "Tasks",
                     SidebarView.RecentTasks => "Recent Tasks",
+                    SidebarView.JustDoIt => "Just Do It",
                     _ => ""
                 };
             }
@@ -1418,11 +1429,13 @@ namespace sumi
             if (NotesActiveIndicator != null) NotesActiveIndicator.Visibility = view == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
             if (TasksActiveIndicator != null) TasksActiveIndicator.Visibility = view == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
             if (RecentTasksActiveIndicator != null) RecentTasksActiveIndicator.Visibility = view == SidebarView.RecentTasks ? Visibility.Visible : Visibility.Collapsed;
+            if (JustDoItActiveIndicator != null) JustDoItActiveIndicator.Visibility = view == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
 
             // Update Containers Visibility
             if (NotesViewContainer != null) NotesViewContainer.Visibility = view == SidebarView.Notes ? Visibility.Visible : Visibility.Collapsed;
             if (TasksViewContainer != null) TasksViewContainer.Visibility = view == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
             if (RecentTasksViewContainer != null) RecentTasksViewContainer.Visibility = view == SidebarView.RecentTasks ? Visibility.Visible : Visibility.Collapsed;
+            if (JustDoItTasksViewContainer != null) JustDoItTasksViewContainer.Visibility = view == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
 
             // Open pane if closed
             if (SidebarSplitView != null && !SidebarSplitView.IsPaneOpen)
@@ -1452,6 +1465,10 @@ namespace sumi
             else if (view == SidebarView.RecentTasks)
             {
                 PopulateRecentTasks();
+            }
+            else if (view == SidebarView.JustDoIt)
+            {
+                PopulateJustDoItTasks();
             }
         }
 
@@ -1514,6 +1531,42 @@ namespace sumi
             }
         }
 
+        private void PopulateJustDoItTasks()
+        {
+            var groups = new List<RecentTasksGroupViewModel>();
+            List<NoteData> notes;
+            lock (MemoStorage.Notes)
+            {
+                notes = new List<NoteData>(MemoStorage.Notes);
+            }
+
+            foreach (var note in notes)
+            {
+                MemoStorage.LoadTasksForNoteSync(note);
+                var justDoItTasks = new System.Collections.ObjectModel.ObservableCollection<TaskItemViewModel>();
+                lock (note.Tasks)
+                {
+                    foreach (var t in note.Tasks)
+                    {
+                        if (t.IsJustDoIt)
+                        {
+                            justDoItTasks.Add(t);
+                        }
+                    }
+                }
+                if (justDoItTasks.Count > 0)
+                {
+                    groups.Add(new RecentTasksGroupViewModel(note.Id, note.Title, justDoItTasks));
+                }
+            }
+
+            if (JustDoItTasksGroupsControl != null)
+            {
+                JustDoItTasksGroupsControl.ItemsSource = null;
+                JustDoItTasksGroupsControl.ItemsSource = groups;
+            }
+        }
+
         private void SidebarSplitView_PaneOpened(SplitView sender, object args)
         {
             MemoStorage.IsSidebarOpen = true;
@@ -1531,6 +1584,7 @@ namespace sumi
             if (SidebarNotesListView != null) SidebarNotesListView.ItemsSource = null;
             if (CurrentTasksListView != null) CurrentTasksListView.ItemsSource = null;
             if (RecentTasksGroupsControl != null) RecentTasksGroupsControl.ItemsSource = null;
+            if (JustDoItTasksGroupsControl != null) JustDoItTasksGroupsControl.ItemsSource = null;
 
             System.GC.Collect();
             System.GC.WaitForPendingFinalizers();
@@ -1619,6 +1673,11 @@ namespace sumi
                 {
                     deleteBtn.Visibility = Visibility.Visible;
                 }
+                var justDoItBtn = grid.FindName("JustDoItTaskButton") as FrameworkElement;
+                if (justDoItBtn != null)
+                {
+                    justDoItBtn.Visibility = Visibility.Visible;
+                }
             }
         }
 
@@ -1631,6 +1690,123 @@ namespace sumi
                 {
                     deleteBtn.Visibility = Visibility.Collapsed;
                 }
+                var justDoItBtn = grid.FindName("JustDoItTaskButton") as FrameworkElement;
+                if (justDoItBtn != null && justDoItBtn.DataContext is TaskItemViewModel vm && !vm.IsJustDoIt)
+                {
+                    justDoItBtn.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
+
+        private void RecentTaskItemGrid_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is Grid grid)
+            {
+                var justDoItBtn = grid.FindName("RecentJustDoItButton") as FrameworkElement;
+                if (justDoItBtn != null)
+                {
+                    justDoItBtn.Visibility = Visibility.Visible;
+                }
+            }
+        }
+
+        private void RecentTaskItemGrid_PointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is Grid grid)
+            {
+                var justDoItBtn = grid.FindName("RecentJustDoItButton") as FrameworkElement;
+                if (justDoItBtn != null && justDoItBtn.DataContext is TaskItemViewModel vm && !vm.IsJustDoIt)
+                {
+                    justDoItBtn.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
+
+        private void JustDoItTaskItemGrid_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is Grid grid)
+            {
+                var justDoItBtn = grid.FindName("JustDoItToggleBtn") as FrameworkElement;
+                if (justDoItBtn != null)
+                {
+                    justDoItBtn.Visibility = Visibility.Visible;
+                }
+            }
+        }
+
+        private void JustDoItTaskItemGrid_PointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is Grid grid)
+            {
+                var justDoItBtn = grid.FindName("JustDoItToggleBtn") as FrameworkElement;
+                if (justDoItBtn != null)
+                {
+                    justDoItBtn.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
+
+        private void JustDoItTaskButton_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                btn.Click += JustDoItButton_Click;
+            }
+        }
+
+        private void JustDoItTaskButton_Unloaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                btn.Click -= JustDoItButton_Click;
+            }
+        }
+
+        private void RecentJustDoItButton_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                btn.Click += JustDoItButton_Click;
+            }
+        }
+
+        private void RecentJustDoItButton_Unloaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                btn.Click -= JustDoItButton_Click;
+            }
+        }
+
+        private void JustDoItToggleBtn_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                btn.Click += JustDoItButton_Click;
+            }
+        }
+
+        private void JustDoItToggleBtn_Unloaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn)
+            {
+                btn.Click -= JustDoItButton_Click;
+            }
+        }
+
+        private void JustDoItButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.DataContext is TaskItemViewModel vm)
+            {
+                vm.IsJustDoIt = !vm.IsJustDoIt;
+                
+                // Save task changes
+                OnTaskChanged(vm.ParentNoteId);
+                
+                // Immediately refresh views
+                PopulateCurrentTasks();
+                PopulateRecentTasks();
+                PopulateJustDoItTasks();
             }
         }
 
@@ -3651,6 +3827,20 @@ namespace sumi
             return text.Length;
         }
 
+        public static Microsoft.UI.Xaml.Media.Brush GetJustDoItBrush(bool isJustDoIt)
+        {
+            if (isJustDoIt)
+            {
+                return new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 193, 7));
+            }
+            return new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 136, 136, 136));
+        }
+
+        public static Microsoft.UI.Xaml.Visibility BoolToVisibility(bool visible)
+        {
+            return visible ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+        }
+
         #endregion
     }
 
@@ -3724,4 +3914,5 @@ namespace sumi
             };
         }
     }
+
 }
