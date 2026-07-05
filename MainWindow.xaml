@@ -1740,7 +1740,7 @@
 
                                     <ToggleButton x:Name="ToggleReplaceModeBtn" Grid.Column="0" Content="&#xE0B8;" FontFamily="Segoe Fluent Icons" FontSize="12" Style="{StaticResource IconToggleButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="置換モード切り替え" Click="ToggleReplaceModeBtn_Click" />
                                     
-                                    <TextBox x:Name="FindTextBox" Grid.Column="1" PlaceholderText="検索" Height="28" Padding="8,4" FontSize="12" KeyDown="FindTextBox_KeyDown">
+                                    <TextBox x:Name="FindTextBox" Grid.Column="1" PlaceholderText="検索" Height="28" Padding="8,4" FontSize="12" KeyDown="FindTextBox_KeyDown" TextChanged="FindTextBox_TextChanged">
                                         <TextBox.Resources>
                                             <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
                                             <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />

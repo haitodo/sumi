@@ -776,6 +776,11 @@ namespace sumi
                 TitleTextBlock.Text = currentNote.Title; 
             }
             UpdateCharCount(plainText.Length);
+
+            if (FindReplacePanel != null && FindReplacePanel.Visibility == Visibility.Visible)
+            {
+                RecalculateMatches();
+            }
         }
 
         private void UpdateCharCount(int length)
@@ -4677,6 +4682,10 @@ namespace sumi
         private double _dragStartX;
         private double _dragStartY;
 
+        // 検索一致件数・インデックス追跡用変数
+        private System.Collections.Generic.List<int> _matchStartPositions = new();
+        private int _currentMatchIndex = -1;
+
         private void FindReplacePanel_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
             var properties = e.GetCurrentPoint(FindReplacePanel).Properties;
@@ -4761,6 +4770,75 @@ namespace sumi
             }
         }
 
+        private void RecalculateMatches()
+        {
+            _matchStartPositions.Clear();
+            _currentMatchIndex = -1;
+
+            string target = FindTextBox.Text;
+            if (string.IsNullOrEmpty(target))
+            {
+                FindStatusTextBlock.Text = "";
+                FindStatusTextBlock.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            var doc = MemoTextBox.Document;
+            int docLength = doc.GetRange(0, int.MaxValue).Length;
+            var range = doc.GetRange(0, docLength);
+
+            while (range.FindText(target, docLength - range.StartPosition, Microsoft.UI.Text.FindOptions.None) > 0)
+            {
+                _matchStartPositions.Add(range.StartPosition);
+                range.StartPosition = range.EndPosition;
+            }
+
+            UpdateCurrentMatchIndex();
+            UpdateStatusText(null);
+        }
+
+        private void UpdateCurrentMatchIndex()
+        {
+            var selection = MemoTextBox.Document.Selection;
+            if (selection == null || _matchStartPositions.Count == 0)
+            {
+                _currentMatchIndex = -1;
+                return;
+            }
+
+            _currentMatchIndex = _matchStartPositions.IndexOf(selection.StartPosition);
+        }
+
+        private void UpdateStatusText(string? prefixMessage)
+        {
+            if (string.IsNullOrEmpty(FindTextBox.Text))
+            {
+                FindStatusTextBlock.Text = "";
+                FindStatusTextBlock.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            int total = _matchStartPositions.Count;
+            int current = _currentMatchIndex + 1; // 1-based index
+
+            string countText = total > 0 ? $"{current} / {total}" : "0 / 0";
+
+            if (total == 0)
+            {
+                FindStatusTextBlock.Text = "見つかりませんでした";
+            }
+            else if (!string.IsNullOrEmpty(prefixMessage))
+            {
+                FindStatusTextBlock.Text = $"{prefixMessage} ({countText})";
+            }
+            else
+            {
+                FindStatusTextBlock.Text = countText;
+            }
+
+            FindStatusTextBlock.Visibility = Visibility.Visible;
+        }
+
         private void ShowFindReplace(bool showReplace)
         {
             // 位置を初期位置にリセットする
@@ -4777,6 +4855,8 @@ namespace sumi
             {
                 FindTextBox.Text = selection.Text;
             }
+
+            RecalculateMatches(); // 表示したタイミングで一致件数を計測
 
             if (showReplace) ReplaceTextBox.Focus(FocusState.Programmatic);
             else FindTextBox.Focus(FocusState.Programmatic);
@@ -4859,7 +4939,8 @@ namespace sumi
             {
                 selection.SetRange(searchRange.StartPosition, searchRange.EndPosition);
                 selection.ScrollIntoView(Microsoft.UI.Text.PointOptions.None);
-                FindStatusTextBlock.Visibility = Visibility.Collapsed;
+                UpdateCurrentMatchIndex();
+                UpdateStatusText(null);
             }
             else
             {
@@ -4872,13 +4953,14 @@ namespace sumi
                 {
                     selection.SetRange(wrapRange.StartPosition, wrapRange.EndPosition);
                     selection.ScrollIntoView(Microsoft.UI.Text.PointOptions.None);
-                    FindStatusTextBlock.Text = backward ? "先頭に達したため末尾から検索しました" : "末尾に達したため先頭から検索しました";
-                    FindStatusTextBlock.Visibility = Visibility.Visible;
+                    UpdateCurrentMatchIndex();
+                    string msg = backward ? "先頭に達したため末尾から検索しました" : "末尾に達したため先頭から検索しました";
+                    UpdateStatusText(msg);
                 }
                 else
                 {
-                    FindStatusTextBlock.Text = "見つかりませんでした";
-                    FindStatusTextBlock.Visibility = Visibility.Visible;
+                    _currentMatchIndex = -1;
+                    UpdateStatusText("見つかりませんでした");
                 }
             }
         }
@@ -4897,6 +4979,7 @@ namespace sumi
             {
                 selection.SetText(Microsoft.UI.Text.TextSetOptions.None, ReplaceTextBox.Text);
                 MarkAsDirty();
+                RecalculateMatches();
             }
             FindNext(backward: false);
         }
@@ -4925,6 +5008,7 @@ namespace sumi
                 if (count > 0)
                 {
                     MarkAsDirty();
+                    RecalculateMatches();
                     FindStatusTextBlock.Text = $"{count} 件を置換しました";
                 }
                 else
@@ -4937,6 +5021,11 @@ namespace sumi
             {
                 doc.ApplyDisplayUpdates();
             }
+        }
+
+        private void FindTextBox_TextChanged(object sender, Microsoft.UI.Xaml.Controls.TextChangedEventArgs e)
+        {
+            RecalculateMatches();
         }
 
         #endregion
