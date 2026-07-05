@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Window
     x:Class="sumi.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -13,6 +13,8 @@
     <!-- 微細なデスクトップ壁紙透過を活かすため半透明の深炭色背景を設定 -->
     <Grid x:Name="RootGrid" Background="#ee141414">
         <Grid.Resources>
+            <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+            
             <!-- ボタンのポインターホバー・プレス時の背景・フォアグラウンドカラーをオーバーライド -->
             <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#2d2d2d" />
             <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3d3d3d" />
@@ -680,9 +682,18 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock x:Name="PaneTitleTextBlock" Text="Notes" FontSize="15" FontWeight="SemiBold" Foreground="#ffffff" VerticalAlignment="Center" />
-                            <ToggleButton x:Name="PinSidebarButton" Grid.Column="1"
+                            <TextBlock x:Name="PaneTitleTextBlock" Grid.Column="0" Text="Notes" FontSize="15" FontWeight="SemiBold" Foreground="#ffffff" VerticalAlignment="Center" />
+                            <ToggleButton x:Name="DeleteModeButton" Grid.Column="1"
+                                          Style="{StaticResource IconToggleButtonStyle}"
+                                          Width="32" Height="32"
+                                          Margin="0,0,4,0"
+                                          Visibility="Collapsed"
+                                          ToolTipService.ToolTip="削除モード">
+                                <FontIcon Glyph="&#xE74D;" FontFamily="Segoe Fluent Icons" FontSize="12" Foreground="#ffffff" />
+                            </ToggleButton>
+                            <ToggleButton x:Name="PinSidebarButton" Grid.Column="2"
                                           Style="{StaticResource IconToggleButtonStyle}"
                                           Width="32" Height="32"
                                           Click="PinSidebarButton_Click"
@@ -868,7 +879,7 @@
                                                         Style="{StaticResource IconButtonStyle}"
                                                         Width="28" Height="28" FontSize="11"
                                                         Foreground="#FF453A"
-                                                        Visibility="Collapsed"
+                                                        Visibility="{Binding ElementName=DeleteModeButton, Path=IsChecked, Converter={StaticResource BoolToVisibilityConverter}}"
                                                         Loaded="DeleteTaskButton_Loaded"
                                                         Unloaded="DeleteTaskButton_Unloaded"
                                                         ToolTipService.ToolTip="タスクを削除" />
@@ -1090,9 +1101,18 @@
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock x:Name="RightPaneTitleTextBlock" Text="Just Do It" FontSize="15" FontWeight="SemiBold" Foreground="#ffffff" VerticalAlignment="Center" />
-                                    <ToggleButton x:Name="PinRightSidebarButton" Grid.Column="1"
+                                    <TextBlock x:Name="RightPaneTitleTextBlock" Grid.Column="0" Text="Just Do It" FontSize="15" FontWeight="SemiBold" Foreground="#ffffff" VerticalAlignment="Center" />
+                                    <ToggleButton x:Name="RightDeleteModeButton" Grid.Column="1"
+                                                  Style="{StaticResource IconToggleButtonStyle}"
+                                                  Width="32" Height="32"
+                                                  Margin="0,0,4,0"
+                                                  Visibility="Collapsed"
+                                                  ToolTipService.ToolTip="削除モード">
+                                        <FontIcon Glyph="&#xE74D;" FontFamily="Segoe Fluent Icons" FontSize="12" Foreground="#ffffff" />
+                                    </ToggleButton>
+                                    <ToggleButton x:Name="PinRightSidebarButton" Grid.Column="2"
                                                   Style="{StaticResource IconToggleButtonStyle}"
                                                   Width="32" Height="32"
                                                   Click="PinRightSidebarButton_Click"
@@ -1262,7 +1282,7 @@
                                                                 Style="{StaticResource IconButtonStyle}"
                                                                 Width="28" Height="28" FontSize="11"
                                                                 Foreground="#FF453A"
-                                                                Visibility="Collapsed"
+                                                                Visibility="{Binding ElementName=RightDeleteModeButton, Path=IsChecked, Converter={StaticResource BoolToVisibilityConverter}}"
                                                                 Loaded="DeleteTaskButton_Loaded"
                                                                 Unloaded="DeleteTaskButton_Unloaded"
                                                                 ToolTipService.ToolTip="タスクを削除" />

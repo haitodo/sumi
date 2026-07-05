@@ -324,6 +324,7 @@ namespace sumi
             if (TasksViewContainer != null) TasksViewContainer.Visibility = _currentSidebarView == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
             if (AllTasksViewContainer != null) AllTasksViewContainer.Visibility = _currentSidebarView == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
             if (JustDoItViewContainer != null) JustDoItViewContainer.Visibility = _currentSidebarView == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
+            if (DeleteModeButton != null) DeleteModeButton.Visibility = _currentSidebarView == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
 
             // タイトル、インジケーター、コンテナの表示状態を更新 (右)
             if (RightPaneTitleTextBlock != null)
@@ -347,6 +348,7 @@ namespace sumi
             if (RightTasksViewContainer != null) RightTasksViewContainer.Visibility = _currentRightSidebarView == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
             if (RightAllTasksViewContainer != null) RightAllTasksViewContainer.Visibility = _currentRightSidebarView == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
             if (RightJustDoItTasksViewContainer != null) RightJustDoItTasksViewContainer.Visibility = _currentRightSidebarView == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
+            if (RightDeleteModeButton != null) RightDeleteModeButton.Visibility = _currentRightSidebarView == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
 
             if (SidebarSplitView != null)
             {
@@ -1726,6 +1728,16 @@ namespace sumi
             if (AllTasksViewContainer != null) AllTasksViewContainer.Visibility = view == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
             if (JustDoItViewContainer != null) JustDoItViewContainer.Visibility = view == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
 
+            // Update DeleteModeButton Visibility & Checked state
+            if (DeleteModeButton != null)
+            {
+                DeleteModeButton.Visibility = view == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
+                if (view != SidebarView.Tasks)
+                {
+                    DeleteModeButton.IsChecked = false;
+                }
+            }
+
             // Open pane if closed
             if (SidebarSplitView != null && !SidebarSplitView.IsPaneOpen)
             {
@@ -1769,6 +1781,16 @@ namespace sumi
             if (RightTasksViewContainer != null) RightTasksViewContainer.Visibility = view == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
             if (RightAllTasksViewContainer != null) RightAllTasksViewContainer.Visibility = view == SidebarView.AllTasks ? Visibility.Visible : Visibility.Collapsed;
             if (RightJustDoItTasksViewContainer != null) RightJustDoItTasksViewContainer.Visibility = view == SidebarView.JustDoIt ? Visibility.Visible : Visibility.Collapsed;
+
+            // Update RightDeleteModeButton Visibility & Checked state
+            if (RightDeleteModeButton != null)
+            {
+                RightDeleteModeButton.Visibility = view == SidebarView.Tasks ? Visibility.Visible : Visibility.Collapsed;
+                if (view != SidebarView.Tasks)
+                {
+                    RightDeleteModeButton.IsChecked = false;
+                }
+            }
 
             // Open pane if closed
             if (RightSidebarSplitView != null && !RightSidebarSplitView.IsPaneOpen)
@@ -2155,11 +2177,6 @@ namespace sumi
         {
             if (sender is Grid grid)
             {
-                var deleteBtn = grid.FindName("DeleteTaskButton") as UIElement;
-                if (deleteBtn != null)
-                {
-                    deleteBtn.Visibility = Visibility.Visible;
-                }
                 var justDoItBtn = grid.FindName("JustDoItTaskButton") as FrameworkElement;
                 if (justDoItBtn != null)
                 {
@@ -2172,11 +2189,6 @@ namespace sumi
         {
             if (sender is Grid grid)
             {
-                var deleteBtn = grid.FindName("DeleteTaskButton") as UIElement;
-                if (deleteBtn != null)
-                {
-                    deleteBtn.Visibility = Visibility.Collapsed;
-                }
                 var justDoItBtn = grid.FindName("JustDoItTaskButton") as FrameworkElement;
                 if (justDoItBtn != null && justDoItBtn.DataContext is TaskItemViewModel vm && !vm.IsJustDoIt)
                 {
@@ -4857,6 +4869,26 @@ namespace sumi
             NoteId = noteId;
             NoteTitle = noteTitle;
             Tasks = tasks;
+        }
+    }
+
+    /// <summary>
+    /// bool値をVisibilityに変換するコンバーターです。
+    /// </summary>
+    public partial class BoolToVisibilityConverter : Microsoft.UI.Xaml.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, string language)
+        {
+            if (value is bool b)
+            {
+                return b ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+            }
+            return Microsoft.UI.Xaml.Visibility.Collapsed;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, string language)
+        {
+            throw new NotImplementedException();
         }
     }
 
