@@ -535,19 +535,12 @@
                     </Button.Flyout>
                 </Button>
 
-                <!-- 両方表示ボタン -->
-                <Button x:Name="ShowBothSidebarsButton" 
+                <!-- 左右サイドバーの表示・非表示切り替えボタン -->
+                <Button x:Name="ToggleSidebarsButton" 
                         Content="&#xF57C;" 
                         Style="{StaticResource IconButtonStyle}" 
                         ToolTipService.ToolTip="両方表示" 
-                        Click="ShowBothSidebarsButton_Click" />
-
-                <!-- 両方非表示ボタン -->
-                <Button x:Name="HideBothSidebarsButton" 
-                        Content="&#xEDB4;" 
-                        Style="{StaticResource IconButtonStyle}" 
-                        ToolTipService.ToolTip="両方非表示" 
-                        Click="HideBothSidebarsButton_Click" />
+                        Click="ToggleSidebarsButton_Click" />
 
             </StackPanel>
 
@@ -571,7 +564,9 @@
                    IsPaneOpen="False"
                    PaneBackground="{StaticResource SidebarBackgroundBrush}"
                    PaneClosed="SidebarSplitView_PaneClosed"
-                   PaneOpened="SidebarSplitView_PaneOpened">
+                   PaneOpened="SidebarSplitView_PaneOpened"
+                   PaneOpening="SidebarSplitView_PaneOpening"
+                   PaneClosing="SidebarSplitView_PaneClosing">
             
             <SplitView.Pane>
                 <!-- サイドバーペインのレイアウト -->
@@ -1075,6 +1070,8 @@
                            PaneBackground="{StaticResource SidebarBackgroundBrush}"
                            PaneClosed="RightSidebarSplitView_PaneClosed"
                            PaneOpened="RightSidebarSplitView_PaneOpened"
+                           PaneOpening="RightSidebarSplitView_PaneOpening"
+                           PaneClosing="RightSidebarSplitView_PaneClosing"
                            PanePlacement="Right">
                     <SplitView.Pane>
                         <Grid HorizontalAlignment="Right" Width="{Binding ElementName=RightSidebarSplitView, Path=OpenPaneLength}">

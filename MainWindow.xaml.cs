@@ -23,6 +23,8 @@ namespace sumi
         private readonly HashSet<string> _dirtyTaskNoteIds = new();
         private SidebarView _currentSidebarView = SidebarView.Notes;
         private SidebarView _currentRightSidebarView = SidebarView.JustDoIt;
+        private bool _isLeftSidebarTargetOpen;
+        private bool _isRightSidebarTargetOpen;
         private bool _isResizing;
         private double _startOpenPaneLength;
         private double _startPointerPositionX;
@@ -389,6 +391,13 @@ namespace sumi
                     RightSidebarPinFilledIcon.Visibility = MemoStorage.IsRightSidebarPinned ? Visibility.Visible : Visibility.Collapsed;
                 }
             }
+
+            // サイドバー開閉ターゲット状態を同期します。
+            _isLeftSidebarTargetOpen = MemoStorage.IsSidebarOpen;
+            _isRightSidebarTargetOpen = MemoStorage.IsRightSidebarOpen;
+
+            // サイドバー開閉トグルボタンの状態を初期更新します。
+            UpdateSidebarToggleButtonState();
         }
 
         /// <param name="preserveFormatting">
@@ -1638,35 +1647,84 @@ namespace sumi
         }
 
         /// <summary>
-        /// 左右両方のサイドバーを表示します。
+        /// 左右のサイドバーの表示・非表示を切り替えます。
         /// </summary>
-        private void ShowBothSidebarsButton_Click(object sender, RoutedEventArgs e)
+        private void ToggleSidebarsButton_Click(object sender, RoutedEventArgs e)
         {
-            if (SidebarSplitView != null && !SidebarSplitView.IsPaneOpen)
+            bool isLeftOpen = SidebarSplitView != null && SidebarSplitView.IsPaneOpen;
+            bool isRightOpen = RightSidebarSplitView != null && RightSidebarSplitView.IsPaneOpen;
+
+            if (isLeftOpen || isRightOpen)
             {
-                PopulateSidebarView(_currentSidebarView);
-                SidebarSplitView.IsPaneOpen = true;
+                // どちらかのサイドバーが開いている場合は、両方を非表示にする
+                if (SidebarSplitView != null)
+                {
+                    SidebarSplitView.IsPaneOpen = false;
+                }
+                if (RightSidebarSplitView != null)
+                {
+                    RightSidebarSplitView.IsPaneOpen = false;
+                }
             }
-            if (RightSidebarSplitView != null && !RightSidebarSplitView.IsPaneOpen)
+            else
             {
-                PopulateRightSidebarView(_currentRightSidebarView);
-                RightSidebarSplitView.IsPaneOpen = true;
+                // 両方閉じている場合は、両方を表示する
+                if (SidebarSplitView != null && !SidebarSplitView.IsPaneOpen)
+                {
+                    PopulateSidebarView(_currentSidebarView);
+                    SidebarSplitView.IsPaneOpen = true;
+                }
+                if (RightSidebarSplitView != null && !RightSidebarSplitView.IsPaneOpen)
+                {
+                    PopulateRightSidebarView(_currentRightSidebarView);
+                    RightSidebarSplitView.IsPaneOpen = true;
+                }
             }
         }
 
         /// <summary>
-        /// 左右両方のサイドバーを非表示にします。
+        /// 左右のサイドバーの開閉状態に応じて、トグルボタンのアイコンとツールチップを更新します。
         /// </summary>
-        private void HideBothSidebarsButton_Click(object sender, RoutedEventArgs e)
+        private void UpdateSidebarToggleButtonState()
         {
-            if (SidebarSplitView != null)
+            if (ToggleSidebarsButton == null) return;
+
+            if (_isLeftSidebarTargetOpen || _isRightSidebarTargetOpen)
             {
-                SidebarSplitView.IsPaneOpen = false;
+                // どちらかのサイドバーが開いている場合は「両方非表示」の状態にする
+                ToggleSidebarsButton.Content = "\uEDB4";
+                ToolTipService.SetToolTip(ToggleSidebarsButton, "両方非表示");
             }
-            if (RightSidebarSplitView != null)
+            else
             {
-                RightSidebarSplitView.IsPaneOpen = false;
+                // 両方のサイドバーが閉じている場合は「両方表示」の状態にする
+                ToggleSidebarsButton.Content = "\uF57C";
+                ToolTipService.SetToolTip(ToggleSidebarsButton, "両方表示");
             }
+        }
+
+        private void SidebarSplitView_PaneOpening(SplitView sender, object args)
+        {
+            _isLeftSidebarTargetOpen = true;
+            UpdateSidebarToggleButtonState();
+        }
+
+        private void SidebarSplitView_PaneClosing(SplitView sender, SplitViewPaneClosingEventArgs args)
+        {
+            _isLeftSidebarTargetOpen = false;
+            UpdateSidebarToggleButtonState();
+        }
+
+        private void RightSidebarSplitView_PaneOpening(SplitView sender, object args)
+        {
+            _isRightSidebarTargetOpen = true;
+            UpdateSidebarToggleButtonState();
+        }
+
+        private void RightSidebarSplitView_PaneClosing(SplitView sender, SplitViewPaneClosingEventArgs args)
+        {
+            _isRightSidebarTargetOpen = false;
+            UpdateSidebarToggleButtonState();
         }
 
         private void HamburgerButton_Click(object sender, RoutedEventArgs e)
