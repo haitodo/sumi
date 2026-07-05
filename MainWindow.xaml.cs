@@ -3964,20 +3964,20 @@ namespace sumi
             }
         }
 
-        private void MemoTextBox_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+        // メニューが表示される直前に内容を動的に構築する
+        private void MemoTextBox_ContextFlyout_Opening(object sender, object e)
         {
-            // 1. システム標準のコンテキストメニュー表示をキャンセルします
-            e.Handled = true;
+            if (sender is not MenuFlyout menu) return;
 
-            // 2. 現在選択されているテキストを取得して整形します
+            // 毎回メニュー項目をリセット
+            menu.Items.Clear();
+
+            // 現在選択されているテキストを取得
             var selection = MemoTextBox.Document.Selection;
             string selectedText = (selection?.Text ?? string.Empty).Trim();
             bool hasSelection = !string.IsNullOrEmpty(selectedText);
 
-            // 3. 自作の MenuFlyout を生成します
-            var menu = new MenuFlyout();
-
-            // --- 【標準テキスト編集コマンドの追加】 ---
+            // --- 標準テキスト編集コマンド ---
             var cutItem = new MenuFlyoutItem { Text = "切り取り", Icon = new SymbolIcon(Symbol.Cut) };
             cutItem.Click += (s, args) => selection?.Cut();
             cutItem.IsEnabled = hasSelection && !MemoTextBox.IsReadOnly;
@@ -3987,7 +3987,7 @@ namespace sumi
             copyItem.IsEnabled = hasSelection;
 
             var pasteItem = new MenuFlyoutItem { Text = "貼り付け", Icon = new SymbolIcon(Symbol.Paste) };
-            pasteItem.Click += (s, args) => selection?.Paste(0); // 0 = デフォルト形式
+            pasteItem.Click += (s, args) => selection?.Paste(0);
             pasteItem.IsEnabled = !MemoTextBox.IsReadOnly;
 
             var selectAllItem = new MenuFlyoutItem { Text = "すべて選択", Icon = new SymbolIcon(Symbol.SelectAll) };
@@ -3998,103 +3998,51 @@ namespace sumi
             menu.Items.Add(pasteItem);
             menu.Items.Add(selectAllItem);
 
-            // --- 【ご要望のWeb連携コマンドの追加】 ---
+            // --- Web連携コマンド ---
             if (hasSelection)
             {
-                // 区切り線を追加
                 menu.Items.Add(new MenuFlyoutSeparator());
 
-                // 項目1：Webで "選択テキスト" を検索する
-                // メニューの幅を考慮し、選択文字列が長い場合は省略表記にします
+                // 1. Web検索
                 string displaySearchText = selectedText.Length > 15 ? selectedText.Substring(0, 15) + "..." : selectedText;
                 var searchItem = new MenuFlyoutItem
                 {
                     Text = $"Webで \"{displaySearchText}\" を検索",
-                    Icon = new FontIcon { Glyph = "\xE721", FontFamily = new FontFamily("Segoe Fluent Icons") } // 虫眼鏡アイコン
+                    Icon = new FontIcon { Glyph = "\xE721", FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe Fluent Icons") }
                 };
                 searchItem.Click += (s, args) =>
                 {
-                    // Googleを検索エンジンとして規定のブラウザを起動
                     string queryUrl = "https://www.google.com/search?q=" + Uri.EscapeDataString(selectedText);
                     OpenUrlInDefaultBrowser(queryUrl);
                 };
                 menu.Items.Add(searchItem);
 
-                // 項目2：Webで "選択したテキスト" を開く
-                // 簡易的なURL形式判定（http://、https:// で始まるか、または www. などで始まるか）
+                // 2. Webで開く (URL判定)
                 bool isUrl = Uri.TryCreate(selectedText, UriKind.Absolute, out var uriResult)
                              && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
 
                 if (!isUrl && (selectedText.StartsWith("www.", StringComparison.OrdinalIgnoreCase) || selectedText.Contains(".")))
                 {
-                    isUrl = true; // www.example.com などの場合もURLとみなして開けるようにします
+                    isUrl = true; 
                 }
 
                 var openItem = new MenuFlyoutItem
                 {
                     Text = "Webで開く",
-                    Icon = new FontIcon { Glyph = "\xE71B", FontFamily = new FontFamily("Segoe Fluent Icons") }, // 地球儀アイコン
-                    IsEnabled = isUrl // URLとして判別できた場合のみクリック可能にします
+                    Icon = new FontIcon { Glyph = "\xE71B", FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe Fluent Icons") },
+                    IsEnabled = isUrl 
                 };
                 openItem.Click += (s, args) =>
                 {
                     string url = selectedText;
                     if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                     {
-                        url = "https://" + url; // スキーマがない場合は https を補完
+                        url = "https://" + url; 
                     }
                     OpenUrlInDefaultBrowser(url);
                 };
                 menu.Items.Add(openItem);
             }
-
-            // 4. 右クリック時のメニュー表示座標の設定
-            Windows.Foundation.Point localPoint;
-            bool isMouse = (e.CursorLeft >= 0 && e.CursorTop >= 0);
-
-            if (isMouse)
-            {
-                // マウス操作の場合は、DPIスケールやマルチモニター、ウィンドウ位置に影響されないよう
-                // Win32 API（GetCursorPos, ScreenToClient）を使用して物理座標を取得し、
-                // アプリケーション内の論理座標（DIP）に変換してから MemoTextBox 相対座標へと変換します。
-                POINT screenPt;
-                if (GetCursorPos(out screenPt) && ScreenToClient(_hWnd, ref screenPt))
-                {
-                    double scale = 1.0;
-                    if (MemoTextBox.XamlRoot != null)
-                    {
-                        scale = MemoTextBox.XamlRoot.RasterizationScale;
-                    }
-
-                    var windowPoint = new Windows.Foundation.Point(screenPt.X / scale, screenPt.Y / scale);
-                    UIElement? relativeTo = RootGrid ?? (UIElement?)this.Content;
-                    var transform = MemoTextBox.TransformToVisual(relativeTo);
-                    if (transform != null && transform.Inverse != null)
-                    {
-                        localPoint = transform.Inverse.TransformPoint(windowPoint);
-                    }
-                    else
-                    {
-                        localPoint = new Windows.Foundation.Point(e.CursorLeft, e.CursorTop);
-                    }
-                }
-                else
-                {
-                    localPoint = new Windows.Foundation.Point(e.CursorLeft, e.CursorTop);
-                }
-            }
-            else
-            {
-                // キーボード操作などの場合は、システムから提供される座標をそのまま利用します。
-                localPoint = new Windows.Foundation.Point(e.CursorLeft, e.CursorTop);
-            }
-
-            var options = new FlyoutShowOptions
-            {
-                Position = localPoint,
-                ShowMode = FlyoutShowMode.Standard
-            };
-            menu.ShowAt(MemoTextBox, options);
         }
 
         /// <summary>

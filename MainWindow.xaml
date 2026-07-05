@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Window
     x:Class="sumi.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -1678,9 +1678,12 @@
                             TextChanged="MemoTextBox_TextChanged"
                             SelectionChanged="MemoTextBox_SelectionChanged"
                             PreviewKeyDown="MemoTextBox_PreviewKeyDown"
-                            SelectionFlyout="{x:Null}"
-                            ContextMenuOpening="MemoTextBox_ContextMenuOpening">
+                            SelectionFlyout="{x:Null}">
                             
+                            <RichEditBox.ContextFlyout>
+                                <MenuFlyout Opening="MemoTextBox_ContextFlyout_Opening" />
+                            </RichEditBox.ContextFlyout>
+
                             <RichEditBox.Resources>
                                 <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
                                 <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
