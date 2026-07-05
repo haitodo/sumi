@@ -1678,7 +1678,9 @@
                             TextChanged="MemoTextBox_TextChanged"
                             SelectionChanged="MemoTextBox_SelectionChanged"
                             PreviewKeyDown="MemoTextBox_PreviewKeyDown"
-                            SelectionFlyout="{x:Null}">
+                            SelectionFlyout="{x:Null}"
+                            SelectionHighlightColor="#660078D4"
+                            SelectionHighlightColorWhenNotFocused="#660078D4">
                             
                             <RichEditBox.ContextFlyout>
                                 <MenuFlyout Opening="MemoTextBox_ContextFlyout_Opening" />
@@ -1706,6 +1708,67 @@
                             IsHitTestVisible="False"
                             VerticalAlignment="Top"
                             HorizontalAlignment="Left" />
+
+                        <Border x:Name="FindReplacePanel" 
+                                Visibility="Collapsed" 
+                                HorizontalAlignment="Right" 
+                                VerticalAlignment="Top" 
+                                Margin="0,16,32,0" 
+                                Background="{StaticResource OpaqueFlyoutBackgroundBrush}" 
+                                BorderBrush="#333333" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="12,8,12,12"
+                                Width="340">
+                            <StackPanel Spacing="8">
+                                <Grid ColumnSpacing="4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <ToggleButton x:Name="ToggleReplaceModeBtn" Grid.Column="0" Content="&#xE0B8;" FontFamily="Segoe Fluent Icons" FontSize="12" Style="{StaticResource IconToggleButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="置換モード切り替え" Click="ToggleReplaceModeBtn_Click" />
+                                    
+                                    <TextBox x:Name="FindTextBox" Grid.Column="1" PlaceholderText="検索" Height="28" Padding="8,4" FontSize="12" KeyDown="FindTextBox_KeyDown">
+                                        <TextBox.Resources>
+                                            <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
+                                            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
+                                            <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
+                                            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
+                                        </TextBox.Resources>
+                                    </TextBox>
+                                    
+                                    <Button x:Name="FindPrevButton" Grid.Column="2" Content="&#xE110;" FontFamily="Segoe Fluent Icons" FontSize="12" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="前へ (Shift+Enter)" Click="FindPrev_Click" />
+                                    <Button x:Name="FindNextButton" Grid.Column="3" Content="&#xE111;" FontFamily="Segoe Fluent Icons" FontSize="12" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="次へ (Enter)" Click="FindNext_Click" />
+                                    <Button Grid.Column="4" Content="&#xE106;" FontFamily="Segoe Fluent Icons" FontSize="12" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="閉じる (Esc)" Click="CloseFindReplace_Click" />
+                                </Grid>
+
+                                <Grid x:Name="ReplaceRow" Visibility="Collapsed" ColumnSpacing="4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="28" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBox x:Name="ReplaceTextBox" Grid.Column="1" PlaceholderText="置換" Height="28" Padding="8,4" FontSize="12" KeyDown="ReplaceTextBox_KeyDown">
+                                        <TextBox.Resources>
+                                            <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
+                                            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
+                                            <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
+                                            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
+                                        </TextBox.Resources>
+                                    </TextBox>
+                                    <Button Grid.Column="2" Content="&#xE8EA;" FontFamily="Segoe Fluent Icons" FontSize="12" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="置換 (Enter)" Click="Replace_Click" />
+                                    <Button Grid.Column="3" Content="&#xEA5E;" FontFamily="Segoe Fluent Icons" FontSize="12" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="すべて置換" Click="ReplaceAll_Click" />
+                                </Grid>
+
+                                <TextBlock x:Name="FindStatusTextBlock" Foreground="#FF6B6B" FontSize="11" Visibility="Collapsed" Margin="32,0,0,0"/>
+                            </StackPanel>
+                        </Border>
                     </Grid>
 
                     <Grid Grid.Row="2" Height="36" Background="Transparent">
@@ -1730,7 +1793,7 @@
                             <ToggleButton x:Name="FormatItalicBtn" Content="&#xE199;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="斜体 (Ctrl+I)" Click="FormatItalic_Click" />
                             <ToggleButton x:Name="FormatUnderlineBtn" Content="&#xE19A;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="下線 (Ctrl+U)" Click="FormatUnderline_Click" />
                             <ToggleButton x:Name="FormatStrikethroughBtn" Content="&#xEDE0;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="取り消し線 (Ctrl+T)" Click="FormatStrikethrough_Click" />
-                            <ToggleButton x:Name="FormatHighlightBtn" Content="&#xE7E6;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="ハイライト (Ctrl+H)" Click="FormatHighlight_Click" />
+                            <ToggleButton x:Name="FormatHighlightBtn" Content="&#xE7E6;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="ハイライト (Ctrl+Shift+H)" Click="FormatHighlight_Click" />
                             
                             <ToggleButton x:Name="FormatBulletListBtn" Content="&#xE8FD;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="箇条書き (Ctrl+Shift+L)" Click="FormatBulletList_Click" />
                             <ToggleButton x:Name="FormatNumberListBtn" Content="&#xF146;" Style="{StaticResource IconToggleButtonStyle}" AllowFocusOnInteraction="False" ToolTipService.ToolTip="番号付きリスト (Ctrl+Shift+N)" Click="FormatNumberList_Click" />

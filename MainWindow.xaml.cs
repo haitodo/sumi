@@ -638,12 +638,33 @@ namespace sumi
 
         private void Global_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
+            if (e.Handled) return;
+
             var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
             bool isCtrlDown = (ctrlState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+            var shiftState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift);
+            bool isShiftDown = (shiftState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
 
             if (isCtrlDown)
             {
-                if (e.Key == Windows.System.VirtualKey.D)
+                if (e.Key == Windows.System.VirtualKey.F)
+                {
+                    ShowFindReplace(showReplace: false);
+                    e.Handled = true;
+                }
+                else if (e.Key == Windows.System.VirtualKey.H)
+                {
+                    if (isShiftDown)
+                    {
+                        ToggleHighlight();
+                    }
+                    else
+                    {
+                        ShowFindReplace(showReplace: true);
+                    }
+                    e.Handled = true;
+                }
+                else if (e.Key == Windows.System.VirtualKey.D)
                 {
                     DeleteCurrentNote();
                     e.Handled = true;
@@ -3483,6 +3504,24 @@ namespace sumi
                     FormatNumberList_Click(null, null);
                     e.Handled = true;
                 }
+                // ハイライト (Ctrl + Shift + H)
+                else if (isShiftDown && e.Key == Windows.System.VirtualKey.H)
+                {
+                    ToggleHighlight();
+                    e.Handled = true;
+                }
+                // 検索バー表示 (Ctrl + F)
+                else if (!isShiftDown && e.Key == Windows.System.VirtualKey.F)
+                {
+                    ShowFindReplace(showReplace: false);
+                    e.Handled = true;
+                }
+                // 置換バー表示 (Ctrl + H)
+                else if (!isShiftDown && e.Key == Windows.System.VirtualKey.H)
+                {
+                    ShowFindReplace(showReplace: true);
+                    e.Handled = true;
+                }
                 // 見出し1 (Ctrl + 1)
                 else if (e.Key == Windows.System.VirtualKey.Number1)
                 {
@@ -3499,10 +3538,6 @@ namespace sumi
                 {
                     switch (e.Key)
                     {
-                        case Windows.System.VirtualKey.H: // Ctrl + H でハイライト
-                            ToggleHighlight();
-                            e.Handled = true;
-                            break;
                         case Windows.System.VirtualKey.T: // Ctrl + T で取り消し線
                             ToggleStrikethrough();
                             e.Handled = true;
@@ -4630,6 +4665,184 @@ namespace sumi
             MemoStorage.SaveSettings();
             QuitHotKeyButton.Content = val;
             QuitHotKeyFlyout.Hide();
+        }
+
+        #endregion
+
+        #region 検索・置換機能
+
+        private void ShowFindReplace(bool showReplace)
+        {
+            FindReplacePanel.Visibility = Visibility.Visible;
+            ToggleReplaceModeBtn.IsChecked = showReplace;
+            ReplaceRow.Visibility = showReplace ? Visibility.Visible : Visibility.Collapsed;
+            FindStatusTextBlock.Visibility = Visibility.Collapsed;
+
+            var selection = MemoTextBox.Document.Selection;
+            if (selection != null && !string.IsNullOrEmpty(selection.Text) && !selection.Text.Contains('\r'))
+            {
+                FindTextBox.Text = selection.Text;
+            }
+
+            if (showReplace) ReplaceTextBox.Focus(FocusState.Programmatic);
+            else FindTextBox.Focus(FocusState.Programmatic);
+            FindTextBox.SelectAll();
+        }
+
+        private void CloseFindReplace_Click(object? sender, RoutedEventArgs? e)
+        {
+            FindReplacePanel.Visibility = Visibility.Collapsed;
+            this.DispatcherQueue.TryEnqueue(() =>
+            {
+                MemoTextBox.Focus(FocusState.Programmatic);
+            });
+        }
+
+        private void ToggleReplaceModeBtn_Click(object sender, RoutedEventArgs e)
+        {
+            bool isReplace = ToggleReplaceModeBtn.IsChecked ?? false;
+            ReplaceRow.Visibility = isReplace ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void FindTextBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                var shiftState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift);
+                bool isShiftDown = (shiftState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+                FindNext(backward: isShiftDown);
+                e.Handled = true;
+            }
+            else if (e.Key == Windows.System.VirtualKey.Escape)
+            {
+                CloseFindReplace_Click(null, null);
+                e.Handled = true;
+            }
+        }
+
+        private void ReplaceTextBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                ReplaceCurrent();
+                e.Handled = true;
+            }
+            else if (e.Key == Windows.System.VirtualKey.Escape)
+            {
+                CloseFindReplace_Click(null, null);
+                e.Handled = true;
+            }
+        }
+
+        private void FindNext_Click(object sender, RoutedEventArgs e) 
+        { 
+            FindNext(backward: false); 
+        }
+
+        private void FindPrev_Click(object sender, RoutedEventArgs e) 
+        { 
+            FindNext(backward: true); 
+        }
+
+        private void FindNext(bool backward)
+        {
+            string target = FindTextBox.Text;
+            if (string.IsNullOrEmpty(target)) return;
+
+            var doc = MemoTextBox.Document;
+            var selection = doc.Selection;
+            
+            // 現在の選択を解除し、検索開始位置を決定
+            int startPos = backward ? selection.StartPosition : selection.EndPosition;
+            int docLength = doc.GetRange(0, int.MaxValue).Length;
+            
+            var searchRange = doc.GetRange(startPos, backward ? 0 : docLength);
+            int searchLength = backward ? -startPos : (docLength - startPos);
+            
+            int matchLength = searchRange.FindText(target, searchLength, Microsoft.UI.Text.FindOptions.None);
+
+            if (matchLength > 0)
+            {
+                selection.SetRange(searchRange.StartPosition, searchRange.EndPosition);
+                selection.ScrollIntoView(Microsoft.UI.Text.PointOptions.None);
+                FindStatusTextBlock.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                // ラップアラウンド検索
+                var wrapRange = backward ? doc.GetRange(docLength, 0) : doc.GetRange(0, docLength);
+                int wrapSearchLength = backward ? -docLength : docLength;
+                
+                int wrapMatchLength = wrapRange.FindText(target, wrapSearchLength, Microsoft.UI.Text.FindOptions.None);
+                if (wrapMatchLength > 0)
+                {
+                    selection.SetRange(wrapRange.StartPosition, wrapRange.EndPosition);
+                    selection.ScrollIntoView(Microsoft.UI.Text.PointOptions.None);
+                    FindStatusTextBlock.Text = backward ? "先頭に達したため末尾から検索しました" : "末尾に達したため先頭から検索しました";
+                    FindStatusTextBlock.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    FindStatusTextBlock.Text = "見つかりませんでした";
+                    FindStatusTextBlock.Visibility = Visibility.Visible;
+                }
+            }
+        }
+
+        private void Replace_Click(object sender, RoutedEventArgs e) 
+        { 
+            ReplaceCurrent(); 
+        }
+
+        private void ReplaceCurrent()
+        {
+            var selection = MemoTextBox.Document.Selection;
+            if (selection == null || string.IsNullOrEmpty(FindTextBox.Text)) return;
+
+            if (selection.Text != null && selection.Text.Equals(FindTextBox.Text, StringComparison.CurrentCultureIgnoreCase))
+            {
+                selection.SetText(Microsoft.UI.Text.TextSetOptions.None, ReplaceTextBox.Text);
+                MarkAsDirty();
+            }
+            FindNext(backward: false);
+        }
+
+        private void ReplaceAll_Click(object sender, RoutedEventArgs e)
+        {
+            string target = FindTextBox.Text;
+            if (string.IsNullOrEmpty(target)) return;
+
+            var doc = MemoTextBox.Document;
+            doc.BatchDisplayUpdates();
+            try
+            {
+                int count = 0;
+                int docLength = doc.GetRange(0, int.MaxValue).Length;
+                var range = doc.GetRange(0, docLength);
+                
+                while (range.FindText(target, docLength - range.StartPosition, Microsoft.UI.Text.FindOptions.None) > 0)
+                {
+                    range.SetText(Microsoft.UI.Text.TextSetOptions.None, ReplaceTextBox.Text);
+                    range.StartPosition = range.EndPosition; 
+                    count++;
+                    docLength = doc.GetRange(0, int.MaxValue).Length; // 置換による長さ変動を再取得
+                }
+
+                if (count > 0)
+                {
+                    MarkAsDirty();
+                    FindStatusTextBlock.Text = $"{count} 件を置換しました";
+                }
+                else
+                {
+                    FindStatusTextBlock.Text = "置換対象が見つかりませんでした";
+                }
+                FindStatusTextBlock.Visibility = Visibility.Visible;
+            }
+            finally
+            {
+                doc.ApplyDisplayUpdates();
+            }
         }
 
         #endregion
