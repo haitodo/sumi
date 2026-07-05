@@ -3515,6 +3515,12 @@ namespace sumi
                     ToggleHighlight();
                     e.Handled = true;
                 }
+                // 取り消し線 (Ctrl + Shift + S)
+                else if (isShiftDown && e.Key == Windows.System.VirtualKey.S)
+                {
+                    ToggleStrikethrough();
+                    e.Handled = true;
+                }
                 // 検索バー表示 (Ctrl + F)
                 else if (!isShiftDown && e.Key == Windows.System.VirtualKey.F)
                 {
@@ -3543,10 +3549,6 @@ namespace sumi
                 {
                     switch (e.Key)
                     {
-                        case Windows.System.VirtualKey.T: // Ctrl + T で取り消し線
-                            ToggleStrikethrough();
-                            e.Handled = true;
-                            break;
                         case Windows.System.VirtualKey.Space: // Ctrl + Space で装飾クリア
                             ClearFormatting();
                             e.Handled = true;
