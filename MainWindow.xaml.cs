@@ -4212,6 +4212,9 @@ namespace sumi
         [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, EntryPoint = "LoadIconW")]
         private static extern IntPtr LoadIcon(IntPtr hInstance, IntPtr lpIconName);
 
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr GetModuleHandle(string? lpModuleName);
+
         private delegate IntPtr SUBCLASSPROC(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, IntPtr uIdSubclass, IntPtr dwRefData);
 
         [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
@@ -4292,16 +4295,31 @@ namespace sumi
             nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
             nid.uCallbackMessage = WM_TRAYICON;
 
-            string iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "AppIcon.ico");
             IntPtr hIcon = IntPtr.Zero;
-            if (System.IO.File.Exists(iconPath))
+
+            // 1. 実行ファイルの埋め込みリソースからカスタムアイコンの読み込みを試行 (ID: 32512 は IDI_APPLICATION に対応)
+            IntPtr hInst = GetModuleHandle(null);
+            if (hInst != IntPtr.Zero)
             {
-                hIcon = LoadImage(IntPtr.Zero, iconPath, 1, 16, 16, 0x00000010);
+                hIcon = LoadIcon(hInst, (IntPtr)32512);
             }
+
+            // 2. 埋め込みリソースからの読み込みが失敗した場合は、ファイルシステムから直接読み込む
+            if (hIcon == IntPtr.Zero)
+            {
+                string iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "AppIcon.ico");
+                if (System.IO.File.Exists(iconPath))
+                {
+                    hIcon = LoadImage(IntPtr.Zero, iconPath, 1, 16, 16, 0x00000010);
+                }
+            }
+
+            // 3. すべて失敗した場合は、システム既定のアプリケーションアイコンをフォールバックとして使用
             if (hIcon == IntPtr.Zero)
             {
                 hIcon = LoadIcon(IntPtr.Zero, (IntPtr)32512);
             }
+
             nid.hIcon = hIcon;
             nid.szTip = "Sumi Memo";
 
