@@ -4782,6 +4782,24 @@ namespace sumi
             return new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 136, 136, 136));
         }
 
+        public static Microsoft.UI.Xaml.Media.Brush GetJustDoItFillBrush(bool isJustDoIt)
+        {
+            if (isJustDoIt)
+            {
+                return new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 193, 7));
+            }
+            return new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        }
+
+        public static Microsoft.UI.Xaml.Media.Brush GetJustDoItStrokeBrush(bool isJustDoIt)
+        {
+            if (isJustDoIt)
+            {
+                return new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 193, 7));
+            }
+            return new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 136, 136, 136));
+        }
+
         public static Microsoft.UI.Xaml.Visibility BoolToVisibility(bool visible)
         {
             return visible ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;

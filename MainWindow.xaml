@@ -848,14 +848,20 @@
                                                 
                                                 <!-- すぐやるトグルボタン -->
                                                 <Button x:Name="JustDoItTaskButton"
-                                                        Grid.Column="2" Content="&#xE945;"
+                                                        Grid.Column="2"
                                                         Style="{StaticResource IconButtonStyle}"
-                                                        Width="28" Height="28" FontSize="11"
-                                                        Foreground="{x:Bind local:MainWindow.GetJustDoItBrush(IsJustDoIt), Mode=OneWay}"
+                                                        Width="28" Height="28"
                                                         Visibility="{x:Bind local:MainWindow.BoolToVisibility(IsJustDoIt), Mode=OneWay}"
                                                         Loaded="JustDoItTaskButton_Loaded"
                                                         Unloaded="JustDoItTaskButton_Unloaded"
-                                                        ToolTipService.ToolTip="すぐやるに追加/解除" />
+                                                        ToolTipService.ToolTip="すぐやるに追加/解除">
+                                                    <Path Data="M 9,0 L 2,10 L 7,10 L 5,18 L 13,8 L 8,8 Z"
+                                                          Fill="{x:Bind local:MainWindow.GetJustDoItFillBrush(IsJustDoIt), Mode=OneWay}"
+                                                          Stroke="{x:Bind local:MainWindow.GetJustDoItStrokeBrush(IsJustDoIt), Mode=OneWay}"
+                                                          StrokeThickness="1.2"
+                                                          Width="11" Height="11" Stretch="Uniform"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Button>
                                                 
                                                 <Button x:Name="DeleteTaskButton"
                                                         Grid.Column="3" Content="&#xE74D;"
@@ -940,14 +946,20 @@
                                                                 <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                                                 
                                                                 <Button x:Name="AllJustDoItButton"
-                                                                        Grid.Column="2" Content="&#xE945;"
+                                                                        Grid.Column="2"
                                                                         Style="{StaticResource IconButtonStyle}"
-                                                                        Width="28" Height="28" FontSize="11"
-                                                                        Foreground="{x:Bind local:MainWindow.GetJustDoItBrush(IsJustDoIt), Mode=OneWay}"
+                                                                        Width="28" Height="28"
                                                                         Visibility="{x:Bind local:MainWindow.BoolToVisibility(IsJustDoIt), Mode=OneWay}"
                                                                         Loaded="AllJustDoItButton_Loaded"
                                                                         Unloaded="AllJustDoItButton_Unloaded"
-                                                                        ToolTipService.ToolTip="すぐやるに追加/解除" />
+                                                                        ToolTipService.ToolTip="すぐやるに追加/解除">
+                                                                    <Path Data="M 9,0 L 2,10 L 7,10 L 5,18 L 13,8 L 8,8 Z"
+                                                                          Fill="{x:Bind local:MainWindow.GetJustDoItFillBrush(IsJustDoIt), Mode=OneWay}"
+                                                                          Stroke="{x:Bind local:MainWindow.GetJustDoItStrokeBrush(IsJustDoIt), Mode=OneWay}"
+                                                                          StrokeThickness="1.2"
+                                                                          Width="11" Height="11" Stretch="Uniform"
+                                                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                </Button>
                                                             </Grid>
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
@@ -1007,14 +1019,20 @@
                                                                 <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                                                 
                                                                 <Button x:Name="JustDoItToggleBtn"
-                                                                        Grid.Column="2" Content="&#xE945;"
+                                                                        Grid.Column="2"
                                                                         Style="{StaticResource IconButtonStyle}"
-                                                                        Width="28" Height="28" FontSize="11"
-                                                                        Foreground="{x:Bind local:MainWindow.GetJustDoItBrush(IsJustDoIt), Mode=OneWay}"
+                                                                        Width="28" Height="28"
                                                                         Visibility="Collapsed"
                                                                         Loaded="JustDoItToggleBtn_Loaded"
                                                                         Unloaded="JustDoItToggleBtn_Unloaded"
-                                                                        ToolTipService.ToolTip="すぐやるから解除" />
+                                                                        ToolTipService.ToolTip="すぐやるから解除">
+                                                                    <Path Data="M 9,0 L 2,10 L 7,10 L 5,18 L 13,8 L 8,8 Z"
+                                                                          Fill="{x:Bind local:MainWindow.GetJustDoItFillBrush(IsJustDoIt), Mode=OneWay}"
+                                                                          Stroke="{x:Bind local:MainWindow.GetJustDoItStrokeBrush(IsJustDoIt), Mode=OneWay}"
+                                                                          StrokeThickness="1.2"
+                                                                          Width="11" Height="11" Stretch="Uniform"
+                                                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                </Button>
                                                             </Grid>
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
@@ -1224,14 +1242,20 @@
                                                         </TextBox>
                                                         
                                                         <Button x:Name="JustDoItTaskButton"
-                                                                Grid.Column="2" Content="&#xE945;"
+                                                                Grid.Column="2"
                                                                 Style="{StaticResource IconButtonStyle}"
-                                                                Width="28" Height="28" FontSize="11"
-                                                                Foreground="{x:Bind local:MainWindow.GetJustDoItBrush(IsJustDoIt), Mode=OneWay}"
+                                                                Width="28" Height="28"
                                                                 Visibility="{x:Bind local:MainWindow.BoolToVisibility(IsJustDoIt), Mode=OneWay}"
                                                                 Loaded="JustDoItTaskButton_Loaded"
                                                                 Unloaded="JustDoItTaskButton_Unloaded"
-                                                                ToolTipService.ToolTip="すぐやるに追加/解除" />
+                                                                ToolTipService.ToolTip="すぐやるに追加/解除">
+                                                            <Path Data="M 9,0 L 2,10 L 7,10 L 5,18 L 13,8 L 8,8 Z"
+                                                                  Fill="{x:Bind local:MainWindow.GetJustDoItFillBrush(IsJustDoIt), Mode=OneWay}"
+                                                                  Stroke="{x:Bind local:MainWindow.GetJustDoItStrokeBrush(IsJustDoIt), Mode=OneWay}"
+                                                                  StrokeThickness="1.2"
+                                                                  Width="11" Height="11" Stretch="Uniform"
+                                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Button>
                                                         
                                                         <Button x:Name="DeleteTaskButton"
                                                                 Grid.Column="3" Content="&#xE74D;"
@@ -1316,14 +1340,19 @@
                                                                         <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                                                         
                                                                         <Button x:Name="AllJustDoItButton"
-                                                                                Grid.Column="2" Content="&#xE945;"
                                                                                 Style="{StaticResource IconButtonStyle}"
-                                                                                Width="28" Height="28" FontSize="11"
-                                                                                Foreground="{x:Bind local:MainWindow.GetJustDoItBrush(IsJustDoIt), Mode=OneWay}"
+                                                                                Width="28" Height="28"
                                                                                 Visibility="{x:Bind local:MainWindow.BoolToVisibility(IsJustDoIt), Mode=OneWay}"
                                                                                 Loaded="AllJustDoItButton_Loaded"
                                                                                 Unloaded="AllJustDoItButton_Unloaded"
-                                                                                ToolTipService.ToolTip="すぐやるに追加/解除" />
+                                                                                ToolTipService.ToolTip="すぐやるに追加/解除">
+                                                                            <Path Data="M 9,0 L 2,10 L 7,10 L 5,18 L 13,8 L 8,8 Z"
+                                                                                  Fill="{x:Bind local:MainWindow.GetJustDoItFillBrush(IsJustDoIt), Mode=OneWay}"
+                                                                                  Stroke="{x:Bind local:MainWindow.GetJustDoItStrokeBrush(IsJustDoIt), Mode=OneWay}"
+                                                                                  StrokeThickness="1.2"
+                                                                                  Width="11" Height="11" Stretch="Uniform"
+                                                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                        </Button>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
@@ -1382,14 +1411,20 @@
                                                                         <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                                                         
                                                                         <Button x:Name="JustDoItToggleBtn"
-                                                                                Grid.Column="2" Content="&#xE945;"
+                                                                                Grid.Column="2"
                                                                                 Style="{StaticResource IconButtonStyle}"
-                                                                                Width="28" Height="28" FontSize="11"
-                                                                                Foreground="{x:Bind local:MainWindow.GetJustDoItBrush(IsJustDoIt), Mode=OneWay}"
+                                                                                Width="28" Height="28"
                                                                                 Visibility="Collapsed"
                                                                                 Loaded="JustDoItToggleBtn_Loaded"
                                                                                 Unloaded="JustDoItToggleBtn_Unloaded"
-                                                                                ToolTipService.ToolTip="すぐやるから解除" />
+                                                                                ToolTipService.ToolTip="すぐやるから解除">
+                                                                            <Path Data="M 9,0 L 2,10 L 7,10 L 5,18 L 13,8 L 8,8 Z"
+                                                                                  Fill="{x:Bind local:MainWindow.GetJustDoItFillBrush(IsJustDoIt), Mode=OneWay}"
+                                                                                  Stroke="{x:Bind local:MainWindow.GetJustDoItStrokeBrush(IsJustDoIt), Mode=OneWay}"
+                                                                                  StrokeThickness="1.2"
+                                                                                  Width="11" Height="11" Stretch="Uniform"
+                                                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                        </Button>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
