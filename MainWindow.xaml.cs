@@ -405,7 +405,7 @@ namespace sumi
             doc.BatchDisplayUpdates();
             try
             {
-                // ★ 修正箇所：if (!preserveFormatting) で囲み、RTFロード時はデフォルト書式の上書きをスキップする
+                // 【修正 1】SetDefaultCharacterFormat はRTFの装飾を破壊するため、必ず !preserveFormatting の中でのみ実行します
                 if (!preserveFormatting)
                 {
                     var defaultFormat = doc.GetDefaultCharacterFormat();
@@ -430,7 +430,6 @@ namespace sumi
 
                     if (isPlainText)
                     {
-                        // ★プレーンテキスト時は分割統治を行わず、一括で適用することでCOMオブジェクト生成を防ぐ
                         range.CharacterFormat.Weight = defaultWeight;
                     }
                     else
@@ -451,6 +450,24 @@ namespace sumi
                         {
                             selection.CharacterFormat.Weight = targetWeight;
                         }
+                    }
+                }
+                else
+                {
+                    // 【修正 2】RTFロード時（装飾保護モード）は、一番最後の隠し改行文字とカーソル位置のみをターゲットにする
+                    int endPos = range.Length;
+                    if (endPos > 0)
+                    {
+                        // 最後の1文字（自動生成された改行）を取得し、フォント名とサイズだけを設定値に合わせる
+                        // ※太字(Weight)や色には触れないため、直前の文字の装飾が消えることはありません
+                        var endRange = doc.GetRange(endPos - 1, endPos);
+                        endRange.CharacterFormat.Name = MemoStorage.FontFamily;
+                        endRange.CharacterFormat.Size = (float)MemoStorage.FontSize;
+
+                        // 末尾のカーソル位置（0文字幅）に対しても適用
+                        var endPointRange = doc.GetRange(endPos, endPos);
+                        endPointRange.CharacterFormat.Name = MemoStorage.FontFamily;
+                        endPointRange.CharacterFormat.Size = (float)MemoStorage.FontSize;
                     }
                 }
 
