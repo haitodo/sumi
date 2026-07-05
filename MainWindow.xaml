@@ -1719,7 +1719,15 @@
                                 BorderThickness="1" 
                                 CornerRadius="8" 
                                 Padding="12,8,12,12"
-                                Width="340">
+                                Width="340"
+                                PointerPressed="FindReplacePanel_PointerPressed"
+                                PointerMoved="FindReplacePanel_PointerMoved"
+                                PointerReleased="FindReplacePanel_PointerReleased"
+                                PointerEntered="FindReplacePanel_PointerEntered"
+                                PointerExited="FindReplacePanel_PointerExited">
+                            <Border.RenderTransform>
+                                <TranslateTransform x:Name="FindReplaceTransform" X="0" Y="0" />
+                            </Border.RenderTransform>
                             <StackPanel Spacing="8">
                                 <Grid ColumnSpacing="4">
                                     <Grid.ColumnDefinitions>
