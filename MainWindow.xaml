@@ -1655,6 +1655,10 @@
 
                             <!-- 新規追加ボタン -->
                             <Button x:Name="NewButton" Content="&#xE710;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="新規作成" Click="NewButton_Click" />
+
+                            <!-- 空行削除用セパレータとボタン -->
+                            <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
+                                    <Button x:Name="RemoveEmptyLinesHeaderButton" Content="&#xED60;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="空行を削除" Click="RemoveEmptyLines_Click" />
                         </StackPanel>
                     </Grid>
 

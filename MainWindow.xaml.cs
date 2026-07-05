@@ -3522,6 +3522,7 @@ namespace sumi
             // ★GetRangeを呼ぶのをやめ、既存のSelectionをそのまま使用してCOMオブジェクトの新規生成を回避
             var selection = MemoTextBox.Document.Selection;
             if (selection == null) return;
+
             var format = selection.CharacterFormat;
 
             FormatBoldBtn.IsChecked = (format.Bold == Microsoft.UI.Text.FormatEffect.On || format.Weight >= GetBoldFontWeight());
@@ -3964,6 +3965,55 @@ namespace sumi
             MarkAsDirty();
         }
 
+        private void RemoveEmptyLines_Click(object sender, RoutedEventArgs e)
+        {
+            if (MemoTextBox == null || MemoTextBox.IsReadOnly) return;
+
+            var selection = MemoTextBox.Document.Selection;
+            if (selection == null) return;
+
+            // 選択範囲がある場合のみ実行
+            if (selection.StartPosition != selection.EndPosition)
+            {
+                string selectedText = selection.Text;
+                if (!string.IsNullOrEmpty(selectedText))
+                {
+                    string cleanedText = RemoveEmptyLinesFromText(selectedText);
+                    selection.Text = cleanedText;
+
+                    UpdateFormatButtonStates();
+                    MarkAsDirty();
+                }
+            }
+
+            // エディタにフォーカスを戻す
+            MemoTextBox.Focus(FocusState.Programmatic);
+        }
+
+        private string RemoveEmptyLinesFromText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+
+            // 改行コード（\r\n, \r, \n）で分割
+            var lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+
+            // 空行またはスペースのみの行を除外
+            var nonEmptyLines = lines.Where(line => !string.IsNullOrWhiteSpace(line));
+
+            // 元の改行コードを優先して結合
+            string separator = "\r";
+            if (text.Contains("\r\n"))
+            {
+                separator = "\r\n";
+            }
+            else if (text.Contains("\n"))
+            {
+                separator = "\n";
+            }
+
+            return string.Join(separator, nonEmptyLines);
+        }
+
         #endregion
 
         private void MemoTextBox_Loaded(object sender, RoutedEventArgs e)
@@ -4142,6 +4192,19 @@ namespace sumi
                     OpenUrlInDefaultBrowser(url);
                 };
                 menu.Items.Add(openItem);
+            }
+
+            // --- テキスト整形コマンド ---
+            if (hasSelection && !MemoTextBox.IsReadOnly)
+            {
+                menu.Items.Add(new MenuFlyoutSeparator());
+                var removeEmptyLinesItem = new MenuFlyoutItem
+                {
+                    Text = "選択範囲の空行を削除",
+                    Icon = new FontIcon { Glyph = "\xED60", FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe Fluent Icons") }
+                };
+                removeEmptyLinesItem.Click += RemoveEmptyLines_Click;
+                menu.Items.Add(removeEmptyLinesItem);
             }
         }
 
