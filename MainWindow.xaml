@@ -421,7 +421,7 @@
                                                         <Flyout x:Name="LaunchHotKeyFlyout" Opened="HotKeyFlyout_Opened" Closed="HotKeyFlyout_Closed">
                                                             <Flyout.FlyoutPresenterStyle>
                                                                 <Style TargetType="FlyoutPresenter">
-                                                                    <Setter Property="Background" Value="{StaticResource FlyoutBackgroundBrush}" />
+                                                                    <Setter Property="Background" Value="{StaticResource OpaqueFlyoutBackgroundBrush}" />
                                                                     <Setter Property="BorderBrush" Value="#333333" />
                                                                     <Setter Property="BorderThickness" Value="1" />
                                                                     <Setter Property="CornerRadius" Value="8" />
@@ -485,7 +485,7 @@
                                                         <Flyout x:Name="QuitHotKeyFlyout" Opened="HotKeyFlyout_Opened" Closed="HotKeyFlyout_Closed">
                                                             <Flyout.FlyoutPresenterStyle>
                                                                 <Style TargetType="FlyoutPresenter">
-                                                                    <Setter Property="Background" Value="{StaticResource FlyoutBackgroundBrush}" />
+                                                                    <Setter Property="Background" Value="{StaticResource OpaqueFlyoutBackgroundBrush}" />
                                                                     <Setter Property="BorderBrush" Value="#333333" />
                                                                     <Setter Property="BorderThickness" Value="1" />
                                                                     <Setter Property="CornerRadius" Value="8" />
