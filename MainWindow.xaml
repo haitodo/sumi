@@ -756,12 +756,12 @@
                                      TextChanged="SidebarNoteSearchBox_TextChanged"
                                      KeyDown="SidebarNoteSearchBox_KeyDown">
                                 <TextBox.Resources>
-                                    <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
-                                    <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#2d2d2d" />
-                                    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
-                                    <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
-                                    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#444444" />
-                                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
+                                    <SolidColorBrush x:Key="TextControlBackground" Color="White" Opacity="0.06" />
+                                    <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="White" Opacity="0.10" />
+                                    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="White" Opacity="0.14" />
+                                    <SolidColorBrush x:Key="TextControlBorderBrush" Color="White" Opacity="0.10" />
+                                    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="White" Opacity="0.15" />
+                                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="White" Opacity="0.30" />
                                     <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
                                     <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
                                     <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
@@ -1162,12 +1162,12 @@
                                              TextChanged="RightSidebarNoteSearchBox_TextChanged"
                                              KeyDown="RightSidebarNoteSearchBox_KeyDown">
                                         <TextBox.Resources>
-                                            <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
-                                            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#2d2d2d" />
-                                            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
-                                            <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
-                                            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#444444" />
-                                            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
+                                            <SolidColorBrush x:Key="TextControlBackground" Color="White" Opacity="0.06" />
+                                            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="White" Opacity="0.10" />
+                                            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="White" Opacity="0.14" />
+                                            <SolidColorBrush x:Key="TextControlBorderBrush" Color="White" Opacity="0.10" />
+                                            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="White" Opacity="0.15" />
+                                            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="White" Opacity="0.30" />
                                             <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
                                             <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
                                             <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
