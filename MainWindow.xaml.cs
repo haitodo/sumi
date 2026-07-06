@@ -749,6 +749,11 @@ namespace sumi
         {
             if (_isRestoring) return;
 
+            if (MemoTextBox != null && MemoTextBox.Document != null && MemoTextBox.Document.Selection != null)
+            {
+                EnforceParagraphLineSpacing(MemoTextBox.Document.Selection);
+            }
+
             // 入力時はプレーンテキストのみを取得し、文字数とタイトルUIだけ更新する
             MemoTextBox.Document.GetText(Microsoft.UI.Text.TextGetOptions.UseLf, out string plainText);
             if (plainText.EndsWith("\r") || plainText.EndsWith("\n")) 
@@ -3970,23 +3975,47 @@ namespace sumi
             if (MemoTextBox == null || MemoTextBox.IsReadOnly) return;
 
             var selection = MemoTextBox.Document.Selection;
-            if (selection == null) return;
+            if (selection == null || selection.StartPosition == selection.EndPosition) return;
 
-            // 選択範囲がある場合のみ実行
-            if (selection.StartPosition != selection.EndPosition)
+            var doc = MemoTextBox.Document;
+            int start = selection.StartPosition;
+            int end = selection.EndPosition;
+
+            doc.BatchDisplayUpdates(); // 画面のちらつきを防止
+            try
             {
-                string selectedText = selection.Text;
-                if (!string.IsNullOrEmpty(selectedText))
+                var paraRange = doc.GetRange(start, start);
+                while (paraRange.StartPosition < end)
                 {
-                    string cleanedText = RemoveEmptyLinesFromText(selectedText);
-                    selection.Text = cleanedText;
+                    paraRange.Expand(Microsoft.UI.Text.TextRangeUnit.Paragraph);
+                    string paraText = paraRange.Text?.Replace("\r", "").Replace("\n", "") ?? "";
 
-                    UpdateFormatButtonStates();
-                    MarkAsDirty();
+                    if (string.IsNullOrWhiteSpace(paraText))
+                    {
+                        int len = paraRange.EndPosition - paraRange.StartPosition;
+
+                        // ★段落を空にすることで、太字やハイライトなどの装飾を破壊せずに削除
+                        paraRange.Text = string.Empty;
+                        end -= len;
+                        paraRange.SetRange(paraRange.StartPosition, paraRange.StartPosition);
+                    }
+                    else
+                    {
+                        int moved = paraRange.Move(Microsoft.UI.Text.TextRangeUnit.Paragraph, 1);
+                        if (moved <= 0) break;
+                    }
                 }
             }
+            finally
+            {
+                doc.ApplyDisplayUpdates();
+            }
 
-            // エディタにフォーカスを戻す
+            // ★追加: 削除処理後に、ドキュメント全体の行間を正しく再構成する
+            ReapplyLineSpacingToAll();
+
+            UpdateFormatButtonStates();
+            MarkAsDirty();
             MemoTextBox.Focus(FocusState.Programmatic);
         }
 
@@ -4012,6 +4041,72 @@ namespace sumi
             }
 
             return string.Join(separator, nonEmptyLines);
+        }
+
+        // ① 現在編集中の段落の行間をリアルタイムに補正するメソッド
+        private void EnforceParagraphLineSpacing(Microsoft.UI.Text.ITextRange range)
+        {
+            float lineSpacing = (float)MemoStorage.LineSpacing;
+            if (lineSpacing >= 1.0f) return; // Multiple設定時はシステムが自動追従するため不要
+
+            var paraRange = range.GetClone();
+            paraRange.Expand(Microsoft.UI.Text.TextRangeUnit.Paragraph);
+
+            // 段落のフォントサイズを取得
+            float fontSize = paraRange.CharacterFormat.Size;
+            if (float.IsNaN(fontSize) || fontSize <= 0)
+            {
+                var temp = paraRange.GetClone();
+                temp.Collapse(true);
+                fontSize = temp.CharacterFormat.Size;
+                if (float.IsNaN(fontSize) || fontSize <= 0)
+                {
+                    fontSize = (float)MemoStorage.FontSize;
+                }
+            }
+
+            // 本来あるべき正しい行高(Exactly)を計算して適用
+            float exactLineHeight = (float)(fontSize * 1.5f * lineSpacing);
+            paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Exactly, exactLineHeight);
+        }
+
+        // ② ドキュメント全体の行間をきれいに再構成するメソッド（一括処理用）
+        private void ReapplyLineSpacingToAll()
+        {
+            var doc = MemoTextBox.Document;
+            doc.BatchDisplayUpdates();
+            try
+            {
+                float lineSpacing = (float)MemoStorage.LineSpacing;
+                if (lineSpacing < 1.0f)
+                {
+                    var paraRange = doc.GetRange(0, 0);
+                    while (true)
+                    {
+                        paraRange.Expand(Microsoft.UI.Text.TextRangeUnit.Paragraph);
+
+                        float fontSize = paraRange.CharacterFormat.Size;
+                        if (float.IsNaN(fontSize) || fontSize <= 0)
+                        {
+                            var temp = paraRange.GetClone();
+                            temp.Collapse(true);
+                            fontSize = temp.CharacterFormat.Size;
+                            if (float.IsNaN(fontSize) || fontSize <= 0)
+                                fontSize = (float)MemoStorage.FontSize;
+                        }
+
+                        float exactLineHeight = (float)(fontSize * 1.5f * lineSpacing);
+                        paraRange.ParagraphFormat.SetLineSpacing(Microsoft.UI.Text.LineSpacingRule.Exactly, exactLineHeight);
+
+                        int moved = paraRange.Move(Microsoft.UI.Text.TextRangeUnit.Paragraph, 1);
+                        if (moved <= 0) break;
+                    }
+                }
+            }
+            finally
+            {
+                doc.ApplyDisplayUpdates();
+            }
         }
 
         #endregion
