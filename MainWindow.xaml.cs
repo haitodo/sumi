@@ -2753,26 +2753,13 @@ namespace sumi
         {
             if (sender is Grid grid)
             {
+                // アクションボタンを表示
                 var actionsPanel = grid.FindName("ActionsPanel") as UIElement;
-                if (actionsPanel != null)
-                {
-                    actionsPanel.Visibility = Visibility.Visible;
-                }
+                if (actionsPanel != null) actionsPanel.Visibility = Visibility.Visible;
 
-                // ホバー時にアクションボタン（ピン留め・削除）とテキストが重ならないよう、ボタンの右パディングを動的に調整
-                var noteButton = grid.FindName("NoteButton") as Button;
-                if (noteButton != null)
-                {
-                    double rightPadding = 44; // ピン留めボタンのみ表示時の幅（ボタン幅28 + 左右余白16）
-                    if (grid.DataContext is NoteItemViewModel vm)
-                    {
-                        if (vm.DeleteButtonVisibility == Visibility.Visible)
-                        {
-                            rightPadding = 74; // ピン留めと削除ボタン両方表示時の幅（ボタン2個分56 + 隙間2 + 左右余白16）
-                        }
-                    }
-                    noteButton.Padding = new Thickness(12, 10, rightPadding, 10);
-                }
+                // ★追加: ホバー専用レイヤーを表示
+                var hoverOverlay = grid.FindName("HoverOverlay") as UIElement;
+                if (hoverOverlay != null) hoverOverlay.Visibility = Visibility.Visible;
             }
         }
 
@@ -2780,18 +2767,13 @@ namespace sumi
         {
             if (sender is Grid grid)
             {
+                // アクションボタンを非表示
                 var actionsPanel = grid.FindName("ActionsPanel") as UIElement;
-                if (actionsPanel != null)
-                {
-                    actionsPanel.Visibility = Visibility.Collapsed;
-                }
+                if (actionsPanel != null) actionsPanel.Visibility = Visibility.Collapsed;
 
-                // ホバー解除時はパディングをデフォルト値（左右対称の12）に戻し、タイトル表示領域を最大化する
-                var noteButton = grid.FindName("NoteButton") as Button;
-                if (noteButton != null)
-                {
-                    noteButton.Padding = new Thickness(12, 10, 12, 10);
-                }
+                // ★追加: ホバー専用レイヤーを非表示
+                var hoverOverlay = grid.FindName("HoverOverlay") as UIElement;
+                if (hoverOverlay != null) hoverOverlay.Visibility = Visibility.Collapsed;
             }
         }
 
@@ -5334,7 +5316,7 @@ namespace sumi
         private static readonly Microsoft.UI.Xaml.Media.Brush PinForegroundUnpinned = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 204, 204, 204));
         private static readonly Microsoft.UI.Xaml.Media.Brush BackgroundBrushHighlighted = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(30, 255, 176, 0));
         private static readonly Microsoft.UI.Xaml.Media.Brush BackgroundBrushTransparent = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
-        private static readonly Microsoft.UI.Xaml.Media.Brush BackgroundBrushCurrent = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 37, 37, 37)); // #252525 (選択中状態の背景色)
+        private static readonly Microsoft.UI.Xaml.Media.Brush BackgroundBrushCurrent = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(32, 255, 255, 255));
 
         public string Id { get; }
         public string Title { get; }

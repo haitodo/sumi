@@ -16,26 +16,27 @@
             <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
             
             <!-- ボタンのポインターホバー・プレス時の背景・フォアグラウンドカラーをオーバーライド -->
-            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#2d2d2d" />
-            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3d3d3d" />
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="White" Opacity="0.08" />
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="White" Opacity="0.14" />
             <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#ffffff" />
             <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#cccccc" />
             <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
             <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent" />
+
             <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
             <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#444444" />
 
-            <!-- トグルボタンの背景・フォアグラウンドカラーをオーバーライド -->
-            <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="#444444" />
-            <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#555555" />
-            <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="#666666" />
+            <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="White" Opacity="0.15" />
+            <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="White" Opacity="0.20" />
+            <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="White" Opacity="0.25" />
             <SolidColorBrush x:Key="ToggleButtonForegroundChecked" Color="#ffffff" />
+
             <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPointerOver" Color="#ffffff" />
             <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPressed" Color="#ffffff" />
             <SolidColorBrush x:Key="ToggleButtonBorderBrushChecked" Color="Transparent" />
-            
-            <SolidColorBrush x:Key="ToggleButtonBackgroundPointerOver" Color="#2d2d2d" />
-            <SolidColorBrush x:Key="ToggleButtonBackgroundPressed" Color="#3d3d3d" />
+
+            <SolidColorBrush x:Key="ToggleButtonBackgroundPointerOver" Color="White" Opacity="0.08" />
+            <SolidColorBrush x:Key="ToggleButtonBackgroundPressed" Color="White" Opacity="0.14" />
             <SolidColorBrush x:Key="ToggleButtonForegroundPointerOver" Color="#ffffff" />
             <SolidColorBrush x:Key="ToggleButtonForegroundPressed" Color="#cccccc" />
             <SolidColorBrush x:Key="ToggleButtonBorderBrushPointerOver" Color="Transparent" />
@@ -72,19 +73,26 @@
             <!-- メモアイテムの表示テンプレート -->
             <DataTemplate x:Key="NoteItemTemplate" x:DataType="local:NoteItemViewModel">
                 <Grid Padding="0" Background="{x:Bind BackgroundBrush, Mode=OneTime}" CornerRadius="4" 
-                      PointerEntered="NoteItemGrid_PointerEntered" 
-                      PointerExited="NoteItemGrid_PointerExited">
+          PointerEntered="NoteItemGrid_PointerEntered" 
+          PointerExited="NoteItemGrid_PointerExited">
 
-                    <!-- メモ選択領域 (横いっぱいに広げ、ホバー時にのみ右側のアクションボタン用の隙間を動的に空ける) -->
+                    <Border x:Name="HoverOverlay" Background="White" Opacity="0.08" CornerRadius="4" Visibility="Collapsed" IsHitTestVisible="False" />
+
                     <Button x:Name="NoteButton"
-                            HorizontalAlignment="Stretch" 
-                            HorizontalContentAlignment="Stretch" 
-                            Background="#002D2D2D" 
-                            BorderThickness="0"
-                            Padding="12,10,12,10"
-                            CornerRadius="4"
-                            Loaded="NoteItemButton_Loaded"
-                            Unloaded="NoteItemButton_Unloaded">
+                HorizontalAlignment="Stretch" 
+                HorizontalContentAlignment="Stretch" 
+                Background="#002D2D2D" 
+                BorderThickness="0"
+                Padding="12,10,12,10"
+                CornerRadius="4"
+                Loaded="NoteItemButton_Loaded"
+                Unloaded="NoteItemButton_Unloaded">
+
+                        <Button.Resources>
+                            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent" />
+                            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="White" Opacity="0.04" />
+                        </Button.Resources>
+
                         <Grid RowSpacing="2">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -98,14 +106,13 @@
                         </Grid>
                     </Button>
 
-                    <!-- アクション領域（ホバー時にのみ表示。右上に重ねて表示する） -->
                     <StackPanel x:Name="ActionsPanel" 
-                                HorizontalAlignment="Right" 
-                                Orientation="Horizontal" 
-                                VerticalAlignment="Center" 
-                                Spacing="2" 
-                                Padding="8,0,8,0" 
-                                Visibility="Collapsed">
+                    HorizontalAlignment="Right" 
+                    Orientation="Horizontal" 
+                    VerticalAlignment="Center" 
+                    Spacing="2" 
+                    Padding="8,0,8,0" 
+                    Visibility="Collapsed">
                         <Button Style="{StaticResource IconButtonStyle}" 
                                 Width="28" Height="28"
                                 ToolTipService.ToolTip="{x:Bind PinToolTip}"
