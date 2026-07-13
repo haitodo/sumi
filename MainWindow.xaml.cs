@@ -786,7 +786,7 @@ namespace sumi
             }
             UpdateCharCount(plainText.Length);
 
-            if (FindReplacePopup != null && FindReplacePopup.IsOpen)
+            if (FindReplacePanel != null && FindReplacePanel.Visibility == Visibility.Visible)
             {
                 RecalculateMatches();
             }
@@ -2609,8 +2609,9 @@ namespace sumi
         {
             UpdateFlyoutMaxHeights();
 
-            if (FindReplacePopup != null && FindReplacePopup.IsOpen)
+            if (FindReplacePanel != null && FindReplacePanel.Visibility == Visibility.Visible)
             {
+                // ウィンドウリサイズ時はパネル位置を右端基準に再計算
                 _flyoutCurrentX = MemoTextBox.ActualWidth - 302;
                 _flyoutCurrentY = 12;
                 SetAnchorPosition(_flyoutCurrentX, _flyoutCurrentY);
@@ -4900,12 +4901,12 @@ namespace sumi
 
         private void SetAnchorPosition(double x, double y)
         {
-            // PopupのHorizontalOffset/VerticalOffsetを直接更新することで、
-            // 表示中でもリアルタイムにダイアログ位置を変更できる
-            if (FindReplacePopup != null)
+            // Canvas の Left/Top プロパティで位置を更新することで
+            // 表示中でもリアルタイムにパネル位置を変更できる
+            if (FindReplacePanel != null)
             {
-                FindReplacePopup.HorizontalOffset = x;
-                FindReplacePopup.VerticalOffset = y;
+                Canvas.SetLeft(FindReplacePanel, x);
+                Canvas.SetTop(FindReplacePanel, y);
             }
         }
 
@@ -4992,15 +4993,15 @@ namespace sumi
 
             RecalculateMatches(); // 表示したタイミングで一致件数を計測
 
-            // すでに開いていない場合のみ初期位置を設定（ドラッグ後の位置を維持するため）
-            if (!FindReplacePopup.IsOpen)
+            // すでに表示中でない場合のみ初期位置を設定（ドラッグ後の位置を維持するため）
+            if (FindReplacePanel.Visibility != Visibility.Visible)
             {
                 _flyoutCurrentX = MemoTextBox.ActualWidth - 302;
                 _flyoutCurrentY = 12;
                 SetAnchorPosition(_flyoutCurrentX, _flyoutCurrentY);
             }
 
-            FindReplacePopup.IsOpen = true;
+            FindReplacePanel.Visibility = Visibility.Visible;
 
             if (showReplace) ReplaceTextBox.Focus(FocusState.Programmatic);
             else FindTextBox.Focus(FocusState.Programmatic);
@@ -5009,7 +5010,7 @@ namespace sumi
 
         private void CloseFindReplace_Click(object? sender, RoutedEventArgs? e)
         {
-            FindReplacePopup.IsOpen = false;
+            FindReplacePanel.Visibility = Visibility.Collapsed;
             this.DispatcherQueue.TryEnqueue(() =>
             {
                 MemoTextBox.Focus(FocusState.Programmatic);

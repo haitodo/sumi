@@ -1731,18 +1731,24 @@
                             VerticalAlignment="Top"
                             HorizontalAlignment="Left" />
 
-                        <Popup x:Name="FindReplacePopup"
-                               IsLightDismissEnabled="False"
-                               ShouldConstrainToRootBounds="False">
-                            <Border BorderBrush="#333333"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="8"
-                                    Width="290">
+                        <!-- 検索置換パネル: Popup は ShouldConstrainToRootBounds=False 時に別 HWND になり
+                             IME が動作しないため、Canvas + Border でフローティング実装する -->
+                        <Canvas x:Name="FindReplaceCanvas"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch">
+                        <Border x:Name="FindReplacePanel"
+                                Canvas.Left="0"
+                                Canvas.Top="12"
+                                BorderBrush="#333333"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="8"
+                                Width="290"
+                                Visibility="Collapsed">
                                 <Border.Background>
-                                    <!-- ShouldConstrainToRootBounds=False のPopupではAcrylicBrushがFallbackになるため
-                                         半透明SolidColorBrushを使用。#DC = 86%不透明で後ろの文字が透けず適度な透明感 -->
-                                    <SolidColorBrush Color="#1e1e1e" Opacity="0.60" />
+                                    <!-- 同一 HWND 内描画のため AcrylicBrush 使用可能だが、
+                                         視認性のためやや不透明な SolidColorBrush を使用 -->
+                                    <SolidColorBrush Color="#1e1e1e" Opacity="0.5" />
                                 </Border.Background>
                                 <Border.Shadow>
                                     <ThemeShadow />
@@ -1825,13 +1831,13 @@
 
                                         <Button Grid.Column="2" Content="&#xE8EA;" FontFamily="Segoe Fluent Icons" FontSize="12" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="置換 (Enter)" Click="Replace_Click" />
                                         <Button Grid.Column="3" Content="&#xEA5E;" FontFamily="Segoe Fluent Icons" FontSize="12" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="すべて置換" Click="ReplaceAll_Click" />
-                                    </Grid>
+                                     </Grid>
 
                                     <TextBlock x:Name="FindStatusTextBlock" Foreground="#FF6B6B" FontSize="11" Visibility="Collapsed" Margin="32,0,0,0"/>
                                 </StackPanel>
                             </Border>
-                        </Popup>
-                            </Grid>
+                        </Canvas>
+                        </Grid>
 
                     <Grid Grid.Row="2" Height="36" Background="Transparent">
                         <Grid.ColumnDefinitions>
