@@ -1734,12 +1734,16 @@
                         <Popup x:Name="FindReplacePopup"
                                IsLightDismissEnabled="False"
                                ShouldConstrainToRootBounds="False">
-                            <Border Background="{ThemeResource MenuFlyoutPresenterBackground}"
-                                    BorderBrush="#333333"
+                            <Border BorderBrush="#333333"
                                     BorderThickness="1"
                                     CornerRadius="6"
                                     Padding="8"
                                     Width="290">
+                                <Border.Background>
+                                    <!-- ShouldConstrainToRootBounds=False のPopupではAcrylicBrushがFallbackになるため
+                                         半透明SolidColorBrushを使用。#DC = 86%不透明で後ろの文字が透けず適度な透明感 -->
+                                    <SolidColorBrush Color="#1e1e1e" Opacity="0.60" />
+                                </Border.Background>
                                 <Border.Shadow>
                                     <ThemeShadow />
                                 </Border.Shadow>
