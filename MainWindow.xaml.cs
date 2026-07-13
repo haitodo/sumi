@@ -786,7 +786,7 @@ namespace sumi
             }
             UpdateCharCount(plainText.Length);
 
-            if (FindReplaceFlyout != null && FindReplaceFlyout.IsOpen)
+            if (FindReplacePopup != null && FindReplacePopup.IsOpen)
             {
                 RecalculateMatches();
             }
@@ -2609,16 +2609,11 @@ namespace sumi
         {
             UpdateFlyoutMaxHeights();
 
-            if (FindReplaceFlyout != null && FindReplaceFlyout.IsOpen)
+            if (FindReplacePopup != null && FindReplacePopup.IsOpen)
             {
-                _allowCloseFindReplace = true;
-                FindReplaceFlyout.Hide();
-                _allowCloseFindReplace = false;
-                FindReplaceFlyout.ShowAt(MemoTextBox, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
-                {
-                    Position = new Windows.Foundation.Point(MemoTextBox.ActualWidth - 314, 12),
-                    Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft
-                });
+                _flyoutCurrentX = MemoTextBox.ActualWidth - 302;
+                _flyoutCurrentY = 12;
+                SetAnchorPosition(_flyoutCurrentX, _flyoutCurrentY);
             }
         }
 
@@ -4797,17 +4792,120 @@ namespace sumi
         #region 検索・置換機能
 
 
+        // 検索・置換パネルのドラッグ移動用変数
+        private bool _isDraggingFindPanel = false;
+        private Windows.Foundation.Point _dragStartPoint;
+        private double _dragStartX;
+        private double _dragStartY;
+        private double _flyoutCurrentX;
+        private double _flyoutCurrentY;
+
         // 検索一致件数・インデックス追跡用変数
         private System.Collections.Generic.List<int> _matchStartPositions = new();
         private int _currentMatchIndex = -1;
 
-        private bool _allowCloseFindReplace = false;
-
-        private void FindReplaceFlyout_Closing(Microsoft.UI.Xaml.Controls.Primitives.FlyoutBase sender, Microsoft.UI.Xaml.Controls.Primitives.FlyoutBaseClosingEventArgs args)
+        private void FindReplacePanel_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
-            if (!_allowCloseFindReplace)
+            var properties = e.GetCurrentPoint(sender as UIElement).Properties;
+            if (properties.IsLeftButtonPressed)
             {
-                args.Cancel = true;
+                _isDraggingFindPanel = true;
+                if (GetCursorPos(out POINT pos))
+                {
+                    _dragStartPoint = new Windows.Foundation.Point(pos.X, pos.Y);
+                }
+                _dragStartX = _flyoutCurrentX;
+                _dragStartY = _flyoutCurrentY;
+                (sender as UIElement)?.CapturePointer(e.Pointer);
+                e.Handled = true;
+            }
+        }
+
+        private void FindReplacePanel_PointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (_isDraggingFindPanel)
+            {
+                if (GetCursorPos(out POINT pos))
+                {
+                    double dpiScale = RootGrid?.XamlRoot?.RasterizationScale ?? 1.0;
+                    double deltaX = (pos.X - _dragStartPoint.X) / dpiScale;
+                    double deltaY = (pos.Y - _dragStartPoint.Y) / dpiScale;
+
+                    _flyoutCurrentX = _dragStartX + deltaX;
+                    _flyoutCurrentY = _dragStartY + deltaY;
+
+                    SetAnchorPosition(_flyoutCurrentX, _flyoutCurrentY);
+                }
+                e.Handled = true;
+            }
+            else
+            {
+                UpdateCursor(sender, e.OriginalSource);
+            }
+        }
+
+        private void FindReplacePanel_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (_isDraggingFindPanel)
+            {
+                (sender as UIElement)?.ReleasePointerCapture(e.Pointer);
+                _isDraggingFindPanel = false;
+                e.Handled = true;
+            }
+        }
+
+        private void FindReplacePanel_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            UpdateCursor(sender, e.OriginalSource);
+        }
+
+        private void FindReplacePanel_PointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            if (sender is UIElement el)
+            {
+                typeof(UIElement).InvokeMember(
+                    "ProtectedCursor",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.SetProperty,
+                    null,
+                    el,
+                    new object?[] { null });
+            }
+        }
+
+        private void UpdateCursor(object sender, object originalSource)
+        {
+            if (originalSource is DependencyObject depObj && sender is UIElement el)
+            {
+                DependencyObject current = depObj;
+                bool isInteractive = false;
+                while (current != null && current != el)
+                {
+                    if (current is Button || current is ToggleButton || current is TextBox)
+                    {
+                        isInteractive = true;
+                        break;
+                    }
+                    current = VisualTreeHelper.GetParent(current);
+                }
+
+                var cursor = isInteractive ? null : Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeAll);
+                typeof(UIElement).InvokeMember(
+                    "ProtectedCursor",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.SetProperty,
+                    null,
+                    el,
+                    new object?[] { cursor });
+            }
+        }
+
+        private void SetAnchorPosition(double x, double y)
+        {
+            // PopupのHorizontalOffset/VerticalOffsetを直接更新することで、
+            // 表示中でもリアルタイムにダイアログ位置を変更できる
+            if (FindReplacePopup != null)
+            {
+                FindReplacePopup.HorizontalOffset = x;
+                FindReplacePopup.VerticalOffset = y;
             }
         }
 
@@ -4882,8 +4980,6 @@ namespace sumi
 
         private void ShowFindReplace(bool showReplace)
         {
-            _allowCloseFindReplace = false;
-
             ToggleReplaceModeBtn.IsChecked = showReplace;
             ReplaceRow.Visibility = showReplace ? Visibility.Visible : Visibility.Collapsed;
             FindStatusTextBlock.Visibility = Visibility.Collapsed;
@@ -4896,11 +4992,15 @@ namespace sumi
 
             RecalculateMatches(); // 表示したタイミングで一致件数を計測
 
-            FindReplaceFlyout.ShowAt(MemoTextBox, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions
+            // すでに開いていない場合のみ初期位置を設定（ドラッグ後の位置を維持するため）
+            if (!FindReplacePopup.IsOpen)
             {
-                Position = new Windows.Foundation.Point(MemoTextBox.ActualWidth - 314, 12),
-                Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft
-            });
+                _flyoutCurrentX = MemoTextBox.ActualWidth - 302;
+                _flyoutCurrentY = 12;
+                SetAnchorPosition(_flyoutCurrentX, _flyoutCurrentY);
+            }
+
+            FindReplacePopup.IsOpen = true;
 
             if (showReplace) ReplaceTextBox.Focus(FocusState.Programmatic);
             else FindTextBox.Focus(FocusState.Programmatic);
@@ -4909,8 +5009,7 @@ namespace sumi
 
         private void CloseFindReplace_Click(object? sender, RoutedEventArgs? e)
         {
-            _allowCloseFindReplace = true;
-            FindReplaceFlyout.Hide();
+            FindReplacePopup.IsOpen = false;
             this.DispatcherQueue.TryEnqueue(() =>
             {
                 MemoTextBox.Focus(FocusState.Programmatic);

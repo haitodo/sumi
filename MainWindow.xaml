@@ -1731,79 +1731,102 @@
                             VerticalAlignment="Top"
                             HorizontalAlignment="Left" />
 
-                        <Button x:Name="FindReplaceDummyButton" Visibility="Collapsed">
-                            <Button.Flyout>
-                                <Flyout x:Name="FindReplaceFlyout" ShouldConstrainToRootBounds="False" Closing="FindReplaceFlyout_Closing">
-                                    <Flyout.SystemBackdrop>
-                                        <DesktopAcrylicBackdrop />
-                                    </Flyout.SystemBackdrop>
-                                    <Flyout.FlyoutPresenterStyle>
-                                        <Style TargetType="FlyoutPresenter">
-                                            <Setter Property="Background" Value="{ThemeResource MenuFlyoutPresenterBackground}" />
-                                            <Setter Property="BorderBrush" Value="#333333" />
-                                            <Setter Property="BorderThickness" Value="1" />
-                                            <Setter Property="CornerRadius" Value="6" />
-                                            <Setter Property="Padding" Value="8" />
-                                            <Setter Property="MinWidth" Value="290" />
-                                            <Setter Property="MaxWidth" Value="290" />
-                                            <Setter Property="Width" Value="290" />
-                                        </Style>
-                                    </Flyout.FlyoutPresenterStyle>
+                        <Popup x:Name="FindReplacePopup"
+                               IsLightDismissEnabled="False"
+                               ShouldConstrainToRootBounds="False">
+                            <Border Background="{ThemeResource MenuFlyoutPresenterBackground}"
+                                    BorderBrush="#333333"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="8"
+                                    Width="290">
+                                <Border.Shadow>
+                                    <ThemeShadow />
+                                </Border.Shadow>
+                                <StackPanel Spacing="4">
+                                    <!-- ドラッグハンドル兼ヘッダー -->
+                                    <Grid x:Name="DragHandle"
+                                          Background="Transparent"
+                                          Height="24"
+                                          Margin="0,0,0,2"
+                                          PointerPressed="FindReplacePanel_PointerPressed"
+                                          PointerMoved="FindReplacePanel_PointerMoved"
+                                          PointerReleased="FindReplacePanel_PointerReleased"
+                                          PointerEntered="FindReplacePanel_PointerEntered"
+                                          PointerExited="FindReplacePanel_PointerExited">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
 
-                                    <StackPanel Spacing="4">
-                                        <Grid ColumnSpacing="4">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
+                                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                            <TextBlock Text="&#xE76F;" FontFamily="Segoe Fluent Icons" FontSize="10" Foreground="#888888" VerticalAlignment="Center" Margin="2,0,0,0" />
+                                            <TextBlock Text="検索と置換" FontSize="11" Foreground="#888888" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        </StackPanel>
 
-                                            <ToggleButton x:Name="ToggleReplaceModeBtn" Grid.Column="0" Content="&#xE10C;" Style="{StaticResource IconToggleButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="置換モードの切り替え" Click="ToggleReplaceModeBtn_Click" />
+                                        <Button Grid.Column="1"
+                                                Content="&#xE10A;"
+                                                FontFamily="Segoe Fluent Icons"
+                                                FontSize="8"
+                                                Style="{StaticResource IconButtonStyle}"
+                                                Width="20"
+                                                Height="20"
+                                                Click="CloseFindReplace_Click"
+                                                ToolTipService.ToolTip="閉じる" />
+                                    </Grid>
 
-                                            <TextBox x:Name="FindTextBox" Grid.Column="1" PlaceholderText="検索" Height="28" Padding="8,4" FontSize="12" TextChanged="FindTextBox_TextChanged" KeyDown="FindTextBox_KeyDown">
-                                                <TextBox.Resources>
-                                                    <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
-                                                    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
-                                                    <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
-                                                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
-                                                </TextBox.Resources>
-                                            </TextBox>
+                                    <Grid ColumnSpacing="4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
 
-                                            <TextBlock x:Name="FindCountTextBlock" Grid.Column="2" Text="0/0" FontSize="11" Foreground="#999999" VerticalAlignment="Center" Margin="4,0" />
+                                        <ToggleButton x:Name="ToggleReplaceModeBtn" Grid.Column="0" Content="&#xE10C;" Style="{StaticResource IconToggleButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="置換モードの切り替え" Click="ToggleReplaceModeBtn_Click" />
 
-                                            <Button Grid.Column="3" Content="&#xE112;" FontFamily="Segoe Fluent Icons" FontSize="12" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="前を検索 (Shift+Enter)" Click="FindPrev_Click" />
-                                            <Button Grid.Column="4" Content="&#xE111;" FontFamily="Segoe Fluent Icons" FontSize="12" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="次を検索 (Enter)" Click="FindNext_Click" />
-                                        </Grid>
+                                        <TextBox x:Name="FindTextBox" Grid.Column="1" PlaceholderText="検索" Height="28" Padding="8,4" FontSize="12" TextChanged="FindTextBox_TextChanged" KeyDown="FindTextBox_KeyDown">
+                                            <TextBox.Resources>
+                                                <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
+                                                <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
+                                                <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
+                                                <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
+                                            </TextBox.Resources>
+                                        </TextBox>
 
-                                        <Grid x:Name="ReplaceRow" Visibility="Collapsed" ColumnSpacing="4">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="28" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="28" />
-                                            </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="FindCountTextBlock" Grid.Column="2" Text="0/0" FontSize="11" Foreground="#999999" VerticalAlignment="Center" Margin="4,0" />
 
-                                            <TextBox x:Name="ReplaceTextBox" Grid.Column="1" PlaceholderText="置換" Height="28" Padding="8,4" FontSize="12" KeyDown="ReplaceTextBox_KeyDown">
-                                                <TextBox.Resources>
-                                                    <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
-                                                    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
-                                                    <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
-                                                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
-                                                </TextBox.Resources>
-                                            </TextBox>
+                                        <Button Grid.Column="3" Content="&#xE112;" FontFamily="Segoe Fluent Icons" FontSize="12" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="前を検索 (Shift+Enter)" Click="FindPrev_Click" />
+                                        <Button Grid.Column="4" Content="&#xE111;" FontFamily="Segoe Fluent Icons" FontSize="12" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="次を検索 (Enter)" Click="FindNext_Click" />
+                                    </Grid>
 
-                                            <Button Grid.Column="2" Content="&#xE8EA;" FontFamily="Segoe Fluent Icons" FontSize="12" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="置換 (Enter)" Click="Replace_Click" />
-                                            <Button Grid.Column="3" Content="&#xEA5E;" FontFamily="Segoe Fluent Icons" FontSize="12" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="すべて置換" Click="ReplaceAll_Click" />
-                                        </Grid>
+                                    <Grid x:Name="ReplaceRow" Visibility="Collapsed" ColumnSpacing="4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="28" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="28" />
+                                        </Grid.ColumnDefinitions>
 
-                                        <TextBlock x:Name="FindStatusTextBlock" Foreground="#FF6B6B" FontSize="11" Visibility="Collapsed" Margin="32,0,0,0"/>
-                                    </StackPanel>
-                                </Flyout>
-                            </Button.Flyout>
-                        </Button>
+                                        <TextBox x:Name="ReplaceTextBox" Grid.Column="1" PlaceholderText="置換" Height="28" Padding="8,4" FontSize="12" KeyDown="ReplaceTextBox_KeyDown">
+                                            <TextBox.Resources>
+                                                <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
+                                                <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
+                                                <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
+                                                <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
+                                            </TextBox.Resources>
+                                        </TextBox>
+
+                                        <Button Grid.Column="2" Content="&#xE8EA;" FontFamily="Segoe Fluent Icons" FontSize="12" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="置換 (Enter)" Click="Replace_Click" />
+                                        <Button Grid.Column="3" Content="&#xEA5E;" FontFamily="Segoe Fluent Icons" FontSize="12" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" ToolTipService.ToolTip="すべて置換" Click="ReplaceAll_Click" />
+                                    </Grid>
+
+                                    <TextBlock x:Name="FindStatusTextBlock" Foreground="#FF6B6B" FontSize="11" Visibility="Collapsed" Margin="32,0,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </Popup>
                             </Grid>
 
                     <Grid Grid.Row="2" Height="36" Background="Transparent">
