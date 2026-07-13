@@ -15,6 +15,11 @@
         <Grid.Resources>
             <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
             
+            <AcrylicBrush x:Key="PanelAcrylicBrush"
+                          TintColor="#1f1f1f"
+                          TintOpacity="0.85"
+                          FallbackColor="#1f1f1f" />
+            
             <!-- ボタンのポインターホバー・プレス時の背景・フォアグラウンドカラーをオーバーライド -->
             <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="White" Opacity="0.08" />
             <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="White" Opacity="0.14" />
@@ -163,10 +168,13 @@
                 <!-- 設定ボタン -->
                 <Button x:Name="PlayButton" Content="&#xE713;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="設定">
                     <Button.Flyout>
-                        <Flyout x:Name="SettingsFlyout" Placement="BottomEdgeAlignedLeft" Opened="SettingsFlyout_Opened">
+                        <Flyout x:Name="SettingsFlyout" Placement="BottomEdgeAlignedLeft" Opened="SettingsFlyout_Opened" ShouldConstrainToRootBounds="False">
+                            <Flyout.SystemBackdrop>
+                                <DesktopAcrylicBackdrop />
+                            </Flyout.SystemBackdrop>
                             <Flyout.FlyoutPresenterStyle>
                                 <Style TargetType="FlyoutPresenter">
-                                    <Setter Property="Background" Value="{StaticResource OpaqueFlyoutBackgroundBrush}" />
+                                    <Setter Property="Background" Value="{ThemeResource MenuFlyoutPresenterBackground}" />
                                     <Setter Property="BorderBrush" Value="#333333" />
                                     <Setter Property="BorderThickness" Value="1" />
                                     <Setter Property="CornerRadius" Value="8" />
@@ -418,10 +426,13 @@
                                                         <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#ffffff" />
                                                     </Button.Resources>
                                                     <Button.Flyout>
-                                                        <Flyout x:Name="LaunchHotKeyFlyout" Opened="HotKeyFlyout_Opened" Closed="HotKeyFlyout_Closed">
+                                                        <Flyout x:Name="LaunchHotKeyFlyout" Opened="HotKeyFlyout_Opened" Closed="HotKeyFlyout_Closed" ShouldConstrainToRootBounds="False">
+                                                            <Flyout.SystemBackdrop>
+                                                                <DesktopAcrylicBackdrop />
+                                                            </Flyout.SystemBackdrop>
                                                             <Flyout.FlyoutPresenterStyle>
                                                                 <Style TargetType="FlyoutPresenter">
-                                                                    <Setter Property="Background" Value="{StaticResource OpaqueFlyoutBackgroundBrush}" />
+                                                                    <Setter Property="Background" Value="{ThemeResource MenuFlyoutPresenterBackground}" />
                                                                     <Setter Property="BorderBrush" Value="#333333" />
                                                                     <Setter Property="BorderThickness" Value="1" />
                                                                     <Setter Property="CornerRadius" Value="8" />
@@ -482,10 +493,13 @@
                                                         <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#ffffff" />
                                                     </Button.Resources>
                                                     <Button.Flyout>
-                                                        <Flyout x:Name="QuitHotKeyFlyout" Opened="HotKeyFlyout_Opened" Closed="HotKeyFlyout_Closed">
+                                                        <Flyout x:Name="QuitHotKeyFlyout" Opened="HotKeyFlyout_Opened" Closed="HotKeyFlyout_Closed" ShouldConstrainToRootBounds="False">
+                                                            <Flyout.SystemBackdrop>
+                                                                <DesktopAcrylicBackdrop />
+                                                            </Flyout.SystemBackdrop>
                                                             <Flyout.FlyoutPresenterStyle>
                                                                 <Style TargetType="FlyoutPresenter">
-                                                                    <Setter Property="Background" Value="{StaticResource OpaqueFlyoutBackgroundBrush}" />
+                                                                    <Setter Property="Background" Value="{ThemeResource MenuFlyoutPresenterBackground}" />
                                                                     <Setter Property="BorderBrush" Value="#333333" />
                                                                     <Setter Property="BorderThickness" Value="1" />
                                                                     <Setter Property="CornerRadius" Value="8" />
@@ -1722,7 +1736,7 @@
                 HorizontalAlignment="Right" 
                 VerticalAlignment="Top" 
                 Margin="0,12,24,0" 
-                Background="{StaticResource OpaqueFlyoutBackgroundBrush}" 
+                Background="{StaticResource PanelAcrylicBrush}" 
                 BorderBrush="#333333" 
                 BorderThickness="1" 
                 CornerRadius="6" 
