@@ -26,6 +26,7 @@ namespace sumi
         public int UncompletedTaskCount { get; set; }
         public ObservableCollection<TaskItemViewModel> Tasks { get; } = new();
         public bool HasLoadedTasks { get; set; }
+        public List<string> Tags { get; set; } = new();
     }
 
     /// <summary>
@@ -167,6 +168,8 @@ namespace sumi
         public static double RightSidebarWidth { get; set; } = 320.0;
         public static string LastSidebarView { get; set; } = "Notes";
         public static string LastRightSidebarView { get; set; } = "JustDoIt";
+        public static string LastSelectedTag { get; set; } = string.Empty;
+        public static string LastSelectedRightTag { get; set; } = string.Empty;
         public static int RecentNotesCount { get; set; } = 1;
         public static bool ShowDeleteButton { get; set; } = false;
 
@@ -297,10 +300,11 @@ namespace sumi
                                 long ticks = long.Parse(parts[2]);
                                 var lastOpened = new DateTime(ticks, DateTimeKind.Utc);
 
-                                // 後方互換性に配慮しつつ、保存済みのTitle、CharCount、UncompletedTaskCountをパース
+                                // 後方互換性に配慮しつつ、保存済みのTitle、CharCount、UncompletedTaskCount、Tagsをパース
                                 string title = "Untitled";
                                 int charCount = 0;
                                 int uncompletedTaskCount = 0;
+                                var tags = new List<string>();
                                 if (parts.Length >= 5)
                                 {
                                     title = parts[3];
@@ -316,6 +320,22 @@ namespace sumi
                                         uncompletedTaskCount = taskCount;
                                     }
                                 }
+                                if (parts.Length >= 7)
+                                {
+                                    var tagPart = parts[6];
+                                    if (!string.IsNullOrWhiteSpace(tagPart))
+                                    {
+                                        var tagArray = tagPart.Split(',');
+                                        foreach (var t in tagArray)
+                                        {
+                                            var trimmed = t.Trim();
+                                            if (!string.IsNullOrEmpty(trimmed))
+                                            {
+                                                tags.Add(trimmed);
+                                            }
+                                        }
+                                    }
+                                }
 
                                 Notes.Add(new NoteData
                                 {
@@ -325,7 +345,8 @@ namespace sumi
                                     Content = string.Empty,
                                     Title = title,       // 起動直後に即座に表示可能
                                     CharCount = charCount, // 起動直後に即座に表示可能
-                                    UncompletedTaskCount = uncompletedTaskCount
+                                    UncompletedTaskCount = uncompletedTaskCount,
+                                    Tags = tags
                                 });
                             }
                         }
@@ -722,8 +743,18 @@ namespace sumi
                 {
                     foreach (var note in Notes)
                     {
-                        // Title と CharCount をメタデータに含めて保存します
-                        sb.AppendLine($"{note.Id}|{note.IsPinned}|{note.LastOpened.Ticks}|{note.Title}|{note.CharCount}");
+                        // Title、CharCount、UncompletedTaskCount、Tagsをメタデータに含めて保存します
+                        // タグ内のカンマやパイプ文字を排除するために事前に置換・エスケープ処理
+                        var sanitizedTags = new List<string>();
+                        foreach (var tag in note.Tags)
+                        {
+                            var s = tag.Replace("|", "_").Replace(",", "_").Trim();
+                            if (!string.IsNullOrEmpty(s))
+                            {
+                                sanitizedTags.Add(s);
+                            }
+                        }
+                        sb.AppendLine($"{note.Id}|{note.IsPinned}|{note.LastOpened.Ticks}|{note.Title}|{note.CharCount}|{note.UncompletedTaskCount}|{string.Join(",", sanitizedTags)}");
                     }
                 }
                 byte[] bytes = Utf8NoBom.GetBytes(sb.ToString());
@@ -1027,6 +1058,12 @@ namespace sumi
                                 case "LastRightSidebarView":
                                     LastRightSidebarView = val;
                                     break;
+                                case "LastSelectedTag":
+                                    LastSelectedTag = val;
+                                    break;
+                                case "LastSelectedRightTag":
+                                    LastSelectedRightTag = val;
+                                    break;
                                 case "RecentNotesCount":
                                     if (int.TryParse(val, out int rnc)) RecentNotesCount = Math.Max(0, rnc);
                                     break;
@@ -1076,6 +1113,8 @@ namespace sumi
                 sb.AppendLine($"RightSidebarWidth={RightSidebarWidth}");
                 sb.AppendLine($"LastSidebarView={LastSidebarView}");
                 sb.AppendLine($"LastRightSidebarView={LastRightSidebarView}");
+                sb.AppendLine($"LastSelectedTag={LastSelectedTag}");
+                sb.AppendLine($"LastSelectedRightTag={LastSelectedRightTag}");
                 sb.AppendLine($"RecentNotesCount={RecentNotesCount}");
                 sb.AppendLine($"ShowDeleteButton={ShowDeleteButton}");
                 byte[] bytes = Utf8NoBom.GetBytes(sb.ToString());
@@ -1255,6 +1294,27 @@ namespace sumi
                 Debug.WriteLine($"[SaveTasksSync Error] {ex.Message}");
                 return false;
             }
+        }
+
+        /// <summary>
+        /// 全メモから重複のないソート済みのタグ一覧を取得します。
+        /// </summary>
+        public static List<string> GetAllTags()
+        {
+            var tagSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            lock (Notes)
+            {
+                foreach (var note in Notes)
+                {
+                    foreach (var tag in note.Tags)
+                    {
+                        tagSet.Add(tag);
+                    }
+                }
+            }
+            var sortedTags = new List<string>(tagSet);
+            sortedTags.Sort(StringComparer.OrdinalIgnoreCase);
+            return sortedTags;
         }
     }
 }
