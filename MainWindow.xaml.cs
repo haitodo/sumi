@@ -34,6 +34,33 @@ namespace sumi
             public string Content { get; set; } = string.Empty;
         }
 
+        /// <summary>
+        /// AI APIリクエスト本文用の型です。
+        /// </summary>
+        private class AiRequestBody
+        {
+            [System.Text.Json.Serialization.JsonPropertyName("model")]
+            public string Model { get; set; } = string.Empty;
+            [System.Text.Json.Serialization.JsonPropertyName("messages")]
+            public List<AiMessage> Messages { get; set; } = new();
+            [System.Text.Json.Serialization.JsonPropertyName("temperature")]
+            public double Temperature { get; set; }
+            [System.Text.Json.Serialization.JsonPropertyName("max_tokens")]
+            public int MaxTokens { get; set; }
+            [System.Text.Json.Serialization.JsonPropertyName("stream")]
+            public bool Stream { get; set; }
+        }
+
+        /// <summary>
+        /// AI APIリクエスト用のNative AOT JSONコンテキストです。
+        /// </summary>
+        [System.Text.Json.Serialization.JsonSerializable(typeof(AiRequestBody))]
+        [System.Text.Json.Serialization.JsonSerializable(typeof(List<AiMessage>))]
+        [System.Text.Json.Serialization.JsonSerializable(typeof(AiMessage))]
+        private partial class AiJsonContext : System.Text.Json.Serialization.JsonSerializerContext
+        {
+        }
+
         private readonly SaveScheduler _scheduler;
         private readonly SaveScheduler _taskSaveScheduler;
         private readonly HashSet<string> _dirtyTaskNoteIds = new();
@@ -1149,22 +1176,19 @@ namespace sumi
             try
             {
                 // ComboBox/Slider初期値設定
-                foreach (var item in FontComboBox.Items)
+                // Native AOT対応: Itemsコレクションに対するforeach/キャスト(E_NOINTERFACE)を避けるため、静的配列からインデックスを設定
+                string[] fontItems = new[] { "Noto Sans JP", "Yu Gothic UI", "Segoe UI", "Consolas", "Georgia" };
+                int fontIndex = Array.IndexOf(fontItems, MemoStorage.FontFamily);
+                if (fontIndex >= 0)
                 {
-                    if (item is string s && s == MemoStorage.FontFamily)
-                    {
-                        FontComboBox.SelectedItem = item;
-                        break;
-                    }
+                    FontComboBox.SelectedIndex = fontIndex;
                 }
 
-                foreach (var item in FontWeightComboBox.Items)
+                string[] weightItems = new[] { "Light", "Normal", "Medium", "SemiBold", "Bold" };
+                int weightIndex = Array.IndexOf(weightItems, MemoStorage.FontWeight);
+                if (weightIndex >= 0)
                 {
-                    if (item is string s && s == MemoStorage.FontWeight)
-                    {
-                        FontWeightComboBox.SelectedItem = item;
-                        break;
-                    }
+                    FontWeightComboBox.SelectedIndex = weightIndex;
                 }
 
                 FontSizeSlider.Value = MemoStorage.FontSize;
@@ -1172,17 +1196,21 @@ namespace sumi
 
                 // 行間 ComboBox の初期値設定
                 double currentLS = MemoStorage.LineSpacing;
-                bool foundLS = false;
-                foreach (var item in LineSpacingComboBox.Items)
+                string[] lsItems = new[] { "0.8", "0.85", "0.9", "0.95", "1.0" };
+                int lsIndex = -1;
+                for (int i = 0; i < lsItems.Length; i++)
                 {
-                    if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - currentLS) < 0.01)
+                    if (double.TryParse(lsItems[i], out double itemVal) && Math.Abs(itemVal - currentLS) < 0.01)
                     {
-                        LineSpacingComboBox.SelectedItem = item;
-                        foundLS = true;
+                        lsIndex = i;
                         break;
                     }
                 }
-                if (!foundLS)
+                if (lsIndex >= 0)
+                {
+                    LineSpacingComboBox.SelectedIndex = lsIndex;
+                }
+                else
                 {
                     LineSpacingComboBox.SelectedItem = null;
                     LineSpacingComboBox.Text = currentLS.ToString("0.##");
@@ -1190,17 +1218,21 @@ namespace sumi
 
                 // 段落スペース ComboBox の初期値設定
                 double currentPS = MemoStorage.ParagraphSpacing;
-                bool foundPS = false;
-                foreach (var item in ParagraphSpacingComboBox.Items)
+                string[] psItems = new[] { "0", "2", "4", "6", "8", "10", "12" };
+                int psIndex = -1;
+                for (int i = 0; i < psItems.Length; i++)
                 {
-                    if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - currentPS) < 0.1)
+                    if (double.TryParse(psItems[i], out double itemVal) && Math.Abs(itemVal - currentPS) < 0.1)
                     {
-                        ParagraphSpacingComboBox.SelectedItem = item;
-                        foundPS = true;
+                        psIndex = i;
                         break;
                     }
                 }
-                if (!foundPS)
+                if (psIndex >= 0)
+                {
+                    ParagraphSpacingComboBox.SelectedIndex = psIndex;
+                }
+                else
                 {
                     ParagraphSpacingComboBox.SelectedItem = null;
                     ParagraphSpacingComboBox.Text = ((int)currentPS).ToString();
@@ -1274,28 +1306,31 @@ namespace sumi
             if (SettingsSelectorBar == null) return;
 
             var selectedItem = SettingsSelectorBar.SelectedItem;
-            if (selectedItem == EditorTab)
+            if (selectedItem == null) return;
+
+            // Native AOT対応: キャスト(E_NOINTERFACE)を避けるため、object.ReferenceEqualsでインスタンスを直接比較します。
+            if (object.ReferenceEquals(selectedItem, EditorTab))
             {
                 if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Visible;
                 if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Collapsed;
                 if (SystemSettingsPanel != null) SystemSettingsPanel.Visibility = Visibility.Collapsed;
                 if (AiSettingsPanel != null) AiSettingsPanel.Visibility = Visibility.Collapsed;
             }
-            else if (selectedItem == WindowTab)
+            else if (object.ReferenceEquals(selectedItem, WindowTab))
             {
                 if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Collapsed;
                 if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Visible;
                 if (SystemSettingsPanel != null) SystemSettingsPanel.Visibility = Visibility.Collapsed;
                 if (AiSettingsPanel != null) AiSettingsPanel.Visibility = Visibility.Collapsed;
             }
-            else if (selectedItem == SystemTab)
+            else if (object.ReferenceEquals(selectedItem, SystemTab))
             {
                 if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Collapsed;
                 if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Collapsed;
                 if (SystemSettingsPanel != null) SystemSettingsPanel.Visibility = Visibility.Visible;
                 if (AiSettingsPanel != null) AiSettingsPanel.Visibility = Visibility.Collapsed;
             }
-            else if (selectedItem == AiTab)
+            else if (object.ReferenceEquals(selectedItem, AiTab))
             {
                 if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Collapsed;
                 if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Collapsed;
@@ -5036,6 +5071,7 @@ namespace sumi
         {
             if (sender is UIElement el)
             {
+                // WinUI3のProtectedCursorはprotectedのためリフレクション経由でリセット
                 typeof(UIElement).InvokeMember(
                     "ProtectedCursor",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.SetProperty,
@@ -5062,6 +5098,7 @@ namespace sumi
                 }
 
                 var cursor = isInteractive ? null : Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeAll);
+                // WinUI3のProtectedCursorはprotectedのためリフレクション経由で設定
                 typeof(UIElement).InvokeMember(
                     "ProtectedCursor",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.SetProperty,
@@ -6045,7 +6082,8 @@ namespace sumi
                     Width = 24,
                     Height = 24,
                     Padding = new Thickness(0),
-                    Style = (Style)RootGrid.Resources["IconButtonStyle"],
+                    Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                    BorderThickness = new Thickness(0),
                     Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 69, 58))
                 };
                 deleteBtn.Click += (s, e) =>
@@ -6203,16 +6241,17 @@ namespace sumi
                 request.Headers.Add("HTTP-Referer", "https://github.com/haitodo/sumi");
                 request.Headers.Add("X-Title", "sumi");
 
-                var requestBody = new
+                // Native AOT対応: 匿名型の代わりに具体的な型 + ソースジェネレーターコンテキストを使用
+                var requestBody = new AiRequestBody
                 {
-                    model = MemoStorage.AiModelName,
-                    messages = _aiRewriteChatHistory,
-                    temperature = MemoStorage.AiTemperature,
-                    max_tokens = MemoStorage.AiMaxTokens,
-                    stream = true
+                    Model = MemoStorage.AiModelName,
+                    Messages = _aiRewriteChatHistory,
+                    Temperature = MemoStorage.AiTemperature,
+                    MaxTokens = MemoStorage.AiMaxTokens,
+                    Stream = true
                 };
 
-                string jsonBody = System.Text.Json.JsonSerializer.Serialize(requestBody);
+                string jsonBody = System.Text.Json.JsonSerializer.Serialize(requestBody, AiJsonContext.Default.AiRequestBody);
                 request.Content = new System.Net.Http.StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
 
                 using var response = await _aiHttpClient.SendAsync(request, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, token);

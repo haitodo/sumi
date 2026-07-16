@@ -53,9 +53,13 @@
   -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2270" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.2.0" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.2.0">
+      <IsTrimmable>false</IsTrimmable>
+    </PackageReference>
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools.WinApp" Version="0.4.0" />
-    <PackageReference Include="Microsoft.Windows.CsWinRT" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Windows.CsWinRT" Version="2.2.0">
+      <IsTrimmable>false</IsTrimmable>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>

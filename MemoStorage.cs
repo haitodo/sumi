@@ -130,6 +130,15 @@ namespace sumi
     }
 
     /// <summary>
+    /// AIプロンプトリスト用のNative AOTシリアライズコンテキストです。
+    /// </summary>
+    [JsonSerializable(typeof(List<AiPromptItem>))]
+    [JsonSerializable(typeof(AiPromptItem))]
+    internal partial class AiPromptJsonContext : JsonSerializerContext
+    {
+    }
+
+    /// <summary>
     /// メモテキストおよびウィンドウ位置情報の物理永続化を行うデータアクセス層クラスです。
     /// </summary>
     public static class MemoStorage
@@ -1355,7 +1364,8 @@ namespace sumi
                 if (File.Exists(AiPromptsPath))
                 {
                     string json = File.ReadAllText(AiPromptsPath, Utf8NoBom);
-                    var list = JsonSerializer.Deserialize<List<AiPromptItem>>(json);
+                    // Native AOT対応: ソースジェネレーターベースのコンテキストを使用
+                    var list = JsonSerializer.Deserialize(json, AiPromptJsonContext.Default.ListAiPromptItem);
                     if (list != null)
                     {
                         AiPrompts = list;
@@ -1382,8 +1392,8 @@ namespace sumi
         {
             try
             {
-                var options = new JsonSerializerOptions { WriteIndented = true };
-                string json = JsonSerializer.Serialize(AiPrompts, options);
+                // Native AOT対応: ソースジェネレーターベースのコンテキストを使用
+                string json = JsonSerializer.Serialize(AiPrompts, AiPromptJsonContext.Default.ListAiPromptItem);
                 File.WriteAllText(AiPromptsPath, json, Utf8NoBom);
             }
             catch (Exception ex)
