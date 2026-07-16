@@ -5939,17 +5939,43 @@ namespace sumi
                 Grid.SetColumn(cb, 0);
                 grid.Children.Add(cb);
 
+                // AOT/Releaseビルドで動的リソース参照がクラッシュするのを防ぐため安全に取得
+                Style? iconButtonStyle = null;
+                try
+                {
+                    if (RootGrid != null)
+                    {
+                        iconButtonStyle = RootGrid.Resources["IconButtonStyle"] as Style;
+                    }
+                }
+                catch
+                {
+                    // リソース取得失敗時のフォールバック処理は下部で行います
+                }
+
                 var delBtn = new Button
                 {
                     Content = "\uE74D",
                     FontFamily = new FontFamily("Segoe Fluent Icons"),
-                    Style = (Style)RootGrid.Resources["IconButtonStyle"],
                     Width = 24,
                     Height = 24,
                     FontSize = 10,
                     Foreground = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 255, 69, 58)),
                     VerticalAlignment = VerticalAlignment.Center
                 };
+
+                if (iconButtonStyle != null)
+                {
+                    delBtn.Style = iconButtonStyle;
+                }
+                else
+                {
+                    // スタイルが見つからない・適用できない場合は手動でスタイルを模倣
+                    delBtn.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                    delBtn.BorderThickness = new Thickness(0);
+                    delBtn.CornerRadius = new CornerRadius(4);
+                    delBtn.Padding = new Thickness(0);
+                }
 
                 delBtn.Click += (s, ev) =>
                 {
