@@ -168,7 +168,7 @@
                 <!-- 設定ボタン -->
                 <Button x:Name="PlayButton" Content="&#xE713;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="設定">
                     <Button.Flyout>
-                        <Flyout x:Name="SettingsFlyout" Placement="BottomEdgeAlignedLeft" Opened="SettingsFlyout_Opened" ShouldConstrainToRootBounds="False">
+                        <Flyout x:Name="SettingsFlyout" Placement="BottomEdgeAlignedLeft" Opened="SettingsFlyout_Opened" ShouldConstrainToRootBounds="True">
                             <Flyout.SystemBackdrop>
                                 <DesktopAcrylicBackdrop />
                             </Flyout.SystemBackdrop>
@@ -179,14 +179,14 @@
                                     <Setter Property="BorderThickness" Value="1" />
                                     <Setter Property="CornerRadius" Value="8" />
                                     <Setter Property="Padding" Value="12" />
-                                    <Setter Property="MaxWidth" Value="340" />
-                                    <Setter Property="MinWidth" Value="300" />
+                                    <Setter Property="MaxWidth" Value="420" />
+                                    <Setter Property="MinWidth" Value="380" />
                                     <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />
                                     <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
                                 </Style>
                             </Flyout.FlyoutPresenterStyle>
                             
-                            <Grid RowSpacing="8" Width="300">
+                            <Grid RowSpacing="8" Width="380">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" /> <!-- 検索ボックス -->
                                     <RowDefinition Height="Auto" /> <!-- タブ切り替え SelectorBar -->
@@ -234,9 +234,14 @@
                                             <FontIcon Glyph="&#xE765;" />
                                         </SelectorBarItem.Icon>
                                     </SelectorBarItem>
+                                    <SelectorBarItem x:Name="AiTab" Text="AI">
+                                        <SelectorBarItem.Icon>
+                                            <FontIcon Glyph="&#xE9D9;" />
+                                        </SelectorBarItem.Icon>
+                                    </SelectorBarItem>
                                 </SelectorBar>
                                 
-                                <ScrollViewer x:Name="SettingsScrollViewer" Grid.Row="2" MaxHeight="320" VerticalScrollBarVisibility="Auto">
+                                <ScrollViewer x:Name="SettingsScrollViewer" Grid.Row="2" MaxHeight="380" VerticalScrollBarVisibility="Auto">
                                     <Grid>
                                         <!-- エディタ設定カテゴリ -->
                                         <StackPanel x:Name="EditorSettingsPanel" Spacing="4" Visibility="Visible">
@@ -548,6 +553,133 @@
                                                 <TextBlock Grid.Column="1" Text="Delete Note" FontSize="13" Foreground="#FF453A" FontWeight="SemiBold" VerticalAlignment="Center" />
                                                 <TextBlock Grid.Column="2" Text="Ctrl+D" FontSize="12" Foreground="#FF453A" Opacity="0.7" VerticalAlignment="Center" Margin="0,0,4,0" />
                                             </Grid>
+                                        </StackPanel>
+
+                                        <!-- AI設定カテゴリ -->
+                                        <StackPanel x:Name="AiSettingsPanel" Spacing="6" Visibility="Collapsed">
+                                            <!-- API Key -->
+                                            <Grid x:Name="AiApiKeyItem" Padding="6,4" CornerRadius="4" Background="Transparent"
+                                                  PointerEntered="SettingItem_PointerEntered" PointerExited="SettingItem_PointerExited">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="140" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="&#xE727;" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="#cccccc" VerticalAlignment="Center" Margin="4,0,10,0" />
+                                                <TextBlock Grid.Column="1" Text="API Key" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                                                <PasswordBox Grid.Column="2" x:Name="AiApiKeyBox" Height="28" FontSize="12" PasswordChar="*" PasswordRevealMode="Peek" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4" LostFocus="AiApiKeyBox_LostFocus">
+                                                    <PasswordBox.Resources>
+                                                        <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
+                                                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#2d2d2d" />
+                                                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
+                                                        <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
+                                                        <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#444444" />
+                                                        <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
+                                                        <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                                                        <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
+                                                        <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
+                                                    </PasswordBox.Resources>
+                                                </PasswordBox>
+                                            </Grid>
+
+                                            <!-- Model Name -->
+                                            <Grid x:Name="AiModelNameItem" Padding="6,4" CornerRadius="4" Background="Transparent"
+                                                  PointerEntered="SettingItem_PointerEntered" PointerExited="SettingItem_PointerExited">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="140" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="&#xE9D9;" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="#cccccc" VerticalAlignment="Center" Margin="4,0,10,0" />
+                                                <TextBlock Grid.Column="1" Text="Model Name" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                                                <TextBox Grid.Column="2" x:Name="AiModelNameBox" Height="28" FontSize="12" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4" LostFocus="AiModelNameBox_LostFocus" Padding="6,2,6,2">
+                                                    <TextBox.Resources>
+                                                        <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
+                                                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#2d2d2d" />
+                                                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
+                                                        <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
+                                                        <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#444444" />
+                                                        <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
+                                                        <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                                                        <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
+                                                        <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
+                                                    </TextBox.Resources>
+                                                </TextBox>
+                                            </Grid>
+
+                                            <!-- Temperature -->
+                                            <Grid x:Name="AiTemperatureItem" Padding="6,4" CornerRadius="4" Background="Transparent"
+                                                  PointerEntered="SettingItem_PointerEntered" PointerExited="SettingItem_PointerExited">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="&#xE78A;" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="#cccccc" VerticalAlignment="Center" Margin="4,0,10,0" />
+                                                <TextBlock Grid.Column="1" Text="Temperature" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                    <Slider x:Name="AiTemperatureSlider" Minimum="0" Maximum="2" StepFrequency="0.1" Width="80" Margin="0,-6,0,-6" ValueChanged="AiTemperatureSlider_ValueChanged" />
+                                                    <TextBlock x:Name="AiTemperatureValueText" Text="0.7" FontSize="12" Foreground="#999999" Width="24" TextAlignment="Right" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <!-- Max Tokens -->
+                                            <Grid x:Name="AiMaxTokensItem" Padding="6,4" CornerRadius="4" Background="Transparent"
+                                                  PointerEntered="SettingItem_PointerEntered" PointerExited="SettingItem_PointerExited">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="80" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="&#xE8A4;" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="#cccccc" VerticalAlignment="Center" Margin="4,0,10,0" />
+                                                <TextBlock Grid.Column="1" Text="Max Tokens" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                                                <TextBox Grid.Column="2" x:Name="AiMaxTokensBox" Height="28" FontSize="12" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4" LostFocus="AiMaxTokensBox_LostFocus" Padding="6,2,6,2" InputScope="Number">
+                                                    <TextBox.Resources>
+                                                        <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
+                                                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#2d2d2d" />
+                                                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
+                                                        <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
+                                                        <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#444444" />
+                                                        <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
+                                                        <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                                                        <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
+                                                        <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
+                                                    </TextBox.Resources>
+                                                </TextBox>
+                                            </Grid>
+
+                                            <!-- System Prompt -->
+                                            <StackPanel x:Name="AiSystemPromptItem" Margin="6,4,6,4" Spacing="2">
+                                                <TextBlock Text="System Prompt" FontSize="12" Foreground="#888888" />
+                                                <TextBox x:Name="AiSystemPromptBox" Height="50" FontSize="11" TextWrapping="Wrap" AcceptsReturn="True" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4" LostFocus="AiSystemPromptBox_LostFocus" Padding="6,4">
+                                                    <TextBox.Resources>
+                                                        <SolidColorBrush x:Key="TextControlBackground" Color="#252525" />
+                                                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#2d2d2d" />
+                                                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2d2d2d" />
+                                                        <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
+                                                        <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#444444" />
+                                                        <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
+                                                        <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                                                        <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
+                                                        <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
+                                                    </TextBox.Resources>
+                                                </TextBox>
+                                            </StackPanel>
+
+                                            <Border Height="1" Background="#333333" Margin="0,4" />
+
+                                            <!-- Prompts Section Header -->
+                                            <Grid Margin="6,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="リライトプロンプト" FontSize="12" Foreground="#888888" VerticalAlignment="Center" />
+                                                <Button Grid.Column="1" Content="&#xE710; 追加" FontSize="11" Height="24" Padding="8,0" Click="AddAiPrompt_Click" CornerRadius="4" />
+                                            </Grid>
+
+                                            <!-- Prompts List Panel -->
+                                            <StackPanel x:Name="AiPromptsListPanel" Spacing="6" Margin="6,0,6,10" />
                                         </StackPanel>
                                     </Grid>
                                 </ScrollViewer>
@@ -1805,13 +1937,21 @@
 
                             <!-- 空行削除用セパレータとボタン -->
                             <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
-                                    <Button x:Name="RemoveEmptyLinesHeaderButton" Content="&#xED60;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="空行を削除" Click="RemoveEmptyLines_Click" />
+                            <Button x:Name="RemoveEmptyLinesHeaderButton" Content="&#xED60;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="空行を削除" Click="RemoveEmptyLines_Click" />
+
+                            <!-- AIリライト用セパレータとボタン -->
+                            <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
+                            <Button x:Name="AiRewriteButton" Content="&#xE9D9;" FontFamily="Segoe Fluent Icons" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="AIでリライト">
+                                <Button.Flyout>
+                                    <MenuFlyout x:Name="AiRewriteMenuFlyout" Opened="AiRewriteMenuFlyout_Opened" />
+                                </Button.Flyout>
+                            </Button>
 
                             <!-- タグ管理用セパレータとボタン -->
                             <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
                             <Button x:Name="ManageTagsButton" Content="&#xE710;" FontFamily="Segoe Fluent Icons" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="タグの管理">
                                 <Button.Flyout>
-                                    <Flyout x:Name="ManageTagsFlyout" Opened="ManageTagsFlyout_Opened" ShouldConstrainToRootBounds="False">
+                                    <Flyout x:Name="ManageTagsFlyout" Opened="ManageTagsFlyout_Opened" ShouldConstrainToRootBounds="True">
                                         <Flyout.SystemBackdrop>
                                             <DesktopAcrylicBackdrop />
                                         </Flyout.SystemBackdrop>
@@ -2130,5 +2270,143 @@
                 </SplitView>
             </SplitView.Content>
         </SplitView>
+
+        <!-- AIリライトダイアログのオーバーレイ -->
+        <Grid x:Name="AiRewriteDialogOverlay" Grid.RowSpan="3" Background="#80000000" Visibility="Collapsed" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Grid.Resources>
+                <!-- ダイアログ専用のアクリル風/半透明ダーク背景ブラシ -->
+                <SolidColorBrush x:Key="DialogBgBrush" Color="#1f2430" />
+                <SolidColorBrush x:Key="DialogInputBgBrush" Color="#2b3245" />
+            </Grid.Resources>
+            <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Width="550" Background="{StaticResource DialogBgBrush}" CornerRadius="12" BorderThickness="1" BorderBrush="#3b4252" Padding="16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" /> <!-- ヘッダー -->
+                    <RowDefinition Height="*" />    <!-- メインテキストボックス -->
+                    <RowDefinition Height="Auto" /> <!-- 調整用入力枠 (折りたたみ式) -->
+                    <RowDefinition Height="Auto" /> <!-- フッターボタン群 -->
+                </Grid.RowDefinitions>
+
+                <!-- ヘッダー -->
+                <Grid Grid.Row="0" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="AI により生成" FontWeight="SemiBold" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                        <TextBlock x:Name="AiRewriteDialogStatusText" Text="" FontSize="11" Foreground="#999999" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <!-- 閉じるボタン -->
+                    <Button Grid.Column="2" Content="&#xE10A;" FontFamily="Segoe Fluent Icons" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" FontSize="12" Click="AiRewriteDialogClose_Click" CornerRadius="4" />
+                </Grid>
+
+                <!-- テキストボックス -->
+                <TextBox Grid.Row="1" x:Name="AiRewriteResultTextBox" Height="220" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto" Background="{StaticResource DialogInputBgBrush}" Foreground="#e0e6f0" BorderThickness="0" CornerRadius="8" Padding="12" FontSize="13">
+                    <TextBox.Resources>
+                        <SolidColorBrush x:Key="TextControlBackground" Color="#2b3245" />
+                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#343c52" />
+                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2b3245" />
+                        <SolidColorBrush x:Key="TextControlForeground" Color="#e0e6f0" />
+                        <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#e0e6f0" />
+                        <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#e0e6f0" />
+                    </TextBox.Resources>
+                </TextBox>
+
+                <!-- 調整指示入力枠 (デフォルトは非表示) -->
+                <StackPanel Grid.Row="2" x:Name="AiRewriteAdjustPanel" Margin="0,12,0,0" Spacing="6" Visibility="Collapsed">
+                    <TextBlock Text="追加の指示・変更内容を入力してください:" FontSize="11" Foreground="#999999" />
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" x:Name="AiRewriteAdjustInput" Height="28" PlaceholderText="例: もっと短く、箇条書きにして、など" FontSize="12" Background="{StaticResource DialogInputBgBrush}" BorderThickness="1" BorderBrush="#333333" CornerRadius="4" KeyDown="AiRewriteAdjustInput_KeyDown">
+                            <TextBox.Resources>
+                                <SolidColorBrush x:Key="TextControlBackground" Color="#2b3245" />
+                                <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#343c52" />
+                                <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2b3245" />
+                                <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                            </TextBox.Resources>
+                        </TextBox>
+                        <Button Grid.Column="1" Content="適用" Height="28" Padding="12,0" Click="AiRewriteAdjustSubmit_Click" CornerRadius="4">
+                            <Button.Resources>
+                                <SolidColorBrush x:Key="ButtonBackground" Color="#0078d4" />
+                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1084da" />
+                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#005a9e" />
+                                <SolidColorBrush x:Key="ButtonForeground" Color="#ffffff" />
+                            </Button.Resources>
+                        </Button>
+                    </Grid>
+                </StackPanel>
+
+                <!-- フッターボタン -->
+                <Grid Grid.Row="3" Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                        <!-- 置換 -->
+                        <Button x:Name="AiRewriteReplaceButton" Click="AiRewriteReplace_Click" CornerRadius="4" Padding="12,6" Height="32">
+                            <Button.Resources>
+                                <SolidColorBrush x:Key="ButtonBackground" Color="#0078d4" />
+                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1084da" />
+                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#005a9e" />
+                                <SolidColorBrush x:Key="ButtonForeground" Color="#ffffff" />
+                            </Button.Resources>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="&#xE105;" FontFamily="Segoe Fluent Icons" VerticalAlignment="Center" FontSize="12" />
+                                <TextBlock Text="置換" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" />
+                            </StackPanel>
+                        </Button>
+
+                        <!-- 調整 -->
+                        <Button x:Name="AiRewriteAdjustButton" Click="AiRewriteAdjust_Click" CornerRadius="4" Padding="12,6" Height="32" Background="Transparent" BorderThickness="1" BorderBrush="#4c566a">
+                            <Button.Resources>
+                                <SolidColorBrush x:Key="ButtonBackground" Color="Transparent" />
+                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="White" Opacity="0.08" />
+                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="White" Opacity="0.14" />
+                                <SolidColorBrush x:Key="ButtonForeground" Color="#e0e6f0" />
+                                <SolidColorBrush x:Key="ButtonBorderBrush" Color="#4c566a" />
+                            </Button.Resources>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="&#xE70F;" FontFamily="Segoe Fluent Icons" VerticalAlignment="Center" FontSize="12" />
+                                <TextBlock Text="調整" VerticalAlignment="Center" FontSize="12" />
+                            </StackPanel>
+                        </Button>
+
+                        <!-- 再生成 -->
+                        <Button x:Name="AiRewriteRegenButton" Click="AiRewriteRegen_Click" CornerRadius="4" Width="32" Height="32" Padding="0" ToolTipService.ToolTip="再生成" Background="Transparent" BorderThickness="1" BorderBrush="#4c566a">
+                            <Button.Resources>
+                                <SolidColorBrush x:Key="ButtonBackground" Color="Transparent" />
+                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="White" Opacity="0.08" />
+                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="White" Opacity="0.14" />
+                                <SolidColorBrush x:Key="ButtonForeground" Color="#e0e6f0" />
+                                <SolidColorBrush x:Key="ButtonBorderBrush" Color="#4c566a" />
+                            </Button.Resources>
+                            <TextBlock Text="&#xE72C;" FontFamily="Segoe Fluent Icons" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Button>
+                    </StackPanel>
+
+                    <!-- 生成停止 -->
+                    <Button Grid.Column="2" x:Name="AiRewriteStopButton" Click="AiRewriteStop_Click" CornerRadius="4" Padding="12,6" Height="32" Background="#4c1d24" BorderThickness="1" BorderBrush="#8b2635" Visibility="Collapsed">
+                        <Button.Resources>
+                            <SolidColorBrush x:Key="ButtonBackground" Color="#4c1d24" />
+                            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#5d2630" />
+                            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3a141b" />
+                            <SolidColorBrush x:Key="ButtonForeground" Color="#ff6b6b" />
+                            <SolidColorBrush x:Key="ButtonBorderBrush" Color="#8b2635" />
+                        </Button.Resources>
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="&#xE71A;" FontFamily="Segoe Fluent Icons" VerticalAlignment="Center" FontSize="12" />
+                            <TextBlock Text="生成を停止" VerticalAlignment="Center" FontSize="12" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Grid>
+        </Grid>
     </Grid>
 </Window>

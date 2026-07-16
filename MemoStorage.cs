@@ -142,6 +142,7 @@ namespace sumi
         private static readonly string NotesDatPath;
         private static readonly string NotesDatTempPath;
         private static readonly string SettingsPath;
+        private static readonly string AiPromptsPath;
 
         // 文字コードのキャッシュ (アロケーション排除)
         private static readonly UTF8Encoding Utf8NoBom = new(false);
@@ -172,6 +173,14 @@ namespace sumi
         public static string LastSelectedRightTag { get; set; } = string.Empty;
         public static int RecentNotesCount { get; set; } = 1;
         public static bool ShowDeleteButton { get; set; } = false;
+
+        // AI Settings
+        public static string AiApiKey { get; set; } = string.Empty;
+        public static string AiModelName { get; set; } = "openai/gpt-4o-mini";
+        public static double AiTemperature { get; set; } = 0.7;
+        public static int AiMaxTokens { get; set; } = 2000;
+        public static string AiSystemPrompt { get; set; } = "あなたは優秀な文章推敲アシスタントです。";
+        public static List<AiPromptItem> AiPrompts { get; set; } = new();
 
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT
@@ -224,6 +233,7 @@ namespace sumi
             NotesDatPath = Path.Combine(FolderPath, "notes.dat");
             NotesDatTempPath = Path.Combine(FolderPath, "notes.tmp");
             SettingsPath = Path.Combine(FolderPath, "settings.txt");
+            AiPromptsPath = Path.Combine(FolderPath, "ai_prompts.json");
         }
 
         /// <summary>
@@ -1070,6 +1080,21 @@ namespace sumi
                                 case "ShowDeleteButton":
                                     if (bool.TryParse(val, out bool sdb)) ShowDeleteButton = sdb;
                                     break;
+                                case "AiApiKey":
+                                    AiApiKey = val;
+                                    break;
+                                case "AiModelName":
+                                    AiModelName = val;
+                                    break;
+                                case "AiTemperature":
+                                    if (double.TryParse(val, out double temp)) AiTemperature = temp;
+                                    break;
+                                case "AiMaxTokens":
+                                    if (int.TryParse(val, out int tokens)) AiMaxTokens = tokens;
+                                    break;
+                                case "AiSystemPrompt":
+                                    AiSystemPrompt = val.Replace("\\n", "\n");
+                                    break;
                             }
                         }
                     }
@@ -1079,6 +1104,7 @@ namespace sumi
             {
                 Debug.WriteLine($"[LoadSettings Error] {ex.Message}");
             }
+            LoadAiPrompts();
         }
 
         /// <summary>
@@ -1117,6 +1143,11 @@ namespace sumi
                 sb.AppendLine($"LastSelectedRightTag={LastSelectedRightTag}");
                 sb.AppendLine($"RecentNotesCount={RecentNotesCount}");
                 sb.AppendLine($"ShowDeleteButton={ShowDeleteButton}");
+                sb.AppendLine($"AiApiKey={AiApiKey}");
+                sb.AppendLine($"AiModelName={AiModelName}");
+                sb.AppendLine($"AiTemperature={AiTemperature}");
+                sb.AppendLine($"AiMaxTokens={AiMaxTokens}");
+                sb.AppendLine($"AiSystemPrompt={AiSystemPrompt.Replace("\r", "").Replace("\n", "\\n")}");
                 byte[] bytes = Utf8NoBom.GetBytes(sb.ToString());
 
                 string tempPath = SettingsPath + ".tmp";
@@ -1316,5 +1347,67 @@ namespace sumi
             sortedTags.Sort(StringComparer.OrdinalIgnoreCase);
             return sortedTags;
         }
+
+        public static void LoadAiPrompts()
+        {
+            try
+            {
+                if (File.Exists(AiPromptsPath))
+                {
+                    string json = File.ReadAllText(AiPromptsPath, Utf8NoBom);
+                    var list = JsonSerializer.Deserialize<List<AiPromptItem>>(json);
+                    if (list != null)
+                    {
+                        AiPrompts = list;
+                    }
+                }
+                
+                if (AiPrompts == null || AiPrompts.Count == 0)
+                {
+                    AiPrompts = GetDefaultAiPrompts();
+                    SaveAiPrompts();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[LoadAiPrompts Error] {ex.Message}");
+                if (AiPrompts == null || AiPrompts.Count == 0)
+                {
+                    AiPrompts = GetDefaultAiPrompts();
+                }
+            }
+        }
+
+        public static void SaveAiPrompts()
+        {
+            try
+            {
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                string json = JsonSerializer.Serialize(AiPrompts, options);
+                File.WriteAllText(AiPromptsPath, json, Utf8NoBom);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SaveAiPrompts Error] {ex.Message}");
+            }
+        }
+
+        private static List<AiPromptItem> GetDefaultAiPrompts()
+        {
+            return new List<AiPromptItem>
+            {
+                new AiPromptItem { Id = Guid.NewGuid().ToString(), Name = "要約する", Prompt = "選択されたテキストの内容を簡潔に要約してください。" },
+                new AiPromptItem { Id = Guid.NewGuid().ToString(), Name = "推敲・校正", Prompt = "選択されたテキストの誤字脱字を修正し、自然な日本語に推敲してください。" },
+                new AiPromptItem { Id = Guid.NewGuid().ToString(), Name = "丁寧なビジネス表現", Prompt = "選択されたテキストを、ビジネスシーンで使える丁寧な敬語表現に書き換えてください。" },
+                new AiPromptItem { Id = Guid.NewGuid().ToString(), Name = "カジュアルな表現", Prompt = "選択されたテキストを、親しみやすいカジュアルな口調に書き換えてください。" }
+            };
+        }
+    }
+
+    public class AiPromptItem
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Prompt { get; set; } = string.Empty;
     }
 }

@@ -18,6 +18,22 @@ namespace sumi
     public sealed partial class MainWindow : Window, IDisposable
     {
         public static MainWindow? Instance { get; private set; }
+
+        private CancellationTokenSource? _aiRewriteCts;
+        private string _lastSelectedTextForRewrite = string.Empty;
+        private string _lastSelectedPromptForRewrite = string.Empty;
+        private string _lastRewritePromptName = string.Empty;
+        private List<AiMessage> _aiRewriteChatHistory = new();
+        private static readonly System.Net.Http.HttpClient _aiHttpClient = new();
+
+        private class AiMessage
+        {
+            [System.Text.Json.Serialization.JsonPropertyName("role")]
+            public string Role { get; set; } = string.Empty;
+            [System.Text.Json.Serialization.JsonPropertyName("content")]
+            public string Content { get; set; } = string.Empty;
+        }
+
         private readonly SaveScheduler _scheduler;
         private readonly SaveScheduler _taskSaveScheduler;
         private readonly HashSet<string> _dirtyTaskNoteIds = new();
@@ -1196,6 +1212,15 @@ namespace sumi
                 RecentNotesCountSlider.Value = MemoStorage.RecentNotesCount;
                 RecentNotesCountValueText.Text = MemoStorage.RecentNotesCount.ToString();
                 ShowDeleteButtonToggle.IsOn = MemoStorage.ShowDeleteButton;
+
+                AiApiKeyBox.Password = MemoStorage.AiApiKey;
+                AiModelNameBox.Text = MemoStorage.AiModelName;
+                AiTemperatureSlider.Value = MemoStorage.AiTemperature;
+                AiTemperatureValueText.Text = MemoStorage.AiTemperature.ToString("0.0");
+                AiMaxTokensBox.Text = MemoStorage.AiMaxTokens.ToString();
+                AiSystemPromptBox.Text = MemoStorage.AiSystemPrompt;
+
+                RefreshAiPromptsListUI();
             }
             finally
             {
@@ -1216,6 +1241,11 @@ namespace sumi
             QuitHotKeyItem.Visibility = Visibility.Visible;
             DeleteNoteItem.Visibility = Visibility.Visible;
             ShowDeleteButtonItem.Visibility = Visibility.Visible;
+            if (AiApiKeyItem != null) AiApiKeyItem.Visibility = Visibility.Visible;
+            if (AiModelNameItem != null) AiModelNameItem.Visibility = Visibility.Visible;
+            if (AiTemperatureItem != null) AiTemperatureItem.Visibility = Visibility.Visible;
+            if (AiMaxTokensItem != null) AiMaxTokensItem.Visibility = Visibility.Visible;
+            if (AiSystemPromptItem != null) AiSystemPromptItem.Visibility = Visibility.Visible;
 
             // タブをエディタにリセット
             if (SettingsSelectorBar != null)
@@ -1249,18 +1279,28 @@ namespace sumi
                 if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Visible;
                 if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Collapsed;
                 if (SystemSettingsPanel != null) SystemSettingsPanel.Visibility = Visibility.Collapsed;
+                if (AiSettingsPanel != null) AiSettingsPanel.Visibility = Visibility.Collapsed;
             }
             else if (selectedItem == WindowTab)
             {
                 if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Collapsed;
                 if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Visible;
                 if (SystemSettingsPanel != null) SystemSettingsPanel.Visibility = Visibility.Collapsed;
+                if (AiSettingsPanel != null) AiSettingsPanel.Visibility = Visibility.Collapsed;
             }
             else if (selectedItem == SystemTab)
             {
                 if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Collapsed;
                 if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Collapsed;
                 if (SystemSettingsPanel != null) SystemSettingsPanel.Visibility = Visibility.Visible;
+                if (AiSettingsPanel != null) AiSettingsPanel.Visibility = Visibility.Collapsed;
+            }
+            else if (selectedItem == AiTab)
+            {
+                if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Collapsed;
+                if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Collapsed;
+                if (SystemSettingsPanel != null) SystemSettingsPanel.Visibility = Visibility.Collapsed;
+                if (AiSettingsPanel != null) AiSettingsPanel.Visibility = Visibility.Visible;
             }
         }
 
@@ -1286,6 +1326,11 @@ namespace sumi
                 QuitHotKeyItem.Visibility = Visibility.Visible;
                 DeleteNoteItem.Visibility = Visibility.Visible;
                 ShowDeleteButtonItem.Visibility = Visibility.Visible;
+                if (AiApiKeyItem != null) AiApiKeyItem.Visibility = Visibility.Visible;
+                if (AiModelNameItem != null) AiModelNameItem.Visibility = Visibility.Visible;
+                if (AiTemperatureItem != null) AiTemperatureItem.Visibility = Visibility.Visible;
+                if (AiMaxTokensItem != null) AiMaxTokensItem.Visibility = Visibility.Visible;
+                if (AiSystemPromptItem != null) AiSystemPromptItem.Visibility = Visibility.Visible;
 
                 UpdateSettingsTabVisibility();
                 return;
@@ -1300,6 +1345,7 @@ namespace sumi
             if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Visible;
             if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Visible;
             if (SystemSettingsPanel != null) SystemSettingsPanel.Visibility = Visibility.Visible;
+            if (AiSettingsPanel != null) AiSettingsPanel.Visibility = Visibility.Visible;
 
             FontItem.Visibility = "font フォント 書体".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
             FontWeightItem.Visibility = "font weight フォント ウェイト 太さ 太字".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
@@ -1312,6 +1358,12 @@ namespace sumi
             QuitHotKeyItem.Visibility = "quit hotkey ショートカット キーボード 終了 ホットキー クイック".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
             DeleteNoteItem.Visibility = "delete note メモを削除 削除 ゴミ箱".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
             ShowDeleteButtonItem.Visibility = "show delete button 削除ボタン 表示 非表示 設定 ゴミ箱".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
+
+            if (AiApiKeyItem != null) AiApiKeyItem.Visibility = "ai api key openrouter key apiキー エーアイ 鍵 パスワード".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
+            if (AiModelNameItem != null) AiModelNameItem.Visibility = "ai model name モデル モデル名 エーアイ".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
+            if (AiTemperatureItem != null) AiTemperatureItem.Visibility = "ai temperature テンパチャー 温度 創造性 ランダム".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
+            if (AiMaxTokensItem != null) AiMaxTokensItem.Visibility = "ai max tokens トークン 最大 トークン数".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
+            if (AiSystemPromptItem != null) AiSystemPromptItem.Visibility = "ai system prompt システム プロンプト 指示 指令 エーアイ".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void FontComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1457,6 +1509,48 @@ namespace sumi
                 RefreshAllNotesLists();
                 QueueSaveSettings();
             }
+        }
+
+        private void AiApiKeyBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing || _isInitializingSettings) return;
+            MemoStorage.AiApiKey = AiApiKeyBox.Password;
+            QueueSaveSettings();
+        }
+
+        private void AiModelNameBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing || _isInitializingSettings) return;
+            MemoStorage.AiModelName = AiModelNameBox.Text;
+            QueueSaveSettings();
+        }
+
+        private void AiTemperatureSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+        {
+            if (_isInitializing || _isInitializingSettings) return;
+            MemoStorage.AiTemperature = e.NewValue;
+            if (AiTemperatureValueText != null)
+            {
+                AiTemperatureValueText.Text = e.NewValue.ToString("0.0");
+            }
+            QueueSaveSettings();
+        }
+
+        private void AiMaxTokensBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing || _isInitializingSettings) return;
+            if (int.TryParse(AiMaxTokensBox.Text, out int tokens))
+            {
+                MemoStorage.AiMaxTokens = tokens;
+                QueueSaveSettings();
+            }
+        }
+
+        private void AiSystemPromptBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing || _isInitializingSettings) return;
+            MemoStorage.AiSystemPrompt = AiSystemPromptBox.Text;
+            QueueSaveSettings();
         }
 
         private void FontSizeSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
@@ -5894,6 +5988,408 @@ namespace sumi
         #endregion
 
         #region Helpers
+        #endregion
+
+        #region AI Rewrite
+
+        private void RefreshAiPromptsListUI()
+        {
+            if (AiPromptsListPanel == null) return;
+            AiPromptsListPanel.Children.Clear();
+
+            foreach (var item in MemoStorage.AiPrompts)
+            {
+                var container = new Border
+                {
+                    BorderThickness = new Thickness(1),
+                    BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 51, 51)),
+                    Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 28, 28, 28)),
+                    CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(6)
+                };
+
+                var grid = new Grid();
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                var nameBox = new TextBox
+                {
+                    Text = item.Name,
+                    FontSize = 11,
+                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                    Height = 24,
+                    Padding = new Thickness(4, 2, 4, 2),
+                    Margin = new Thickness(0, 0, 4, 0),
+                    BorderThickness = new Thickness(0),
+                    Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 37, 37)),
+                    CornerRadius = new CornerRadius(3)
+                };
+                nameBox.Resources["TextControlBackground"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 37, 37));
+                nameBox.Resources["TextControlBackgroundPointerOver"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 45, 45, 45));
+                nameBox.Resources["TextControlBackgroundFocused"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 45, 45, 45));
+                nameBox.Resources["TextControlForeground"] = new SolidColorBrush(Microsoft.UI.Colors.White);
+
+                nameBox.LostFocus += (s, e) =>
+                {
+                    item.Name = nameBox.Text;
+                    MemoStorage.SaveAiPrompts();
+                };
+
+                var deleteBtn = new Button
+                {
+                    Content = "\uE74D",
+                    FontFamily = new FontFamily("Segoe Fluent Icons"),
+                    FontSize = 10,
+                    Width = 24,
+                    Height = 24,
+                    Padding = new Thickness(0),
+                    Style = (Style)RootGrid.Resources["IconButtonStyle"],
+                    Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 69, 58))
+                };
+                deleteBtn.Click += (s, e) =>
+                {
+                    MemoStorage.AiPrompts.Remove(item);
+                    MemoStorage.SaveAiPrompts();
+                    RefreshAiPromptsListUI();
+                };
+
+                var promptBox = new TextBox
+                {
+                    Text = item.Prompt,
+                    FontSize = 10,
+                    TextWrapping = TextWrapping.Wrap,
+                    AcceptsReturn = true,
+                    Height = 40,
+                    Padding = new Thickness(4, 2, 4, 2),
+                    Margin = new Thickness(0, 4, 0, 0),
+                    BorderThickness = new Thickness(1),
+                    BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 51, 51)),
+                    Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 37, 37)),
+                    CornerRadius = new CornerRadius(3)
+                };
+                promptBox.Resources["TextControlBackground"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 37, 37));
+                promptBox.Resources["TextControlBackgroundPointerOver"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 45, 45, 45));
+                promptBox.Resources["TextControlBackgroundFocused"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 45, 45, 45));
+                promptBox.Resources["TextControlForeground"] = new SolidColorBrush(Microsoft.UI.Colors.White);
+
+                promptBox.LostFocus += (s, e) =>
+                {
+                    item.Prompt = promptBox.Text;
+                    MemoStorage.SaveAiPrompts();
+                };
+
+                Grid.SetRow(nameBox, 0);
+                Grid.SetColumn(nameBox, 0);
+                grid.Children.Add(nameBox);
+
+                Grid.SetRow(deleteBtn, 0);
+                Grid.SetColumn(deleteBtn, 1);
+                grid.Children.Add(deleteBtn);
+
+                Grid.SetRow(promptBox, 1);
+                Grid.SetColumn(promptBox, 0);
+                Grid.SetColumnSpan(promptBox, 2);
+                grid.Children.Add(promptBox);
+
+                container.Child = grid;
+                AiPromptsListPanel.Children.Add(container);
+            }
+        }
+
+        private void AddAiPrompt_Click(object sender, RoutedEventArgs e)
+        {
+            var newItem = new AiPromptItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = "新しいプロンプト",
+                Prompt = "指示を入力してください。"
+            };
+            MemoStorage.AiPrompts.Add(newItem);
+            MemoStorage.SaveAiPrompts();
+            RefreshAiPromptsListUI();
+        }
+
+        private void AiRewriteMenuFlyout_Opened(object sender, object e)
+        {
+            if (AiRewriteMenuFlyout == null) return;
+            AiRewriteMenuFlyout.Items.Clear();
+
+            string selectedText = MemoTextBox.Document.Selection.Text;
+            bool hasSelection = !string.IsNullOrEmpty(selectedText);
+
+            if (!hasSelection)
+            {
+                var warningItem = new MenuFlyoutItem
+                {
+                    Text = "テキストを選択してください",
+                    IsEnabled = false
+                };
+                AiRewriteMenuFlyout.Items.Add(warningItem);
+                return;
+            }
+
+            foreach (var item in MemoStorage.AiPrompts)
+            {
+                var menuItem = new MenuFlyoutItem
+                {
+                    Text = item.Name
+                };
+                menuItem.Click += (s, ev) =>
+                {
+                    StartAiRewrite(item.Prompt, item.Name);
+                };
+                AiRewriteMenuFlyout.Items.Add(menuItem);
+            }
+        }
+
+        private void StartAiRewrite(string promptText, string promptName)
+        {
+            if (string.IsNullOrWhiteSpace(MemoStorage.AiApiKey))
+            {
+                AiRewriteDialogStatusText.Text = "エラー";
+                AiRewriteResultTextBox.Text = "【設定エラー】APIキーが設定されていません。\n設定画面の「AI」タブで OpenRouter の API Key を入力してください。";
+                AiRewriteDialogOverlay.Visibility = Visibility.Visible;
+                AiRewriteStopButton.Visibility = Visibility.Collapsed;
+                AiRewriteReplaceButton.IsEnabled = false;
+                AiRewriteAdjustButton.IsEnabled = false;
+                AiRewriteRegenButton.IsEnabled = false;
+                return;
+            }
+
+            string selectedText = MemoTextBox.Document.Selection.Text;
+            if (string.IsNullOrEmpty(selectedText))
+            {
+                return;
+            }
+
+            _lastSelectedTextForRewrite = selectedText;
+            _lastSelectedPromptForRewrite = promptText;
+            _lastRewritePromptName = promptName;
+
+            _aiRewriteChatHistory.Clear();
+            if (!string.IsNullOrEmpty(MemoStorage.AiSystemPrompt))
+            {
+                _aiRewriteChatHistory.Add(new AiMessage { Role = "system", Content = MemoStorage.AiSystemPrompt });
+            }
+            _aiRewriteChatHistory.Add(new AiMessage { Role = "user", Content = $"{promptText}\n\n対象テキスト:\n{selectedText}" });
+
+            AiRewriteDialogStatusText.Text = $"「{promptName}」で実行中...";
+            AiRewriteResultTextBox.Text = "AIが思考しています...";
+            AiRewriteDialogOverlay.Visibility = Visibility.Visible;
+            AiRewriteStopButton.Visibility = Visibility.Visible;
+            AiRewriteAdjustPanel.Visibility = Visibility.Collapsed;
+            AiRewriteAdjustInput.Text = string.Empty;
+
+            ExecuteAiCompletionsRequest();
+        }
+
+        private async void ExecuteAiCompletionsRequest()
+        {
+            _aiRewriteCts?.Cancel();
+            _aiRewriteCts = new CancellationTokenSource();
+            var token = _aiRewriteCts.Token;
+
+            AiRewriteStopButton.Visibility = Visibility.Visible;
+            AiRewriteReplaceButton.IsEnabled = false;
+            AiRewriteAdjustButton.IsEnabled = false;
+            AiRewriteRegenButton.IsEnabled = false;
+
+            try
+            {
+                var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "https://openrouter.ai/api/v1/chat/completions");
+                request.Headers.Add("Authorization", $"Bearer {MemoStorage.AiApiKey}");
+                request.Headers.Add("HTTP-Referer", "https://github.com/haitodo/sumi");
+                request.Headers.Add("X-Title", "sumi");
+
+                var requestBody = new
+                {
+                    model = MemoStorage.AiModelName,
+                    messages = _aiRewriteChatHistory,
+                    temperature = MemoStorage.AiTemperature,
+                    max_tokens = MemoStorage.AiMaxTokens,
+                    stream = true
+                };
+
+                string jsonBody = System.Text.Json.JsonSerializer.Serialize(requestBody);
+                request.Content = new System.Net.Http.StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
+
+                using var response = await _aiHttpClient.SendAsync(request, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, token);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    string errorDetail = await response.Content.ReadAsStringAsync(token);
+                    this.DispatcherQueue.TryEnqueue(() =>
+                    {
+                        AiRewriteResultTextBox.Text = $"【APIエラー (ステータス: {response.StatusCode})】\n{errorDetail}";
+                        AiRewriteStopButton.Visibility = Visibility.Collapsed;
+                        AiRewriteReplaceButton.IsEnabled = false;
+                        AiRewriteAdjustButton.IsEnabled = true;
+                        AiRewriteRegenButton.IsEnabled = true;
+                    });
+                    return;
+                }
+
+                using var stream = await response.Content.ReadAsStreamAsync(token);
+                using var reader = new System.IO.StreamReader(stream, System.Text.Encoding.UTF8);
+
+                bool isFirstChunk = true;
+                var accumulatedContent = new System.Text.StringBuilder();
+
+                string? line;
+                while ((line = await reader.ReadLineAsync(token)) != null)
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (line.StartsWith("data: "))
+                    {
+                        string data = line.Substring(6).Trim();
+                        if (data == "[DONE]") break;
+
+                        try
+                        {
+                            using var doc = System.Text.Json.JsonDocument.Parse(data);
+                            if (doc.RootElement.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
+                            {
+                                var choice = choices[0];
+                                if (choice.TryGetProperty("delta", out var delta) && delta.TryGetProperty("content", out var contentProp))
+                                {
+                                    string content = contentProp.GetString() ?? "";
+                                    accumulatedContent.Append(content);
+
+                                    this.DispatcherQueue.TryEnqueue(() =>
+                                    {
+                                        if (isFirstChunk)
+                                        {
+                                            AiRewriteResultTextBox.Text = string.Empty;
+                                            isFirstChunk = false;
+                                        }
+                                        AiRewriteResultTextBox.Text += content;
+                                    });
+                                }
+                            }
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+
+                this.DispatcherQueue.TryEnqueue(() =>
+                {
+                    AiRewriteStopButton.Visibility = Visibility.Collapsed;
+                    AiRewriteReplaceButton.IsEnabled = true;
+                    AiRewriteAdjustButton.IsEnabled = true;
+                    AiRewriteRegenButton.IsEnabled = true;
+                    AiRewriteDialogStatusText.Text = "生成完了";
+                    
+                    _aiRewriteChatHistory.Add(new AiMessage { Role = "assistant", Content = AiRewriteResultTextBox.Text });
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                this.DispatcherQueue.TryEnqueue(() =>
+                {
+                    AiRewriteStopButton.Visibility = Visibility.Collapsed;
+                    AiRewriteReplaceButton.IsEnabled = true;
+                    AiRewriteAdjustButton.IsEnabled = true;
+                    AiRewriteRegenButton.IsEnabled = true;
+                    AiRewriteDialogStatusText.Text = "生成を停止しました";
+                    
+                    _aiRewriteChatHistory.Add(new AiMessage { Role = "assistant", Content = AiRewriteResultTextBox.Text });
+                });
+            }
+            catch (Exception ex)
+            {
+                this.DispatcherQueue.TryEnqueue(() =>
+                {
+                    AiRewriteResultTextBox.Text = $"【接続エラー】\n{ex.Message}";
+                    AiRewriteStopButton.Visibility = Visibility.Collapsed;
+                    AiRewriteReplaceButton.IsEnabled = false;
+                    AiRewriteAdjustButton.IsEnabled = true;
+                    AiRewriteRegenButton.IsEnabled = true;
+                    AiRewriteDialogStatusText.Text = "エラー発生";
+                });
+            }
+        }
+
+        private void AiRewriteDialogClose_Click(object sender, RoutedEventArgs e)
+        {
+            _aiRewriteCts?.Cancel();
+            AiRewriteDialogOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void AiRewriteReplace_Click(object sender, RoutedEventArgs e)
+        {
+            _aiRewriteCts?.Cancel();
+            string newText = AiRewriteResultTextBox.Text;
+            MemoTextBox.Document.Selection.SetText(Microsoft.UI.Text.TextSetOptions.None, newText);
+            AiRewriteDialogOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void AiRewriteAdjust_Click(object sender, RoutedEventArgs e)
+        {
+            if (AiRewriteAdjustPanel.Visibility == Visibility.Visible)
+            {
+                AiRewriteAdjustPanel.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                AiRewriteAdjustPanel.Visibility = Visibility.Visible;
+                AiRewriteAdjustInput.Focus(FocusState.Programmatic);
+            }
+        }
+
+        private void AiRewriteAdjustSubmit_Click(object sender, RoutedEventArgs e)
+        {
+            string instruction = AiRewriteAdjustInput.Text.Trim();
+            if (string.IsNullOrEmpty(instruction)) return;
+
+            if (_aiRewriteChatHistory.Count > 0 && _aiRewriteChatHistory[^1].Role != "assistant")
+            {
+                _aiRewriteChatHistory.Add(new AiMessage { Role = "assistant", Content = AiRewriteResultTextBox.Text });
+            }
+
+            _aiRewriteChatHistory.Add(new AiMessage { Role = "user", Content = instruction });
+            AiRewriteAdjustInput.Text = string.Empty;
+            AiRewriteAdjustPanel.Visibility = Visibility.Collapsed;
+
+            AiRewriteDialogStatusText.Text = "指示を適用して再生成中...";
+            AiRewriteResultTextBox.Text = "AIが思考しています...";
+            
+            ExecuteAiCompletionsRequest();
+        }
+
+        private void AiRewriteAdjustInput_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                e.Handled = true;
+                AiRewriteAdjustSubmit_Click(sender, new RoutedEventArgs());
+            }
+        }
+
+        private void AiRewriteRegen_Click(object sender, RoutedEventArgs e)
+        {
+            _aiRewriteChatHistory.Clear();
+            if (!string.IsNullOrEmpty(MemoStorage.AiSystemPrompt))
+            {
+                _aiRewriteChatHistory.Add(new AiMessage { Role = "system", Content = MemoStorage.AiSystemPrompt });
+            }
+            _aiRewriteChatHistory.Add(new AiMessage { Role = "user", Content = $"{_lastSelectedPromptForRewrite}\n\n対象テキスト:\n{_lastSelectedTextForRewrite}" });
+
+            AiRewriteDialogStatusText.Text = $"「{_lastRewritePromptName}」で再生成中...";
+            AiRewriteResultTextBox.Text = "AIが思考しています...";
+            AiRewriteAdjustPanel.Visibility = Visibility.Collapsed;
+
+            ExecuteAiCompletionsRequest();
+        }
+
+        private void AiRewriteStop_Click(object sender, RoutedEventArgs e)
+        {
+            _aiRewriteCts?.Cancel();
+        }
+
         #endregion
     }
 
