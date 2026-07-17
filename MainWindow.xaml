@@ -676,7 +676,12 @@
                                                     <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
                                                 <TextBlock Grid.Column="0" Text="リライトプロンプト" FontSize="12" Foreground="#888888" VerticalAlignment="Center" />
-                                                <Button Grid.Column="1" Content="&#xE710; 追加" FontSize="11" Height="24" Padding="8,0" Click="AddAiPrompt_Click" CornerRadius="4" />
+                                                <Button Grid.Column="1" FontSize="11" Height="24" Padding="8,0" Click="AddAiPrompt_Click" CornerRadius="4">
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <FontIcon Glyph="&#xE710;" FontFamily="Segoe Fluent Icons" FontSize="11" />
+                                                        <TextBlock Text="追加" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Button>
                                             </Grid>
 
                                             <!-- Prompts List Panel -->
@@ -1947,6 +1952,8 @@
                                     <MenuFlyout x:Name="AiRewriteMenuFlyout" Opened="AiRewriteMenuFlyout_Opened" />
                                 </Button.Flyout>
                             </Button>
+                            <Button x:Name="AiRunButton" Content="&#xE768;" FontFamily="Segoe Fluent Icons" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="AIで実行" Click="AiRunButton_Click" />
+                            <Button x:Name="AiTaskGenButton" Content="&#xE73E;" FontFamily="Segoe Fluent Icons" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="AIでタスクを生成" Click="AiTaskGenButton_Click" />
 
                             <!-- タグ管理用セパレータとボタン -->
                             <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
@@ -2394,6 +2401,208 @@
 
                     <!-- 生成停止 -->
                     <Button Grid.Column="2" x:Name="AiRewriteStopButton" Click="AiRewriteStop_Click" CornerRadius="4" Padding="12,6" Height="32" Background="#4c1d24" BorderThickness="1" BorderBrush="#8b2635" Visibility="Collapsed">
+                        <Button.Resources>
+                            <SolidColorBrush x:Key="ButtonBackground" Color="#4c1d24" />
+                            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#5d2630" />
+                            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3a141b" />
+                            <SolidColorBrush x:Key="ButtonForeground" Color="#ff6b6b" />
+                            <SolidColorBrush x:Key="ButtonBorderBrush" Color="#8b2635" />
+                        </Button.Resources>
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="&#xE71A;" FontFamily="Segoe Fluent Icons" VerticalAlignment="Center" FontSize="12" />
+                            <TextBlock Text="生成を停止" VerticalAlignment="Center" FontSize="12" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Grid>
+        </Grid>
+
+        <!-- AIで実行ダイアログのオーバーレイ -->
+        <Grid x:Name="AiRunDialogOverlay" Grid.RowSpan="3" Background="#80000000" Visibility="Collapsed" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Grid.Resources>
+                <SolidColorBrush x:Key="DialogBgBrush" Color="#1f2430" />
+                <SolidColorBrush x:Key="DialogInputBgBrush" Color="#2b3245" />
+            </Grid.Resources>
+            <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Width="550" Background="{StaticResource DialogBgBrush}" CornerRadius="12" BorderThickness="1" BorderBrush="#3b4252" Padding="16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" /> <!-- ヘッダー -->
+                    <RowDefinition Height="Auto" /> <!-- プロンプト入力 -->
+                    <RowDefinition Height="*" />    <!-- メインテキストボックス（結果） -->
+                    <RowDefinition Height="Auto" /> <!-- フッターボタン群 -->
+                </Grid.RowDefinitions>
+
+                <!-- ヘッダー -->
+                <Grid Grid.Row="0" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="AI で実行" FontWeight="SemiBold" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                        <TextBlock x:Name="AiRunDialogStatusText" Text="" FontSize="11" Foreground="#999999" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <!-- 閉じるボタン -->
+                    <Button Grid.Column="2" Content="&#xE10A;" FontFamily="Segoe Fluent Icons" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" FontSize="12" Click="AiRunDialogClose_Click" CornerRadius="4" />
+                </Grid>
+
+                <!-- プロンプト入力 -->
+                <Grid Grid.Row="1" Margin="0,0,0,12" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0" x:Name="AiRunPromptInputTextBox" Height="60" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="AIへの指示を入力してください（例：日本語に翻訳して、箇条書きでまとめて、など）" FontSize="12" Background="{StaticResource DialogInputBgBrush}" Foreground="#ffffff" BorderThickness="1" BorderBrush="#333333" CornerRadius="6" KeyDown="AiRunPromptInputTextBox_KeyDown">
+                        <TextBox.Resources>
+                            <SolidColorBrush x:Key="TextControlBackground" Color="#2b3245" />
+                            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#343c52" />
+                            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2b3245" />
+                            <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                        </TextBox.Resources>
+                    </TextBox>
+                    <Button Grid.Column="1" x:Name="AiRunExecuteButton" Content="実行" Height="60" Padding="16,0" Click="AiRunExecuteButton_Click" CornerRadius="6" VerticalAlignment="Stretch">
+                        <Button.Resources>
+                            <SolidColorBrush x:Key="ButtonBackground" Color="#0078d4" />
+                            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1084da" />
+                            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#005a9e" />
+                            <SolidColorBrush x:Key="ButtonForeground" Color="#ffffff" />
+                        </Button.Resources>
+                    </Button>
+                </Grid>
+
+                <!-- テキストボックス (結果) -->
+                <TextBox Grid.Row="2" x:Name="AiRunResultTextBox" Height="200" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto" Background="{StaticResource DialogInputBgBrush}" Foreground="#e0e6f0" BorderThickness="0" CornerRadius="8" Padding="12" FontSize="13">
+                    <TextBox.Resources>
+                        <SolidColorBrush x:Key="TextControlBackground" Color="#2b3245" />
+                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#343c52" />
+                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2b3245" />
+                        <SolidColorBrush x:Key="TextControlForeground" Color="#e0e6f0" />
+                        <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#e0e6f0" />
+                        <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#e0e6f0" />
+                    </TextBox.Resources>
+                </TextBox>
+
+                <!-- フッターボタン -->
+                <Grid Grid.Row="3" Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                        <!-- 置換 -->
+                        <Button x:Name="AiRunReplaceButton" Click="AiRunReplace_Click" CornerRadius="4" Padding="12,6" Height="32" IsEnabled="False">
+                            <Button.Resources>
+                                <SolidColorBrush x:Key="ButtonBackground" Color="#0078d4" />
+                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1084da" />
+                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#005a9e" />
+                                <SolidColorBrush x:Key="ButtonForeground" Color="#ffffff" />
+                            </Button.Resources>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock x:Name="AiRunReplaceIcon" Text="&#xE105;" FontFamily="Segoe Fluent Icons" VerticalAlignment="Center" FontSize="12" />
+                                <TextBlock x:Name="AiRunReplaceText" Text="置換" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- 生成停止 -->
+                    <Button Grid.Column="2" x:Name="AiRunStopButton" Click="AiRunStop_Click" CornerRadius="4" Padding="12,6" Height="32" Background="#4c1d24" BorderThickness="1" BorderBrush="#8b2635" Visibility="Collapsed">
+                        <Button.Resources>
+                            <SolidColorBrush x:Key="ButtonBackground" Color="#4c1d24" />
+                            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#5d2630" />
+                            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3a141b" />
+                            <SolidColorBrush x:Key="ButtonForeground" Color="#ff6b6b" />
+                            <SolidColorBrush x:Key="ButtonBorderBrush" Color="#8b2635" />
+                        </Button.Resources>
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="&#xE71A;" FontFamily="Segoe Fluent Icons" VerticalAlignment="Center" FontSize="12" />
+                            <TextBlock Text="生成を停止" VerticalAlignment="Center" FontSize="12" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Grid>
+        </Grid>
+
+        <!-- AIタスク生成ダイアログのオーバーレイ -->
+        <Grid x:Name="AiTaskGenDialogOverlay" Grid.RowSpan="3" Background="#80000000" Visibility="Collapsed" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Grid.Resources>
+                <SolidColorBrush x:Key="DialogBgBrush" Color="#1f2430" />
+                <SolidColorBrush x:Key="DialogInputBgBrush" Color="#2b3245" />
+            </Grid.Resources>
+            <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Width="550" Background="{StaticResource DialogBgBrush}" CornerRadius="12" BorderThickness="1" BorderBrush="#3b4252" Padding="16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" /> <!-- ヘッダー -->
+                    <RowDefinition Height="*" />    <!-- プレビューリスト -->
+                    <RowDefinition Height="Auto" /> <!-- フッターボタン群 -->
+                </Grid.RowDefinitions>
+
+                <!-- ヘッダー -->
+                <Grid Grid.Row="0" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="AIタスク自動作成" FontWeight="SemiBold" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                        <TextBlock x:Name="AiTaskGenDialogStatusText" Text="" FontSize="11" Foreground="#999999" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <!-- 閉じるボタン -->
+                    <Button Grid.Column="2" Content="&#xE10A;" FontFamily="Segoe Fluent Icons" Style="{StaticResource IconButtonStyle}" Width="28" Height="28" FontSize="12" Click="AiTaskGenDialogClose_Click" CornerRadius="4" />
+                </Grid>
+
+                <!-- プレビューリスト -->
+                <ListView Grid.Row="1" x:Name="AiTaskGenPreviewListView" Height="240" Background="{StaticResource DialogInputBgBrush}" CornerRadius="8" Padding="6" SelectionMode="None">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="local:TaskPreviewItem">
+                            <Grid Padding="4" ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <CheckBox Grid.Column="0" IsChecked="{x:Bind IsSelected, Mode=TwoWay}" MinWidth="32" VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1" Text="{x:Bind Title, Mode=TwoWay}" Foreground="#ffffff" FontSize="13" VerticalAlignment="Center" BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center">
+                                    <TextBox.Resources>
+                                        <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+                                        <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                                        <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
+                                        <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
+                                    </TextBox.Resources>
+                                </TextBox>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <!-- フッターボタン -->
+                <Grid Grid.Row="2" Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                        <!-- タスク確定登録 -->
+                        <Button x:Name="AiTaskGenConfirmButton" Click="AiTaskGenConfirm_Click" CornerRadius="4" Padding="12,6" Height="32" IsEnabled="False">
+                            <Button.Resources>
+                                <SolidColorBrush x:Key="ButtonBackground" Color="#0078d4" />
+                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#1084da" />
+                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#005a9e" />
+                                <SolidColorBrush x:Key="ButtonForeground" Color="#ffffff" />
+                            </Button.Resources>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="&#xE105;" FontFamily="Segoe Fluent Icons" VerticalAlignment="Center" FontSize="12" />
+                                <TextBlock Text="タスクを登録" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- 生成停止 -->
+                    <Button Grid.Column="2" x:Name="AiTaskGenStopButton" Click="AiTaskGenStop_Click" CornerRadius="4" Padding="12,6" Height="32" Background="#4c1d24" BorderThickness="1" BorderBrush="#8b2635" Visibility="Collapsed">
                         <Button.Resources>
                             <SolidColorBrush x:Key="ButtonBackground" Color="#4c1d24" />
                             <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#5d2630" />

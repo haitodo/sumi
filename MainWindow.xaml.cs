@@ -24,6 +24,16 @@ namespace sumi
         private string _lastSelectedPromptForRewrite = string.Empty;
         private string _lastRewritePromptName = string.Empty;
         private List<AiMessage> _aiRewriteChatHistory = new();
+
+        // AIで実行用
+        private CancellationTokenSource? _aiRunCts;
+        private List<AiMessage> _aiRunChatHistory = new();
+        private string _lastSelectedTextForRun = string.Empty;
+
+        // AIタスク生成用
+        private CancellationTokenSource? _aiTaskGenCts;
+        private System.Collections.ObjectModel.ObservableCollection<TaskPreviewItem> _aiTaskGenPreviewItems = new();
+        private string _lastSelectedTextForTaskGen = string.Empty;
         private static readonly System.Net.Http.HttpClient _aiHttpClient = new();
 
         private class AiMessage
@@ -149,6 +159,7 @@ namespace sumi
             Instance = this;
             MemoStorage.TaskChangedAction = OnTaskChanged;
             this.InitializeComponent();
+            AiTaskGenPreviewListView.ItemsSource = _aiTaskGenPreviewItems;
 
             _highlightTimer = new DispatcherTimer();
             _highlightTimer.Interval = TimeSpan.FromMilliseconds(1500);
@@ -6455,6 +6466,490 @@ namespace sumi
             _aiRewriteCts?.Cancel();
         }
 
+        #region AIで実行
+
+        private void AiRunButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (AiRunDialogOverlay == null) return;
+
+            string selectedText = MemoTextBox.Document.Selection.Text;
+            bool hasSelection = !string.IsNullOrEmpty(selectedText);
+
+            _lastSelectedTextForRun = selectedText;
+
+            AiRunDialogStatusText.Text = "待機中";
+            if (hasSelection)
+            {
+                AiRunResultTextBox.Text = "選択されたテキスト：\n" + (selectedText.Length > 100 ? selectedText.Substring(0, 100) + "..." : selectedText);
+                AiRunReplaceIcon.Text = "\uE105"; // 置換アイコン
+                AiRunReplaceText.Text = "置換";
+            }
+            else
+            {
+                AiRunResultTextBox.Text = "テキストが選択されていません。指示文を入力すると、生成された返答をカーソル位置に挿入します。";
+                AiRunReplaceIcon.Text = "\uE109"; // 挿入（追加）アイコン
+                AiRunReplaceText.Text = "挿入";
+            }
+            
+            AiRunPromptInputTextBox.Text = string.Empty;
+            AiRunPromptInputTextBox.IsEnabled = true;
+            AiRunExecuteButton.IsEnabled = true;
+            AiRunReplaceButton.IsEnabled = false;
+            AiRunStopButton.Visibility = Visibility.Collapsed;
+            AiRunDialogOverlay.Visibility = Visibility.Visible;
+
+            AiRunPromptInputTextBox.Focus(FocusState.Programmatic);
+        }
+
+        private void AiRunExecuteButton_Click(object sender, RoutedEventArgs e)
+        {
+            string promptText = AiRunPromptInputTextBox.Text.Trim();
+            if (string.IsNullOrEmpty(promptText)) return;
+
+            if (string.IsNullOrWhiteSpace(MemoStorage.AiApiKey))
+            {
+                AiRunDialogStatusText.Text = "エラー";
+                AiRunResultTextBox.Text = "【設定エラー】APIキーが設定されていません。\n設定画面の「AI」タブで OpenRouter の API Key を入力してください。";
+                AiRunReplaceButton.IsEnabled = false;
+                return;
+            }
+
+            _aiRunChatHistory.Clear();
+            if (!string.IsNullOrEmpty(MemoStorage.AiSystemPrompt))
+            {
+                _aiRunChatHistory.Add(new AiMessage { Role = "system", Content = MemoStorage.AiSystemPrompt });
+            }
+
+            if (string.IsNullOrEmpty(_lastSelectedTextForRun))
+            {
+                _aiRunChatHistory.Add(new AiMessage { Role = "user", Content = promptText });
+            }
+            else
+            {
+                _aiRunChatHistory.Add(new AiMessage { Role = "user", Content = $"{promptText}\n\n対象テキスト:\n{_lastSelectedTextForRun}" });
+            }
+
+            AiRunDialogStatusText.Text = "実行中...";
+            AiRunResultTextBox.Text = "AIが思考しています...";
+            AiRunReplaceButton.IsEnabled = false;
+            AiRunStopButton.Visibility = Visibility.Visible;
+
+            ExecuteAiRunRequest();
+        }
+
+        private void AiRunPromptInputTextBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter && !Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))
+            {
+                e.Handled = true;
+                AiRunExecuteButton_Click(sender, new RoutedEventArgs());
+            }
+        }
+
+        private async void ExecuteAiRunRequest()
+        {
+            _aiRunCts?.Cancel();
+            _aiRunCts = new CancellationTokenSource();
+            var token = _aiRunCts.Token;
+
+            try
+            {
+                var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "https://openrouter.ai/api/v1/chat/completions");
+                request.Headers.Add("Authorization", $"Bearer {MemoStorage.AiApiKey}");
+                request.Headers.Add("HTTP-Referer", "https://github.com/haitodo/sumi");
+                request.Headers.Add("X-Title", "sumi");
+
+                var requestBody = new AiRequestBody
+                {
+                    Model = MemoStorage.AiModelName,
+                    Messages = _aiRunChatHistory,
+                    Temperature = MemoStorage.AiTemperature,
+                    MaxTokens = MemoStorage.AiMaxTokens,
+                    Stream = true
+                };
+
+                string jsonBody = System.Text.Json.JsonSerializer.Serialize(requestBody, AiJsonContext.Default.AiRequestBody);
+                request.Content = new System.Net.Http.StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
+
+                using var response = await _aiHttpClient.SendAsync(request, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, token);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    string errorDetail = await response.Content.ReadAsStringAsync(token);
+                    this.DispatcherQueue.TryEnqueue(() =>
+                    {
+                        AiRunResultTextBox.Text = $"【APIエラー (ステータス: {response.StatusCode})】\n{errorDetail}";
+                        AiRunStopButton.Visibility = Visibility.Collapsed;
+                        AiRunReplaceButton.IsEnabled = false;
+                    });
+                    return;
+                }
+
+                using var stream = await response.Content.ReadAsStreamAsync(token);
+                using var reader = new System.IO.StreamReader(stream, System.Text.Encoding.UTF8);
+
+                bool isFirstChunk = true;
+                string? line;
+                while ((line = await reader.ReadLineAsync(token)) != null)
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (line.StartsWith("data: "))
+                    {
+                        string data = line.Substring(6).Trim();
+                        if (data == "[DONE]") break;
+
+                        try
+                        {
+                            using var doc = System.Text.Json.JsonDocument.Parse(data);
+                            if (doc.RootElement.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
+                            {
+                                var choice = choices[0];
+                                if (choice.TryGetProperty("delta", out var delta) && delta.TryGetProperty("content", out var contentProp))
+                                {
+                                    string content = contentProp.GetString() ?? "";
+                                    this.DispatcherQueue.TryEnqueue(() =>
+                                    {
+                                        if (isFirstChunk)
+                                        {
+                                            AiRunResultTextBox.Text = string.Empty;
+                                            isFirstChunk = false;
+                                        }
+                                        AiRunResultTextBox.Text += content;
+                                    });
+                                }
+                            }
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+
+                this.DispatcherQueue.TryEnqueue(() =>
+                {
+                    AiRunStopButton.Visibility = Visibility.Collapsed;
+                    AiRunReplaceButton.IsEnabled = true;
+                    AiRunDialogStatusText.Text = "生成完了";
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                this.DispatcherQueue.TryEnqueue(() =>
+                {
+                    AiRunStopButton.Visibility = Visibility.Collapsed;
+                    AiRunReplaceButton.IsEnabled = true;
+                    AiRunDialogStatusText.Text = "生成を停止しました";
+                });
+            }
+            catch (Exception ex)
+            {
+                this.DispatcherQueue.TryEnqueue(() =>
+                {
+                    AiRunResultTextBox.Text = $"【接続エラー】\n{ex.Message}";
+                    AiRunStopButton.Visibility = Visibility.Collapsed;
+                    AiRunReplaceButton.IsEnabled = false;
+                    AiRunDialogStatusText.Text = "エラー発生";
+                });
+            }
+        }
+
+        private void AiRunDialogClose_Click(object sender, RoutedEventArgs e)
+        {
+            _aiRunCts?.Cancel();
+            AiRunDialogOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void AiRunStop_Click(object sender, RoutedEventArgs e)
+        {
+            _aiRunCts?.Cancel();
+        }
+
+        private void AiRunReplace_Click(object sender, RoutedEventArgs e)
+        {
+            _aiRunCts?.Cancel();
+            string newText = AiRunResultTextBox.Text;
+            MemoTextBox.Document.Selection.SetText(Microsoft.UI.Text.TextSetOptions.None, newText);
+            AiRunDialogOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        #endregion
+
+        #region AIタスク生成
+
+        private void AiTaskGenButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (AiTaskGenDialogOverlay == null) return;
+
+            NoteData? currentNote = null;
+            lock (MemoStorage.Notes)
+            {
+                currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId);
+            }
+
+            if (currentNote == null)
+            {
+                return;
+            }
+
+            string selectedText = MemoTextBox.Document.Selection.Text;
+            bool hasSelection = !string.IsNullOrEmpty(selectedText);
+
+            if (!hasSelection)
+            {
+                AiTaskGenDialogStatusText.Text = "テキストを選択してください";
+                _aiTaskGenPreviewItems.Clear();
+                _aiTaskGenPreviewItems.Add(new TaskPreviewItem { Title = "【警告】テキストを選択して実行してください", IsSelected = false });
+                AiTaskGenConfirmButton.IsEnabled = false;
+                AiTaskGenStopButton.Visibility = Visibility.Collapsed;
+                AiTaskGenDialogOverlay.Visibility = Visibility.Visible;
+                return;
+            }
+
+            _lastSelectedTextForTaskGen = selectedText;
+            _aiTaskGenPreviewItems.Clear();
+            AiTaskGenDialogStatusText.Text = "タスクを考案中...";
+            AiTaskGenConfirmButton.IsEnabled = false;
+            AiTaskGenStopButton.Visibility = Visibility.Visible;
+            AiTaskGenDialogOverlay.Visibility = Visibility.Visible;
+
+            StartAiTaskGen();
+        }
+
+        private void StartAiTaskGen()
+        {
+            if (string.IsNullOrWhiteSpace(MemoStorage.AiApiKey))
+            {
+                AiTaskGenDialogStatusText.Text = "エラー";
+                _aiTaskGenPreviewItems.Clear();
+                _aiTaskGenPreviewItems.Add(new TaskPreviewItem { Title = "【設定エラー】APIキーが設定されていません。設定画面で API Key を入力してください。", IsSelected = false });
+                AiTaskGenStopButton.Visibility = Visibility.Collapsed;
+                AiTaskGenConfirmButton.IsEnabled = false;
+                return;
+            }
+
+            ExecuteAiTaskGenRequest();
+        }
+
+        private async void ExecuteAiTaskGenRequest()
+        {
+            _aiTaskGenCts?.Cancel();
+            _aiTaskGenCts = new CancellationTokenSource();
+            var token = _aiTaskGenCts.Token;
+
+            var chatHistory = new List<AiMessage>();
+            if (!string.IsNullOrEmpty(MemoStorage.AiSystemPrompt))
+            {
+                chatHistory.Add(new AiMessage { Role = "system", Content = MemoStorage.AiSystemPrompt });
+            }
+            chatHistory.Add(new AiMessage
+            {
+                Role = "user",
+                Content = $"以下のテキストを分析し、メモの内容を進めるうえで最適なタスクに分割してください。\nタスク名のみを1行1タスクの形式で出力してください。番号や記号は不要です。\n\n対象テキスト:\n{_lastSelectedTextForTaskGen}"
+            });
+
+            try
+            {
+                var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "https://openrouter.ai/api/v1/chat/completions");
+                request.Headers.Add("Authorization", $"Bearer {MemoStorage.AiApiKey}");
+                request.Headers.Add("HTTP-Referer", "https://github.com/haitodo/sumi");
+                request.Headers.Add("X-Title", "sumi");
+
+                var requestBody = new AiRequestBody
+                {
+                    Model = MemoStorage.AiModelName,
+                    Messages = chatHistory,
+                    Temperature = MemoStorage.AiTemperature,
+                    MaxTokens = MemoStorage.AiMaxTokens,
+                    Stream = true
+                };
+
+                string jsonBody = System.Text.Json.JsonSerializer.Serialize(requestBody, AiJsonContext.Default.AiRequestBody);
+                request.Content = new System.Net.Http.StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
+
+                using var response = await _aiHttpClient.SendAsync(request, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, token);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    string errorDetail = await response.Content.ReadAsStringAsync(token);
+                    this.DispatcherQueue.TryEnqueue(() =>
+                    {
+                        AiTaskGenDialogStatusText.Text = "APIエラー";
+                        _aiTaskGenPreviewItems.Clear();
+                        _aiTaskGenPreviewItems.Add(new TaskPreviewItem { Title = $"【APIエラー】 {errorDetail}", IsSelected = false });
+                        AiTaskGenStopButton.Visibility = Visibility.Collapsed;
+                    });
+                    return;
+                }
+
+                using var stream = await response.Content.ReadAsStreamAsync(token);
+                using var reader = new System.IO.StreamReader(stream, System.Text.Encoding.UTF8);
+
+                var accumulatedContent = new System.Text.StringBuilder();
+                string? line;
+                while ((line = await reader.ReadLineAsync(token)) != null)
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (line.StartsWith("data: "))
+                    {
+                        string data = line.Substring(6).Trim();
+                        if (data == "[DONE]") break;
+
+                        try
+                        {
+                            using var doc = System.Text.Json.JsonDocument.Parse(data);
+                            if (doc.RootElement.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
+                            {
+                                var choice = choices[0];
+                                if (choice.TryGetProperty("delta", out var delta) && delta.TryGetProperty("content", out var contentProp))
+                                {
+                                    string content = contentProp.GetString() ?? "";
+                                    accumulatedContent.Append(content);
+                                }
+                            }
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+
+                this.DispatcherQueue.TryEnqueue(() =>
+                {
+                    ParseAndPopulateTaskGenPreview(accumulatedContent.ToString());
+                    AiTaskGenStopButton.Visibility = Visibility.Collapsed;
+                    AiTaskGenConfirmButton.IsEnabled = _aiTaskGenPreviewItems.Count > 0 && _aiTaskGenPreviewItems.Any(i => i.IsSelected && !string.IsNullOrWhiteSpace(i.Title));
+                    AiTaskGenDialogStatusText.Text = "生成完了（登録するタスクを確認・編集してください）";
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                this.DispatcherQueue.TryEnqueue(() =>
+                {
+                    AiTaskGenStopButton.Visibility = Visibility.Collapsed;
+                    AiTaskGenDialogStatusText.Text = "生成を停止しました";
+                });
+            }
+            catch (Exception ex)
+            {
+                this.DispatcherQueue.TryEnqueue(() =>
+                {
+                    AiTaskGenDialogStatusText.Text = "エラー発生";
+                    _aiTaskGenPreviewItems.Clear();
+                    _aiTaskGenPreviewItems.Add(new TaskPreviewItem { Title = $"【エラー】 {ex.Message}", IsSelected = false });
+                    AiTaskGenStopButton.Visibility = Visibility.Collapsed;
+                });
+            }
+        }
+
+        private void ParseAndPopulateTaskGenPreview(string text)
+        {
+            _aiTaskGenPreviewItems.Clear();
+            string[] lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var rawLine in lines)
+            {
+                string line = rawLine.Trim();
+                if (string.IsNullOrEmpty(line)) continue;
+
+                // Remove prefix list characters like "- ", "* ", "1. ", "・ "
+                if (line.StartsWith("- [ ]") || line.StartsWith("- [x]") || line.StartsWith("- [ ]") || line.StartsWith("- [X]"))
+                {
+                    line = line.Substring(5).Trim();
+                }
+                
+                while (line.Length > 0 && (line[0] == '-' || line[0] == '*' || line[0] == '・' || line[0] == '+' || line[0] == '◦' || line[0] == '▪'))
+                {
+                    line = line.Substring(1).Trim();
+                }
+
+                int digitCount = 0;
+                while (digitCount < line.Length && char.IsDigit(line[digitCount]))
+                {
+                    digitCount++;
+                }
+                if (digitCount > 0 && digitCount < line.Length && (line[digitCount] == '.' || line[digitCount] == ')' || line[digitCount] == '-'))
+                {
+                    line = line.Substring(digitCount + 1).Trim();
+                }
+
+                if (!string.IsNullOrEmpty(line))
+                {
+                    var item = new TaskPreviewItem { Title = line, IsSelected = true };
+                    item.PropertyChanged += PreviewItem_PropertyChanged;
+                    _aiTaskGenPreviewItems.Add(item);
+                }
+            }
+        }
+
+        private void PreviewItem_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(TaskPreviewItem.IsSelected) || e.PropertyName == nameof(TaskPreviewItem.Title))
+            {
+                this.DispatcherQueue.TryEnqueue(() =>
+                {
+                    AiTaskGenConfirmButton.IsEnabled = _aiTaskGenPreviewItems.Count > 0 && _aiTaskGenPreviewItems.Any(i => i.IsSelected && !string.IsNullOrWhiteSpace(i.Title));
+                });
+            }
+        }
+
+        private void AiTaskGenConfirm_Click(object sender, RoutedEventArgs e)
+        {
+            _aiTaskGenCts?.Cancel();
+
+            NoteData? currentNote = null;
+            lock (MemoStorage.Notes)
+            {
+                currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId);
+            }
+
+            if (currentNote != null)
+            {
+                MemoStorage.LoadTasksForNoteSync(currentNote);
+                
+                bool anyAdded = false;
+                foreach (var previewItem in _aiTaskGenPreviewItems)
+                {
+                    if (previewItem.IsSelected && !string.IsNullOrWhiteSpace(previewItem.Title))
+                    {
+                        var newTask = new TaskItemViewModel(
+                            Guid.NewGuid().ToString(),
+                            currentNote.Id,
+                            previewItem.Title.Trim(),
+                            false,
+                            DateTime.UtcNow,
+                            () => OnTaskChanged(currentNote.Id)
+                        );
+                        lock (currentNote.Tasks)
+                        {
+                            currentNote.Tasks.Add(newTask);
+                        }
+                        anyAdded = true;
+                    }
+                }
+
+                if (anyAdded)
+                {
+                    OnTaskChanged(currentNote.Id);
+                    PopulateCurrentTasks();
+                    PopulateRightCurrentTasks();
+                }
+            }
+
+            AiTaskGenDialogOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void AiTaskGenDialogClose_Click(object sender, RoutedEventArgs e)
+        {
+            _aiTaskGenCts?.Cancel();
+            AiTaskGenDialogOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void AiTaskGenStop_Click(object sender, RoutedEventArgs e)
+        {
+            _aiTaskGenCts?.Cancel();
+        }
+
+        #endregion
+
         #endregion
     }
 
@@ -6547,6 +7042,47 @@ namespace sumi
                 this.ProtectedCursor = null;
                 this.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
             };
+        }
+    }
+
+    /// <summary>
+    /// AIタスク生成プレビュー用のビューモデルです。
+    /// </summary>
+    public class TaskPreviewItem : System.ComponentModel.INotifyPropertyChanged
+    {
+        private string _title = string.Empty;
+        private bool _isSelected = true;
+
+        public string Title
+        {
+            get => _title;
+            set
+            {
+                if (_title != value)
+                {
+                    _title = value;
+                    OnPropertyChanged(nameof(Title));
+                }
+            }
+        }
+
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                if (_isSelected != value)
+                {
+                    _isSelected = value;
+                    OnPropertyChanged(nameof(IsSelected));
+                }
+            }
+        }
+
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged(string name)
+        {
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
         }
     }
 
