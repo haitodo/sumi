@@ -1007,12 +1007,12 @@
                                 <ItemsControl x:Name="CurrentTasksListView">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <StackPanel Spacing="4" />
+                                            <StackPanel Spacing="2" />
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="local:TaskItemViewModel">
-                                            <Grid Padding="4" CornerRadius="4" Background="Transparent"
+                                            <Grid Padding="4,2" CornerRadius="4" Background="Transparent"
                                                   PointerEntered="TaskItemGrid_PointerEntered"
                                                   PointerExited="TaskItemGrid_PointerExited">
                                                 <Grid.ColumnDefinitions>
@@ -1024,24 +1024,38 @@
                                                 
                                                 <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCompleted, Mode=TwoWay}" MinWidth="32" VerticalAlignment="Center" Margin="0,0,4,0" />
                                                 
-                                                <TextBox Grid.Column="1" Text="{x:Bind Title, Mode=TwoWay}"
-                                                         FontSize="13" Foreground="#ffffff"
-                                                         VerticalAlignment="Center"
-                                                         BorderThickness="0" Background="Transparent"
-                                                         Padding="0,4"
-                                                         TextWrapping="Wrap">
-                                                    <TextBox.Resources>
-                                                        <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
-                                                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
-                                                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#252525" />
-                                                        <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
-                                                        <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
-                                                        <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#333333" />
-                                                        <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
-                                                        <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
-                                                        <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
-                                                    </TextBox.Resources>
-                                                </TextBox>
+                                                <Grid Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock x:Name="CurrentTaskTitleTextBlock"
+                                                               Text="{x:Bind Title, Mode=OneWay}"
+                                                               FontSize="13" Foreground="#ffffff"
+                                                               VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               TextWrapping="NoWrap"
+                                                               Tapped="CurrentTaskTitleTextBlock_Tapped"
+                                                               ToolTipService.ToolTip="{x:Bind Title, Mode=OneWay}" />
+                                                    <TextBox x:Name="CurrentTaskTitleTextBox"
+                                                             Text="{x:Bind Title, Mode=TwoWay}"
+                                                             FontSize="13" Foreground="#ffffff"
+                                                             VerticalAlignment="Center"
+                                                             BorderThickness="0" Background="Transparent"
+                                                             Padding="0,4"
+                                                             TextWrapping="NoWrap"
+                                                             Visibility="Collapsed"
+                                                             LostFocus="CurrentTaskTitleTextBox_LostFocus"
+                                                             KeyDown="CurrentTaskTitleTextBox_KeyDown">
+                                                        <TextBox.Resources>
+                                                            <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                                                            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                                                            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#252525" />
+                                                            <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+                                                            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+                                                            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#333333" />
+                                                            <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                                                            <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
+                                                            <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
+                                                        </TextBox.Resources>
+                                                    </TextBox>
+                                                </Grid>
                                                 
                                                 <!-- すぐやるトグルボタン -->
                                                 <Button x:Name="JustDoItTaskButton"
@@ -1140,7 +1154,7 @@
                                                                     <ColumnDefinition Width="Auto" />
                                                                 </Grid.ColumnDefinitions>
                                                                 <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCompleted, Mode=TwoWay}" MinWidth="32" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                                                <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Title, Mode=OneWay}" />
                                                                 
                                                                 <Button x:Name="AllJustDoItButton"
                                                                         Grid.Column="2"
@@ -1213,7 +1227,7 @@
                                                                     <ColumnDefinition Width="Auto" />
                                                                 </Grid.ColumnDefinitions>
                                                                 <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCompleted, Mode=TwoWay}" MinWidth="32" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                                                <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Title, Mode=OneWay}" />
                                                                 
                                                                 <Button x:Name="JustDoItToggleBtn"
                                                                         Grid.Column="2"
@@ -1459,12 +1473,12 @@
                                         <ItemsControl x:Name="RightCurrentTasksListView">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
-                                                    <StackPanel Spacing="4" />
+                                                    <StackPanel Spacing="2" />
                                                 </ItemsPanelTemplate>
                                             </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate x:DataType="local:TaskItemViewModel">
-                                                    <Grid Padding="4" CornerRadius="4" Background="Transparent"
+                                                    <Grid Padding="4,2" CornerRadius="4" Background="Transparent"
                                                           PointerEntered="TaskItemGrid_PointerEntered"
                                                           PointerExited="TaskItemGrid_PointerExited">
                                                         <Grid.ColumnDefinitions>
@@ -1476,24 +1490,38 @@
                                                         
                                                         <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCompleted, Mode=TwoWay}" MinWidth="32" VerticalAlignment="Center" Margin="0,0,4,0" />
                                                         
-                                                        <TextBox Grid.Column="1" Text="{x:Bind Title, Mode=TwoWay}"
-                                                                 FontSize="13" Foreground="#ffffff"
-                                                                 VerticalAlignment="Center"
-                                                                 BorderThickness="0" Background="Transparent"
-                                                                 Padding="0,4"
-                                                                 TextWrapping="Wrap">
-                                                            <TextBox.Resources>
-                                                                <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
-                                                                <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
-                                                                <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#252525" />
-                                                                <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
-                                                                <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
-                                                                <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#333333" />
-                                                                <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
-                                                                <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
-                                                                <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
-                                                            </TextBox.Resources>
-                                                        </TextBox>
+                                                         <Grid Grid.Column="1" VerticalAlignment="Center">
+                                                             <TextBlock x:Name="RightCurrentTaskTitleTextBlock"
+                                                                        Text="{x:Bind Title, Mode=OneWay}"
+                                                                        FontSize="13" Foreground="#ffffff"
+                                                                        VerticalAlignment="Center"
+                                                                        TextTrimming="CharacterEllipsis"
+                                                                        TextWrapping="NoWrap"
+                                                                        Tapped="RightCurrentTaskTitleTextBlock_Tapped"
+                                                                        ToolTipService.ToolTip="{x:Bind Title, Mode=OneWay}" />
+                                                             <TextBox x:Name="RightCurrentTaskTitleTextBox"
+                                                                      Text="{x:Bind Title, Mode=TwoWay}"
+                                                                      FontSize="13" Foreground="#ffffff"
+                                                                      VerticalAlignment="Center"
+                                                                      BorderThickness="0" Background="Transparent"
+                                                                      Padding="0,4"
+                                                                      TextWrapping="NoWrap"
+                                                                      Visibility="Collapsed"
+                                                                      LostFocus="RightCurrentTaskTitleTextBox_LostFocus"
+                                                                      KeyDown="RightCurrentTaskTitleTextBox_KeyDown">
+                                                                 <TextBox.Resources>
+                                                                     <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                                                                     <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                                                                     <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#252525" />
+                                                                     <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+                                                                     <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+                                                                     <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#333333" />
+                                                                     <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                                                                     <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
+                                                                     <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
+                                                                 </TextBox.Resources>
+                                                             </TextBox>
+                                                         </Grid>
                                                         
                                                         <Button x:Name="JustDoItTaskButton"
                                                                 Grid.Column="2"
@@ -1591,7 +1619,7 @@
                                                                             <ColumnDefinition Width="Auto" />
                                                                         </Grid.ColumnDefinitions>
                                                                         <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCompleted, Mode=TwoWay}" MinWidth="32" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                                                        <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                                        <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Title, Mode=OneWay}" />
                                                                         
                                                                         <Button x:Name="AllJustDoItButton"
                                                                                 Style="{StaticResource IconButtonStyle}"
@@ -1662,7 +1690,7 @@
                                                                             <ColumnDefinition Width="Auto" />
                                                                         </Grid.ColumnDefinitions>
                                                                         <CheckBox Grid.Column="0" IsChecked="{x:Bind IsCompleted, Mode=TwoWay}" MinWidth="32" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                                                        <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                                        <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Title, Mode=OneWay}" />
                                                                         
                                                                         <Button x:Name="JustDoItToggleBtn"
                                                                                 Grid.Column="2"
@@ -2556,7 +2584,7 @@
                 <ListView Grid.Row="1" x:Name="AiTaskGenPreviewListView" Height="240" Background="{StaticResource DialogInputBgBrush}" CornerRadius="8" Padding="6" SelectionMode="None">
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="local:TaskPreviewItem">
-                            <Grid Padding="4" ColumnSpacing="8">
+                            <Grid Padding="4,2" ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />

@@ -2481,6 +2481,156 @@ namespace sumi
             }
         }
 
+        private void CurrentTaskTitleTextBlock_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            if (sender is TextBlock textBlock)
+            {
+                textBlock.Visibility = Visibility.Collapsed;
+                var parentGrid = textBlock.Parent as Grid;
+                if (parentGrid != null)
+                {
+                    var textBox = parentGrid.FindName("CurrentTaskTitleTextBox") as TextBox;
+                    if (textBox != null)
+                    {
+                        textBox.Visibility = Visibility.Visible;
+                        textBox.Focus(FocusState.Programmatic);
+                        textBox.SelectAll();
+                    }
+                }
+            }
+        }
+
+        private void CurrentTaskTitleTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox textBox)
+            {
+                textBox.Visibility = Visibility.Collapsed;
+                var parentGrid = textBox.Parent as Grid;
+                if (parentGrid != null)
+                {
+                    var textBlock = parentGrid.FindName("CurrentTaskTitleTextBlock") as TextBlock;
+                    if (textBlock != null)
+                    {
+                        textBlock.Visibility = Visibility.Visible;
+                    }
+                }
+            }
+        }
+
+        private void CurrentTaskTitleTextBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                if (sender is TextBox textBox)
+                {
+                    textBox.Visibility = Visibility.Collapsed;
+                    var parentGrid = textBox.Parent as Grid;
+                    if (parentGrid != null)
+                    {
+                        var textBlock = parentGrid.FindName("CurrentTaskTitleTextBlock") as TextBlock;
+                        if (textBlock != null)
+                        {
+                            textBlock.Visibility = Visibility.Visible;
+                        }
+                    }
+                    e.Handled = true;
+                }
+            }
+            else if (e.Key == Windows.System.VirtualKey.Escape)
+            {
+                if (sender is TextBox textBox && textBox.DataContext is TaskItemViewModel vm)
+                {
+                    textBox.Text = vm.Title;
+                    textBox.Visibility = Visibility.Collapsed;
+                    var parentGrid = textBox.Parent as Grid;
+                    if (parentGrid != null)
+                    {
+                        var textBlock = parentGrid.FindName("CurrentTaskTitleTextBlock") as TextBlock;
+                        if (textBlock != null)
+                        {
+                            textBlock.Visibility = Visibility.Visible;
+                        }
+                    }
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void RightCurrentTaskTitleTextBlock_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            if (sender is TextBlock textBlock)
+            {
+                textBlock.Visibility = Visibility.Collapsed;
+                var parentGrid = textBlock.Parent as Grid;
+                if (parentGrid != null)
+                {
+                    var textBox = parentGrid.FindName("RightCurrentTaskTitleTextBox") as TextBox;
+                    if (textBox != null)
+                    {
+                        textBox.Visibility = Visibility.Visible;
+                        textBox.Focus(FocusState.Programmatic);
+                        textBox.SelectAll();
+                    }
+                }
+            }
+        }
+
+        private void RightCurrentTaskTitleTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox textBox)
+            {
+                textBox.Visibility = Visibility.Collapsed;
+                var parentGrid = textBox.Parent as Grid;
+                if (parentGrid != null)
+                {
+                    var textBlock = parentGrid.FindName("RightCurrentTaskTitleTextBlock") as TextBlock;
+                    if (textBlock != null)
+                    {
+                        textBlock.Visibility = Visibility.Visible;
+                    }
+                }
+            }
+        }
+
+        private void RightCurrentTaskTitleTextBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                if (sender is TextBox textBox)
+                {
+                    textBox.Visibility = Visibility.Collapsed;
+                    var parentGrid = textBox.Parent as Grid;
+                    if (parentGrid != null)
+                    {
+                        var textBlock = parentGrid.FindName("RightCurrentTaskTitleTextBlock") as TextBlock;
+                        if (textBlock != null)
+                        {
+                            textBlock.Visibility = Visibility.Visible;
+                        }
+                    }
+                    e.Handled = true;
+                }
+            }
+            else if (e.Key == Windows.System.VirtualKey.Escape)
+            {
+                if (sender is TextBox textBox && textBox.DataContext is TaskItemViewModel vm)
+                {
+                    textBox.Text = vm.Title;
+                    textBox.Visibility = Visibility.Collapsed;
+                    var parentGrid = textBox.Parent as Grid;
+                    if (parentGrid != null)
+                    {
+                        var textBlock = parentGrid.FindName("RightCurrentTaskTitleTextBlock") as TextBlock;
+                        if (textBlock != null)
+                        {
+                            textBlock.Visibility = Visibility.Visible;
+                        }
+                    }
+                    e.Handled = true;
+                }
+            }
+        }
+
         private void AllTaskItemGrid_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
             if (sender is Grid grid)
