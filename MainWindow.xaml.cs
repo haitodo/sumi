@@ -712,6 +712,7 @@ namespace sumi
                 ApplyGlobalThemeToEditor();
                 TitleTextBlock.Text = newNote.Title;
                 UpdateCharCount(0);
+                UpdateHeaderTags(); // 新規メモにはタグがないためヘッダーのタグ表示をクリア
 
                 this.DispatcherQueue.TryEnqueue(
                     Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
@@ -3313,6 +3314,7 @@ namespace sumi
 
             TitleTextBlock.Text = newNote.Title;
             UpdateCharCount(0);
+            UpdateHeaderTags(); // 新規メモにはタグがないためヘッダーのタグ表示をクリア
 
             if (PlaceholderTextBlock != null)
             {
