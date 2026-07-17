@@ -104,7 +104,6 @@ namespace sumi
         private bool _isDirty = false;
         private bool _isInitialFocusSet = false;
         private bool _isInitializing = true;
-        private bool _isInitializingSettings = false;
         private IntPtr _hWnd = IntPtr.Zero;
         private bool _isTrayIconAdded = false;
         private SUBCLASSPROC? _subclassProc;
@@ -131,6 +130,16 @@ namespace sumi
 
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern bool ScreenToClient(IntPtr hWnd, ref POINT lpPoint);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+        // SetWindowPos フラグ定数
+        private static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
+        private const uint SWP_NOMOVE     = 0x0002;
+        private const uint SWP_NOSIZE     = 0x0001;
+        private const uint SWP_NOACTIVATE = 0x0010;
+        private const uint SWP_SHOWWINDOW = 0x0040;
 
         [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
@@ -304,7 +313,7 @@ namespace sumi
             _isInitializing = false;
         }
 
-        private void ApplySettings()
+        public void ApplySettings()
         {
             if (MemoTextBox == null || PlaceholderTextBlock == null) return;
 
@@ -666,7 +675,7 @@ namespace sumi
             }
         }
 
-        private void DeleteCurrentNote()
+        public void DeleteCurrentNote()
         {
             string currentId = MemoStorage.CurrentNoteId;
             if (string.IsNullOrEmpty(currentId)) return;
@@ -752,7 +761,7 @@ namespace sumi
                 }
                 else if (e.Key == (Windows.System.VirtualKey)188) // Comma ','
                 {
-                    SettingsFlyout.ShowAt(PlayButton);
+                    OpenSettingsWindow();
                     e.Handled = true;
                 }
                 else if (e.Key == (Windows.System.VirtualKey)219) // '['
@@ -947,7 +956,7 @@ namespace sumi
             MemoStorage.SaveSettings();
         }
 
-        private void QueueSaveSettings()
+        public void QueueSaveSettings()
         {
             _settingsSaveTimer.Stop();
             _settingsSaveTimer.Start();
@@ -1177,273 +1186,53 @@ namespace sumi
             }
         }
 
-        private void SettingsFlyout_Opened(object sender, object e)
+        private SettingsWindow? _settingsWindow;
+        public void OpenSettingsWindow()
         {
-            UpdateFlyoutMaxHeights();
-            SettingsSearchBox.Text = string.Empty;
-
-            // UIコントロールへの初期値割り当て中にイベントが連鎖するのを防ぐ
-            _isInitializingSettings = true;
-            try
+            if (_settingsWindow != null)
             {
-                // ComboBox/Slider初期値設定
-                // Native AOT対応: Itemsコレクションに対するforeach/キャスト(E_NOINTERFACE)を避けるため、静的配列からインデックスを設定
-                string[] fontItems = new[] { "Noto Sans JP", "Yu Gothic UI", "Segoe UI", "Consolas", "Georgia" };
-                int fontIndex = Array.IndexOf(fontItems, MemoStorage.FontFamily);
-                if (fontIndex >= 0)
-                {
-                    FontComboBox.SelectedIndex = fontIndex;
-                }
-
-                string[] weightItems = new[] { "Light", "Normal", "Medium", "SemiBold", "Bold" };
-                int weightIndex = Array.IndexOf(weightItems, MemoStorage.FontWeight);
-                if (weightIndex >= 0)
-                {
-                    FontWeightComboBox.SelectedIndex = weightIndex;
-                }
-
-                FontSizeSlider.Value = MemoStorage.FontSize;
-                FontSizeValueText.Text = MemoStorage.FontSize.ToString("0.0");
-
-                // 行間 ComboBox の初期値設定
-                double currentLS = MemoStorage.LineSpacing;
-                string[] lsItems = new[] { "0.8", "0.85", "0.9", "0.95", "1.0" };
-                int lsIndex = -1;
-                for (int i = 0; i < lsItems.Length; i++)
-                {
-                    if (double.TryParse(lsItems[i], out double itemVal) && Math.Abs(itemVal - currentLS) < 0.01)
-                    {
-                        lsIndex = i;
-                        break;
-                    }
-                }
-                if (lsIndex >= 0)
-                {
-                    LineSpacingComboBox.SelectedIndex = lsIndex;
-                }
-                else
-                {
-                    LineSpacingComboBox.SelectedItem = null;
-                    LineSpacingComboBox.Text = currentLS.ToString("0.##");
-                }
-
-                // 段落スペース ComboBox の初期値設定
-                double currentPS = MemoStorage.ParagraphSpacing;
-                string[] psItems = new[] { "0", "2", "4", "6", "8", "10", "12" };
-                int psIndex = -1;
-                for (int i = 0; i < psItems.Length; i++)
-                {
-                    if (double.TryParse(psItems[i], out double itemVal) && Math.Abs(itemVal - currentPS) < 0.1)
-                    {
-                        psIndex = i;
-                        break;
-                    }
-                }
-                if (psIndex >= 0)
-                {
-                    ParagraphSpacingComboBox.SelectedIndex = psIndex;
-                }
-                else
-                {
-                    ParagraphSpacingComboBox.SelectedItem = null;
-                    ParagraphSpacingComboBox.Text = ((int)currentPS).ToString();
-                }
-
-                OpacitySlider.Value = MemoStorage.Opacity;
-                OpacityValueText.Text = $"{(int)MemoStorage.Opacity}%";
-
-                RecentNotesCountSlider.Value = MemoStorage.RecentNotesCount;
-                RecentNotesCountValueText.Text = MemoStorage.RecentNotesCount.ToString();
-                ShowDeleteButtonToggle.IsOn = MemoStorage.ShowDeleteButton;
-
-                AiApiKeyBox.Password = MemoStorage.AiApiKey;
-                AiModelNameBox.Text = MemoStorage.AiModelName;
-                AiTemperatureSlider.Value = MemoStorage.AiTemperature;
-                AiTemperatureValueText.Text = MemoStorage.AiTemperature.ToString("0.0");
-                AiMaxTokensBox.Text = MemoStorage.AiMaxTokens.ToString();
-                AiSystemPromptBox.Text = MemoStorage.AiSystemPrompt;
-
-                RefreshAiPromptsListUI();
-            }
-            finally
-            {
-                _isInitializingSettings = false;
-            }
-
-            QuitHotKeyButton.Content = MemoStorage.QuitHotKey;
-            LaunchHotKeyButton.Content = MemoStorage.LaunchHotKey;
-
-            FontItem.Visibility = Visibility.Visible;
-            FontWeightItem.Visibility = Visibility.Visible;
-            FontSizeItem.Visibility = Visibility.Visible;
-            LineSpacingItem.Visibility = Visibility.Visible;
-            ParagraphSpacingItem.Visibility = Visibility.Visible;
-            OpacityItem.Visibility = Visibility.Visible;
-            RecentNotesCountItem.Visibility = Visibility.Visible;
-            LaunchHotKeyItem.Visibility = Visibility.Visible;
-            QuitHotKeyItem.Visibility = Visibility.Visible;
-            DeleteNoteItem.Visibility = Visibility.Visible;
-            ShowDeleteButtonItem.Visibility = Visibility.Visible;
-            if (AiApiKeyItem != null) AiApiKeyItem.Visibility = Visibility.Visible;
-            if (AiModelNameItem != null) AiModelNameItem.Visibility = Visibility.Visible;
-            if (AiTemperatureItem != null) AiTemperatureItem.Visibility = Visibility.Visible;
-            if (AiMaxTokensItem != null) AiMaxTokensItem.Visibility = Visibility.Visible;
-            if (AiSystemPromptItem != null) AiSystemPromptItem.Visibility = Visibility.Visible;
-
-            // タブをエディタにリセット
-            if (SettingsSelectorBar != null)
-            {
-                SettingsSelectorBar.SelectedItem = EditorTab;
-                SettingsSelectorBar.Visibility = Visibility.Visible;
-            }
-            UpdateSettingsTabVisibility();
-
-            SettingsSearchBox.Focus(FocusState.Programmatic);
-        }
-
-        private void SettingsSelectorBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
-        {
-            UpdateSettingsTabVisibility();
-        }
-
-        private void UpdateSettingsTabVisibility()
-        {
-            // 検索中（クエリが存在する）は、タブごとの切り替えは適用せず、全パネルを表示状態にする
-            if (SettingsSearchBox != null && !string.IsNullOrEmpty(SettingsSearchBox.Text))
-            {
+                // 既存ウィンドウを TOPMOST にして前面に持ってくる
+                var existingHwnd = WinRT.Interop.WindowNative.GetWindowHandle(_settingsWindow);
+                SetWindowPos(existingHwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+                _settingsWindow.Activate();
+                SetForegroundWindow(existingHwnd);
                 return;
             }
 
-            if (SettingsSelectorBar == null) return;
+            // メインウィンドウの位置・サイズを取得して初期位置を決める
+            var mainPos  = _appWindow.Position;
+            var mainSize = _appWindow.Size;
+            // 設定ウィンドウのサイズ（SettingsWindow コンストラクタで 680x520 に設定済み）
+            const int settingsW = 680;
+            const int settingsH = 520;
+            // メインウィンドウの中央付近に配置
+            int initX = mainPos.X + (mainSize.Width  - settingsW) / 2;
+            int initY = mainPos.Y + (mainSize.Height - settingsH) / 2;
 
-            var selectedItem = SettingsSelectorBar.SelectedItem;
-            if (selectedItem == null) return;
+            _settingsWindow = new SettingsWindow();
+            _settingsWindow.Closed += (s, e) => { _settingsWindow = null; };
 
-            // Native AOT対応: キャスト(E_NOINTERFACE)を避けるため、object.ReferenceEqualsでインスタンスを直接比較します。
-            if (object.ReferenceEquals(selectedItem, EditorTab))
-            {
-                if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Visible;
-                if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Collapsed;
-                if (SystemSettingsPanel != null) SystemSettingsPanel.Visibility = Visibility.Collapsed;
-                if (AiSettingsPanel != null) AiSettingsPanel.Visibility = Visibility.Collapsed;
-            }
-            else if (object.ReferenceEquals(selectedItem, WindowTab))
-            {
-                if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Collapsed;
-                if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Visible;
-                if (SystemSettingsPanel != null) SystemSettingsPanel.Visibility = Visibility.Collapsed;
-                if (AiSettingsPanel != null) AiSettingsPanel.Visibility = Visibility.Collapsed;
-            }
-            else if (object.ReferenceEquals(selectedItem, SystemTab))
-            {
-                if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Collapsed;
-                if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Collapsed;
-                if (SystemSettingsPanel != null) SystemSettingsPanel.Visibility = Visibility.Visible;
-                if (AiSettingsPanel != null) AiSettingsPanel.Visibility = Visibility.Collapsed;
-            }
-            else if (object.ReferenceEquals(selectedItem, AiTab))
-            {
-                if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Collapsed;
-                if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Collapsed;
-                if (SystemSettingsPanel != null) SystemSettingsPanel.Visibility = Visibility.Collapsed;
-                if (AiSettingsPanel != null) AiSettingsPanel.Visibility = Visibility.Visible;
-            }
+            // まず Activate して HWND を確定させる
+            _settingsWindow.Activate();
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(_settingsWindow);
+
+            // メインウィンドウが AlwaysOnTop (HWND_TOPMOST) なので
+            // 設定ウィンドウも TOPMOST にしないと背面に回ってしまう
+            SetWindowPos(hwnd, HWND_TOPMOST, initX, initY, settingsW, settingsH, SWP_SHOWWINDOW);
+            SetForegroundWindow(hwnd);
         }
-
-        private void SettingsSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+        private void PlayButton_Click(object sender, RoutedEventArgs e)
         {
-            string query = SettingsSearchBox.Text.Trim().ToLower();
-            if (string.IsNullOrEmpty(query))
-            {
-                if (SettingsSelectorBar != null)
-                {
-                    SettingsSelectorBar.Visibility = Visibility.Visible;
-                }
-
-                // 全項目を表示状態に戻した上で、選択中タブに対応するパネルのみを表示
-                FontItem.Visibility = Visibility.Visible;
-                FontWeightItem.Visibility = Visibility.Visible;
-                FontSizeItem.Visibility = Visibility.Visible;
-                LineSpacingItem.Visibility = Visibility.Visible;
-                ParagraphSpacingItem.Visibility = Visibility.Visible;
-                OpacityItem.Visibility = Visibility.Visible;
-                RecentNotesCountItem.Visibility = Visibility.Visible;
-                LaunchHotKeyItem.Visibility = Visibility.Visible;
-                QuitHotKeyItem.Visibility = Visibility.Visible;
-                DeleteNoteItem.Visibility = Visibility.Visible;
-                ShowDeleteButtonItem.Visibility = Visibility.Visible;
-                if (AiApiKeyItem != null) AiApiKeyItem.Visibility = Visibility.Visible;
-                if (AiModelNameItem != null) AiModelNameItem.Visibility = Visibility.Visible;
-                if (AiTemperatureItem != null) AiTemperatureItem.Visibility = Visibility.Visible;
-                if (AiMaxTokensItem != null) AiMaxTokensItem.Visibility = Visibility.Visible;
-                if (AiSystemPromptItem != null) AiSystemPromptItem.Visibility = Visibility.Visible;
-
-                UpdateSettingsTabVisibility();
-                return;
-            }
-
-            if (SettingsSelectorBar != null)
-            {
-                SettingsSelectorBar.Visibility = Visibility.Collapsed;
-            }
-
-            // 検索中：項目が配置されているすべての StackPanel を表示状態にする
-            if (EditorSettingsPanel != null) EditorSettingsPanel.Visibility = Visibility.Visible;
-            if (WindowSettingsPanel != null) WindowSettingsPanel.Visibility = Visibility.Visible;
-            if (SystemSettingsPanel != null) SystemSettingsPanel.Visibility = Visibility.Visible;
-            if (AiSettingsPanel != null) AiSettingsPanel.Visibility = Visibility.Visible;
-
-            FontItem.Visibility = "font フォント 書体".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
-            FontWeightItem.Visibility = "font weight フォント ウェイト 太さ 太字".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
-            FontSizeItem.Visibility = "font size フォントサイズ 大きさ サイズ 文字".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
-            LineSpacingItem.Visibility = "line spacing 行間 行の高さ 高さ".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
-            ParagraphSpacingItem.Visibility = "paragraph spacing 段落間 行間 行の高さ 高さ 余白 改行".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
-            OpacityItem.Visibility = "opacity 不透明度 透明度 背景 透け".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
-            RecentNotesCountItem.Visibility = "recent notes count 直近 メモ 件数 表示 履歴 順番".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
-            LaunchHotKeyItem.Visibility = "launch hotkey ショートカット キーボード 起動 ホットキー ランチ".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
-            QuitHotKeyItem.Visibility = "quit hotkey ショートカット キーボード 終了 ホットキー クイック".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
-            DeleteNoteItem.Visibility = "delete note メモを削除 削除 ゴミ箱".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
-            ShowDeleteButtonItem.Visibility = "show delete button 削除ボタン 表示 非表示 設定 ゴミ箱".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
-
-            if (AiApiKeyItem != null) AiApiKeyItem.Visibility = "ai api key openrouter key apiキー エーアイ 鍵 パスワード".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
-            if (AiModelNameItem != null) AiModelNameItem.Visibility = "ai model name モデル モデル名 エーアイ".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
-            if (AiTemperatureItem != null) AiTemperatureItem.Visibility = "ai temperature テンパチャー 温度 創造性 ランダム".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
-            if (AiMaxTokensItem != null) AiMaxTokensItem.Visibility = "ai max tokens トークン 最大 トークン数".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
-            if (AiSystemPromptItem != null) AiSystemPromptItem.Visibility = "ai system prompt システム プロンプト 指示 指令 エーアイ".Contains(query) ? Visibility.Visible : Visibility.Collapsed;
+            OpenSettingsWindow();
         }
-
-        private void FontComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        public void UnregisterMainWindowHotKeys()
         {
-            if (_isInitializing || _isInitializingSettings) return;
-            if (FontComboBox.SelectedItem is string font)
-            {
-                MemoStorage.FontFamily = font;
-                var fontFamily = new Microsoft.UI.Xaml.Media.FontFamily(font);
-                MemoTextBox.FontFamily = fontFamily;
-                PlaceholderTextBlock.FontFamily = fontFamily;
-                ApplyGlobalThemeToEditor();
-                QueueSaveSettings();
-            }
+            UnregisterHotKey(_hWnd, HOTKEY_ID_QUIT);
+            UnregisterHotKey(_hWnd, HOTKEY_ID_LAUNCH);
         }
-
-        private void FontWeightComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        public void UpdateMainWindowHotKeys()
         {
-            if (_isInitializing || _isInitializingSettings) return;
-            if (FontWeightComboBox.SelectedItem is string weight)
-            {
-                MemoStorage.FontWeight = weight;
-                var fw = GetFontWeight(weight);
-                if (MemoTextBox != null)
-                {
-                    MemoTextBox.FontWeight = fw;
-                }
-                if (PlaceholderTextBlock != null)
-                {
-                    PlaceholderTextBlock.FontWeight = fw;
-                }
-                ApplyGlobalThemeToEditor();
-                QueueSaveSettings();
-            }
+            UpdateTrayIconAndHotKeys();
         }
 
         private Windows.UI.Text.FontWeight GetFontWeight(string weightStr)
@@ -1485,324 +1274,6 @@ namespace sumi
             return Microsoft.UI.Text.FontWeights.Black.Weight;
         }
 
-        private void FontSizeDecreaseButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (FontSizeSlider != null)
-            {
-                FontSizeSlider.Value = Math.Max(FontSizeSlider.Minimum, FontSizeSlider.Value - 0.5);
-            }
-        }
-
-        private void FontSizeIncreaseButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (FontSizeSlider != null)
-            {
-                FontSizeSlider.Value = Math.Min(FontSizeSlider.Maximum, FontSizeSlider.Value + 0.5);
-            }
-        }
-
-        private void OpacityDecreaseButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (OpacitySlider != null)
-            {
-                OpacitySlider.Value = Math.Max(OpacitySlider.Minimum, OpacitySlider.Value - 1);
-            }
-        }
-
-        private void OpacityIncreaseButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (OpacitySlider != null)
-            {
-                OpacitySlider.Value = Math.Min(OpacitySlider.Maximum, OpacitySlider.Value + 1);
-            }
-        }
-
-        private void RecentNotesCountDecreaseButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (RecentNotesCountSlider != null)
-            {
-                RecentNotesCountSlider.Value = Math.Max(RecentNotesCountSlider.Minimum, RecentNotesCountSlider.Value - 1);
-            }
-        }
-
-        private void RecentNotesCountIncreaseButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (RecentNotesCountSlider != null)
-            {
-                RecentNotesCountSlider.Value = Math.Min(RecentNotesCountSlider.Maximum, RecentNotesCountSlider.Value + 1);
-            }
-        }
-
-        private void RecentNotesCountSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
-        {
-            if (_isInitializing || _isInitializingSettings) return;
-            int count = (int)RecentNotesCountSlider.Value;
-            if (RecentNotesCountValueText != null)
-            {
-                RecentNotesCountValueText.Text = count.ToString();
-            }
-            MemoStorage.RecentNotesCount = count;
-            QueueSaveSettings();
-            RefreshAllNotesLists();
-        }
-
-        private void ShowDeleteButtonToggle_Toggled(object sender, RoutedEventArgs e)
-        {
-            if (_isInitializing || _isInitializingSettings) return;
-            if (sender is ToggleSwitch ts)
-            {
-                MemoStorage.ShowDeleteButton = ts.IsOn;
-                RefreshAllNotesLists();
-                QueueSaveSettings();
-            }
-        }
-
-        private void AiApiKeyBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            if (_isInitializing || _isInitializingSettings) return;
-            MemoStorage.AiApiKey = AiApiKeyBox.Password;
-            QueueSaveSettings();
-        }
-
-        private void AiModelNameBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            if (_isInitializing || _isInitializingSettings) return;
-            MemoStorage.AiModelName = AiModelNameBox.Text;
-            QueueSaveSettings();
-        }
-
-        private void AiTemperatureSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
-        {
-            if (_isInitializing || _isInitializingSettings) return;
-            MemoStorage.AiTemperature = e.NewValue;
-            if (AiTemperatureValueText != null)
-            {
-                AiTemperatureValueText.Text = e.NewValue.ToString("0.0");
-            }
-            QueueSaveSettings();
-        }
-
-        private void AiMaxTokensBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            if (_isInitializing || _isInitializingSettings) return;
-            if (int.TryParse(AiMaxTokensBox.Text, out int tokens))
-            {
-                MemoStorage.AiMaxTokens = tokens;
-                QueueSaveSettings();
-            }
-        }
-
-        private void AiSystemPromptBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            if (_isInitializing || _isInitializingSettings) return;
-            MemoStorage.AiSystemPrompt = AiSystemPromptBox.Text;
-            QueueSaveSettings();
-        }
-
-        private void FontSizeSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
-        {
-            if (_isInitializing || _isInitializingSettings) return;
-            double size = FontSizeSlider.Value;
-            if (FontSizeValueText != null)
-            {
-                FontSizeValueText.Text = size.ToString("0.0");
-            }
-            MemoStorage.FontSize = size;
-            if (MemoTextBox != null)
-            {
-                MemoTextBox.FontSize = size;
-            }
-            if (PlaceholderTextBlock != null)
-            {
-                PlaceholderTextBlock.FontSize = size;
-            }
-            ApplyGlobalThemeToEditor();
-            QueueSaveSettings();
-        }
-
-        private void LineSpacingComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (_isInitializing || _isInitializingSettings) return;
-            if (LineSpacingComboBox.SelectedItem is string val && double.TryParse(val, out double ls))
-            {
-                MemoStorage.LineSpacing = ls;
-                ApplyGlobalThemeToEditor();
-                QueueSaveSettings();
-            }
-        }
-
-        private void LineSpacingComboBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            if (_isInitializing) return;
-            if (double.TryParse(LineSpacingComboBox.Text, out double ls))
-            {
-                // 0.8 〜 1.0 に制限
-                ls = Math.Clamp(ls, 0.8, 1.0);
-                if (Math.Abs(MemoStorage.LineSpacing - ls) > 0.01)
-                {
-                    MemoStorage.LineSpacing = ls;
-                    ApplyGlobalThemeToEditor();
-                    QueueSaveSettings();
-                }
-
-                // 0.95などが丸められないよう "0.##" に変更
-                string targetText = ls.ToString("0.##");
-                bool found = false;
-                foreach (var item in LineSpacingComboBox.Items)
-                {
-                    if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - ls) < 0.01)
-                    {
-                        if (LineSpacingComboBox.SelectedItem != item)
-                        {
-                            LineSpacingComboBox.SelectedItem = item;
-                        }
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found)
-                {
-                    LineSpacingComboBox.SelectedItem = null;
-                    if (LineSpacingComboBox.Text != targetText)
-                    {
-                        LineSpacingComboBox.Text = targetText;
-                    }
-                }
-            }
-            else
-            {
-                // 不正入力時は直前の有効な値に復元
-                RestoreLineSpacingComboBoxSelection();
-            }
-        }
-
-        private void RestoreLineSpacingComboBoxSelection()
-        {
-            bool found = false;
-            foreach (var item in LineSpacingComboBox.Items)
-            {
-                if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - MemoStorage.LineSpacing) < 0.01)
-                {
-                    LineSpacingComboBox.SelectedItem = item;
-                    found = true;
-                    break;
-                }
-            }
-            if (!found)
-            {
-                LineSpacingComboBox.SelectedItem = null;
-                LineSpacingComboBox.Text = MemoStorage.LineSpacing.ToString("0.##");
-            }
-        }
-
-        private void ParagraphSpacingComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (_isInitializing || _isInitializingSettings) return;
-            if (ParagraphSpacingComboBox.SelectedItem is string val && double.TryParse(val, out double ps))
-            {
-                MemoStorage.ParagraphSpacing = ps;
-                ApplyGlobalThemeToEditor();
-                QueueSaveSettings();
-            }
-        }
-
-        private void ParagraphSpacingComboBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            if (_isInitializing) return;
-            if (double.TryParse(ParagraphSpacingComboBox.Text, out double ps))
-            {
-                // 0 〜 12 に制限
-                ps = Math.Clamp(ps, 0.0, 12.0);
-                if (Math.Abs(MemoStorage.ParagraphSpacing - ps) > 0.1)
-                {
-                    MemoStorage.ParagraphSpacing = ps;
-                    ApplyGlobalThemeToEditor();
-                    QueueSaveSettings();
-                }
-
-                // UIの表示を入力・クランプ後の値に同期
-                string targetText = ((int)ps).ToString();
-                bool found = false;
-                foreach (var item in ParagraphSpacingComboBox.Items)
-                {
-                    if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - ps) < 0.1)
-                    {
-                        if (ParagraphSpacingComboBox.SelectedItem != item)
-                        {
-                            ParagraphSpacingComboBox.SelectedItem = item;
-                        }
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found)
-                {
-                    ParagraphSpacingComboBox.SelectedItem = null;
-                    if (ParagraphSpacingComboBox.Text != targetText)
-                    {
-                        ParagraphSpacingComboBox.Text = targetText;
-                    }
-                }
-            }
-            else
-            {
-                // 不正入力時は直前の有効な値に復元
-                RestoreParagraphSpacingComboBoxSelection();
-            }
-        }
-
-        private void RestoreParagraphSpacingComboBoxSelection()
-        {
-            bool found = false;
-            foreach (var item in ParagraphSpacingComboBox.Items)
-            {
-                if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - MemoStorage.ParagraphSpacing) < 0.1)
-                {
-                    ParagraphSpacingComboBox.SelectedItem = item;
-                    found = true;
-                    break;
-                }
-            }
-            if (!found)
-            {
-                ParagraphSpacingComboBox.SelectedItem = null;
-                ParagraphSpacingComboBox.Text = ((int)MemoStorage.ParagraphSpacing).ToString();
-            }
-        }
-
-        private void OpacitySlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
-        {
-            if (_isInitializing || _isInitializingSettings) return;
-            double opacity = OpacitySlider.Value;
-            if (OpacityValueText != null)
-            {
-                OpacityValueText.Text = $"{(int)opacity}%";
-            }
-            MemoStorage.Opacity = opacity;
-
-            double currentOpacity = opacity / 100.0;
-            if (RootGrid != null && RootGrid.Background is Microsoft.UI.Xaml.Media.SolidColorBrush brush)
-            {
-                brush.Opacity = currentOpacity;
-            }
-
-            if (App.Current.Resources.TryGetValue("SidebarBackgroundBrush", out object? sbBrushObj) && sbBrushObj is Microsoft.UI.Xaml.Media.SolidColorBrush sbBrush)
-            {
-                sbBrush.Opacity = currentOpacity;
-            }
-            if (App.Current.Resources.TryGetValue("FlyoutBackgroundBrush", out object? flBrushObj) && flBrushObj is Microsoft.UI.Xaml.Media.SolidColorBrush flBrush)
-            {
-                flBrush.Opacity = currentOpacity;
-            }
-
-            QueueSaveSettings();
-        }
-
-        private void DeleteNoteItem_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            DeleteCurrentNote();
-            SettingsFlyout.Hide();
-        }
 
         /// <summary>
         /// 左右のサイドバーの表示・非表示を切り替えます。
@@ -2963,10 +2434,6 @@ namespace sumi
             {
                 NotesScrollViewer.MaxHeight = maxScrollHeight;
             }
-            if (SettingsScrollViewer != null)
-            {
-                SettingsScrollViewer.MaxHeight = maxScrollHeight;
-            }
         }
 
         private void HighlightTimer_Tick(object? sender, object e)
@@ -3552,7 +3019,7 @@ namespace sumi
             if (SidebarNotesSection != null) SidebarNotesSection.Visibility = normalVMs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        private void RefreshAllNotesLists()
+        public void RefreshAllNotesLists()
         {
             PopulateNotesList(NoteSearchBox != null ? NoteSearchBox.Text : "");
             PopulateSidebarNotesList(SidebarNoteSearchBox != null ? SidebarNoteSearchBox.Text : "");
@@ -5004,158 +4471,6 @@ namespace sumi
             return vk != 0;
         }
 
-        private void HotKeyFlyout_Opened(object sender, object e)
-        {
-            // 一時的にグローバルホットキーを無効化
-            UnregisterHotKey(_hWnd, 1001);
-            UnregisterHotKey(_hWnd, 1002);
-
-            if (sender is Flyout flyout)
-            {
-                if (flyout == LaunchHotKeyFlyout)
-                {
-                    LaunchHotKeyInput.Text = MemoStorage.LaunchHotKey;
-                    LaunchHotKeyInput.Focus(FocusState.Programmatic);
-                }
-                else if (flyout == QuitHotKeyFlyout)
-                {
-                    QuitHotKeyInput.Text = MemoStorage.QuitHotKey;
-                    QuitHotKeyInput.Focus(FocusState.Programmatic);
-                }
-            }
-        }
-
-        private void HotKeyFlyout_Closed(object sender, object e)
-        {
-            UpdateTrayIconAndHotKeys();
-        }
-
-        private void HotKeyInput_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
-        {
-            if (sender is not TextBox textBox) return;
-            var key = e.Key;
-
-            var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
-            var altState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Menu);
-            var shiftState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift);
-            var winState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.LeftWindows) | 
-                           Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.RightWindows);
-
-            bool ctrl = (ctrlState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
-            bool alt = (altState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
-            bool shift = (shiftState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
-            bool win = (winState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
-
-            e.Handled = true;
-
-            if (key == Windows.System.VirtualKey.Enter)
-            {
-                if (textBox == LaunchHotKeyInput)
-                {
-                    SaveLaunchHotKey();
-                }
-                else if (textBox == QuitHotKeyInput)
-                {
-                    SaveQuitHotKey();
-                }
-                return;
-            }
-
-            if (key == Windows.System.VirtualKey.Escape)
-            {
-                if (textBox == LaunchHotKeyInput)
-                {
-                    LaunchHotKeyFlyout.Hide();
-                }
-                else if (textBox == QuitHotKeyInput)
-                {
-                    QuitHotKeyFlyout.Hide();
-                }
-                return;
-            }
-
-            if (key == Windows.System.VirtualKey.Back || key == Windows.System.VirtualKey.Delete)
-            {
-                textBox.Text = string.Empty;
-                return;
-            }
-
-            // Ignore modifier keys themselves
-            if (key == Windows.System.VirtualKey.Control || 
-                key == Windows.System.VirtualKey.Menu || 
-                key == Windows.System.VirtualKey.Shift || 
-                key == Windows.System.VirtualKey.LeftWindows || 
-                key == Windows.System.VirtualKey.RightWindows)
-            {
-                var sbTemp = new System.Text.StringBuilder();
-                if (ctrl) sbTemp.Append("Ctrl+");
-                if (alt) sbTemp.Append("Alt+");
-                if (shift) sbTemp.Append("Shift+");
-                if (win) sbTemp.Append("Win+");
-                textBox.Text = sbTemp.ToString();
-                return;
-            }
-
-            var sb = new System.Text.StringBuilder();
-            if (ctrl) sb.Append("Ctrl+");
-            if (alt) sb.Append("Alt+");
-            if (shift) sb.Append("Shift+");
-            if (win) sb.Append("Win+");
-            sb.Append(key.ToString());
-
-            textBox.Text = sb.ToString();
-        }
-
-        private void SaveLaunchHotKey_Click(object sender, RoutedEventArgs e)
-        {
-            SaveLaunchHotKey();
-        }
-
-        private void ClearLaunchHotKey_Click(object sender, RoutedEventArgs e)
-        {
-            LaunchHotKeyInput.Text = string.Empty;
-            SaveLaunchHotKey();
-        }
-
-        private void CancelLaunchHotKey_Click(object sender, RoutedEventArgs e)
-        {
-            LaunchHotKeyFlyout.Hide();
-        }
-
-        private void SaveQuitHotKey_Click(object sender, RoutedEventArgs e)
-        {
-            SaveQuitHotKey();
-        }
-
-        private void ClearQuitHotKey_Click(object sender, RoutedEventArgs e)
-        {
-            QuitHotKeyInput.Text = string.Empty;
-            SaveQuitHotKey();
-        }
-
-        private void CancelQuitHotKey_Click(object sender, RoutedEventArgs e)
-        {
-            QuitHotKeyFlyout.Hide();
-        }
-
-        private void SaveLaunchHotKey()
-        {
-            string val = LaunchHotKeyInput.Text;
-            MemoStorage.LaunchHotKey = val;
-            MemoStorage.SaveSettings();
-            LaunchHotKeyButton.Content = val;
-            LaunchHotKeyFlyout.Hide();
-        }
-
-        private void SaveQuitHotKey()
-        {
-            string val = QuitHotKeyInput.Text;
-            MemoStorage.QuitHotKey = val;
-            MemoStorage.SaveSettings();
-            QuitHotKeyButton.Content = val;
-            QuitHotKeyFlyout.Hide();
-        }
-
         #endregion
 
         #region 検索・置換機能
@@ -6215,126 +5530,6 @@ namespace sumi
         #endregion
 
         #region AI Rewrite
-
-        private void RefreshAiPromptsListUI()
-        {
-            if (AiPromptsListPanel == null) return;
-            AiPromptsListPanel.Children.Clear();
-
-            foreach (var item in MemoStorage.AiPrompts)
-            {
-                var container = new Border
-                {
-                    BorderThickness = new Thickness(1),
-                    BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 51, 51)),
-                    Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 28, 28, 28)),
-                    CornerRadius = new CornerRadius(4),
-                    Padding = new Thickness(6)
-                };
-
-                var grid = new Grid();
-                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                var nameBox = new TextBox
-                {
-                    Text = item.Name,
-                    FontSize = 11,
-                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                    Height = 24,
-                    Padding = new Thickness(4, 2, 4, 2),
-                    Margin = new Thickness(0, 0, 4, 0),
-                    BorderThickness = new Thickness(0),
-                    Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 37, 37)),
-                    CornerRadius = new CornerRadius(3)
-                };
-                nameBox.Resources["TextControlBackground"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 37, 37));
-                nameBox.Resources["TextControlBackgroundPointerOver"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 45, 45, 45));
-                nameBox.Resources["TextControlBackgroundFocused"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 45, 45, 45));
-                nameBox.Resources["TextControlForeground"] = new SolidColorBrush(Microsoft.UI.Colors.White);
-
-                nameBox.LostFocus += (s, e) =>
-                {
-                    item.Name = nameBox.Text;
-                    MemoStorage.SaveAiPrompts();
-                };
-
-                var deleteBtn = new Button
-                {
-                    Content = "\uE74D",
-                    FontFamily = new FontFamily("Segoe Fluent Icons"),
-                    FontSize = 10,
-                    Width = 24,
-                    Height = 24,
-                    Padding = new Thickness(0),
-                    Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
-                    BorderThickness = new Thickness(0),
-                    Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 69, 58))
-                };
-                deleteBtn.Click += (s, e) =>
-                {
-                    MemoStorage.AiPrompts.Remove(item);
-                    MemoStorage.SaveAiPrompts();
-                    RefreshAiPromptsListUI();
-                };
-
-                var promptBox = new TextBox
-                {
-                    Text = item.Prompt,
-                    FontSize = 10,
-                    TextWrapping = TextWrapping.Wrap,
-                    AcceptsReturn = true,
-                    Height = 40,
-                    Padding = new Thickness(4, 2, 4, 2),
-                    Margin = new Thickness(0, 4, 0, 0),
-                    BorderThickness = new Thickness(1),
-                    BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 51, 51)),
-                    Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 37, 37)),
-                    CornerRadius = new CornerRadius(3)
-                };
-                promptBox.Resources["TextControlBackground"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 37, 37));
-                promptBox.Resources["TextControlBackgroundPointerOver"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 45, 45, 45));
-                promptBox.Resources["TextControlBackgroundFocused"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 45, 45, 45));
-                promptBox.Resources["TextControlForeground"] = new SolidColorBrush(Microsoft.UI.Colors.White);
-
-                promptBox.LostFocus += (s, e) =>
-                {
-                    item.Prompt = promptBox.Text;
-                    MemoStorage.SaveAiPrompts();
-                };
-
-                Grid.SetRow(nameBox, 0);
-                Grid.SetColumn(nameBox, 0);
-                grid.Children.Add(nameBox);
-
-                Grid.SetRow(deleteBtn, 0);
-                Grid.SetColumn(deleteBtn, 1);
-                grid.Children.Add(deleteBtn);
-
-                Grid.SetRow(promptBox, 1);
-                Grid.SetColumn(promptBox, 0);
-                Grid.SetColumnSpan(promptBox, 2);
-                grid.Children.Add(promptBox);
-
-                container.Child = grid;
-                AiPromptsListPanel.Children.Add(container);
-            }
-        }
-
-        private void AddAiPrompt_Click(object sender, RoutedEventArgs e)
-        {
-            var newItem = new AiPromptItem
-            {
-                Id = Guid.NewGuid().ToString(),
-                Name = "新しいプロンプト",
-                Prompt = "指示を入力してください。"
-            };
-            MemoStorage.AiPrompts.Add(newItem);
-            MemoStorage.SaveAiPrompts();
-            RefreshAiPromptsListUI();
-        }
 
         private void AiRewriteMenuFlyout_Opened(object sender, object e)
         {
