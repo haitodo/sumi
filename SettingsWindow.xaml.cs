@@ -476,11 +476,7 @@ namespace sumi
         #endregion
 
         #region System Settings (Hotkey & Action) Event Handlers
-        private void DeleteNoteButton_Click(object sender, RoutedEventArgs e)
-        {
-            MainWindow.Instance?.DeleteCurrentNote();
-            this.Close();
-        }
+
 
         private void HotKeyFlyout_Opened(object sender, object e)
         {

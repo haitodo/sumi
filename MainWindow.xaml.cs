@@ -1225,6 +1225,19 @@ namespace sumi
         {
             OpenSettingsWindow();
         }
+        private void DeleteConfirmButton_Click(object sender, RoutedEventArgs e)
+        {
+            DeleteConfirmFlyout.Hide();
+            DeleteCurrentNote();
+        }
+        private void DeleteCancelButton_Click(object sender, RoutedEventArgs e)
+        {
+            DeleteConfirmFlyout.Hide();
+        }
+        private void DeleteConfirmFlyout_Opened(object sender, object e)
+        {
+            DeleteCancelButton.Focus(FocusState.Programmatic);
+        }
         public void UnregisterMainWindowHotKeys()
         {
             UnregisterHotKey(_hWnd, HOTKEY_ID_QUIT);

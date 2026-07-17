@@ -1447,6 +1447,43 @@
                             <!-- 新規追加ボタン -->
                             <Button x:Name="NewButton" Content="&#xE710;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="新規作成" Click="NewButton_Click" />
 
+                            <!-- メモ削除ボタン（ゴミ箱アイコン） -->
+                            <Button x:Name="DeleteCurrentNoteButton"
+                                    Content="&#xE74D;"
+                                    Style="{StaticResource IconButtonStyle}"
+                                    Foreground="#cccccc"
+                                    ToolTipService.ToolTip="現在のメモを削除">
+                                <Button.Resources>
+                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22ff453a" />
+                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#44ff453a" />
+                                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#ff453a" />
+                                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#ff6b62" />
+                                </Button.Resources>
+                                <Button.Flyout>
+                                    <Flyout x:Name="DeleteConfirmFlyout" Opened="DeleteConfirmFlyout_Opened">
+                                        <Flyout.FlyoutPresenterStyle>
+                                            <Style TargetType="FlyoutPresenter">
+                                                <Setter Property="Background" Value="#1f1f1f" />
+                                                <Setter Property="BorderBrush" Value="#333333" />
+                                                <Setter Property="BorderThickness" Value="1" />
+                                                <Setter Property="CornerRadius" Value="8" />
+                                                <Setter Property="Padding" Value="12" />
+                                            </Style>
+                                        </Flyout.FlyoutPresenterStyle>
+                                        <StackPanel Spacing="12" Width="220">
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="このメモを削除しますか？" FontWeight="SemiBold" FontSize="13" Foreground="#ffffff" />
+                                                <TextBlock Text="この操作は元に戻せません。" FontSize="11" Foreground="#888888" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                                                <Button x:Name="DeleteConfirmButton" Content="削除" Click="DeleteConfirmButton_Click" Background="#ff453a" Foreground="#ffffff" BorderThickness="0" CornerRadius="4" Padding="12,4" />
+                                                <Button x:Name="DeleteCancelButton" Content="キャンセル" Click="DeleteCancelButton_Click" Background="#252525" Foreground="#cccccc" BorderThickness="1" BorderBrush="#333333" CornerRadius="4" Padding="12,4" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+
                             <!-- 空行削除用セパレータとボタン -->
                             <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
                             <Button x:Name="RemoveEmptyLinesHeaderButton" Content="&#xED60;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="空行を削除" Click="RemoveEmptyLines_Click" />
