@@ -134,6 +134,10 @@ namespace sumi
         [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
         private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
 
+        // DPIスケール取得（物理ピクセルへの変換に使用）
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern uint GetDpiForWindow(IntPtr hWnd);
+
         // SetWindowPos フラグ定数
         private static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
         private const uint SWP_NOMOVE     = 0x0002;
@@ -1203,12 +1207,6 @@ namespace sumi
             // メインウィンドウの位置・サイズを取得して初期位置を決める
             var mainPos  = _appWindow.Position;
             var mainSize = _appWindow.Size;
-            // 設定ウィンドウのサイズ（SettingsWindow コンストラクタで 680x520 に設定済み）
-            const int settingsW = 680;
-            const int settingsH = 520;
-            // メインウィンドウの中央付近に配置
-            int initX = mainPos.X + (mainSize.Width  - settingsW) / 2;
-            int initY = mainPos.Y + (mainSize.Height - settingsH) / 2;
 
             _settingsWindow = new SettingsWindow();
             _settingsWindow.Closed += (s, e) => { _settingsWindow = null; };
@@ -1216,6 +1214,16 @@ namespace sumi
             // まず Activate して HWND を確定させる
             _settingsWindow.Activate();
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(_settingsWindow);
+
+            // DPIスケールを取得して物理ピクセルに変換（高DPI環境での小さすぎる問題を防ぐ）
+            uint dpi = GetDpiForWindow(hwnd);
+            double dpiScale = dpi / 96.0;
+            // 論理サイズ（96DPI基準）をDPIスケールで物理ピクセルに変換
+            int settingsW = (int)Math.Round(680 * dpiScale);
+            int settingsH = (int)Math.Round(520 * dpiScale);
+            // メインウィンドウの中央付近に配置
+            int initX = mainPos.X + (mainSize.Width  - settingsW) / 2;
+            int initY = mainPos.Y + (mainSize.Height - settingsH) / 2;
 
             // メインウィンドウが AlwaysOnTop (HWND_TOPMOST) なので
             // 設定ウィンドウも TOPMOST にしないと背面に回ってしまう
