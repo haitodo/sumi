@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Window
     x:Class="sumi.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -14,6 +14,10 @@
     <Grid x:Name="RootGrid" Background="#ee141414">
         <Grid.Resources>
             <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+            
+            <!-- テキスト入力コントロールのフォーカス枠線を上下左右均等（1px）に統一する設定 -->
+            <Thickness x:Key="TextControlBorderThemeThickness">1</Thickness>
+            <Thickness x:Key="TextControlBorderThemeThicknessFocused">1</Thickness>
             
             <AcrylicBrush x:Key="PanelAcrylicBrush"
                           TintColor="#1f1f1f"
@@ -1782,13 +1786,16 @@
         </SplitView>
 
         <!-- AIリライトダイアログのオーバーレイ -->
-        <Grid x:Name="AiRewriteDialogOverlay" Grid.RowSpan="3" Background="#80000000" Visibility="Collapsed" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <Grid x:Name="AiRewriteDialogOverlay" Grid.RowSpan="3" Background="#40000000" Visibility="Collapsed" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
             <Grid.Resources>
-                <!-- ダイアログ専用のアクリル風/半透明ダーク背景ブラシ -->
-                <SolidColorBrush x:Key="DialogBgBrush" Color="#1f2430" />
-                <SolidColorBrush x:Key="DialogInputBgBrush" Color="#2b3245" />
+                <!-- アクリル透過背景ブラシ -->
+                <AcrylicBrush x:Key="DialogBgBrush"
+                              TintColor="#1f1f1f"
+                              TintOpacity="0.55"
+                              FallbackColor="#1f1f1f" />
+                <SolidColorBrush x:Key="DialogInputBgBrush" Color="#121212" Opacity="0.40" />
             </Grid.Resources>
-            <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Width="550" Background="{StaticResource DialogBgBrush}" CornerRadius="12" BorderThickness="1" BorderBrush="#3b4252" Padding="16">
+            <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Width="550" Background="{StaticResource DialogBgBrush}" CornerRadius="12" BorderThickness="1" BorderBrush="#2d2d2d" Padding="16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" /> <!-- ヘッダー -->
                     <RowDefinition Height="*" />    <!-- メインテキストボックス -->
@@ -1812,14 +1819,17 @@
                 </Grid>
 
                 <!-- テキストボックス -->
-                <TextBox Grid.Row="1" x:Name="AiRewriteResultTextBox" Height="220" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto" Background="{StaticResource DialogInputBgBrush}" Foreground="#e0e6f0" BorderThickness="0" CornerRadius="8" Padding="12" FontSize="13">
+                <TextBox Grid.Row="1" x:Name="AiRewriteResultTextBox" Height="220" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto" Background="{StaticResource DialogInputBgBrush}" Foreground="#ffffff" BorderThickness="1" BorderBrush="#333333" CornerRadius="8" Padding="12" FontSize="13">
                     <TextBox.Resources>
-                        <SolidColorBrush x:Key="TextControlBackground" Color="#2b3245" />
-                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#343c52" />
-                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2b3245" />
-                        <SolidColorBrush x:Key="TextControlForeground" Color="#e0e6f0" />
-                        <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#e0e6f0" />
-                        <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#e0e6f0" />
+                        <SolidColorBrush x:Key="TextControlBackground" Color="#121212" Opacity="0.40" />
+                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#121212" Opacity="0.55" />
+                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#121212" Opacity="0.40" />
+                        <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                        <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
+                        <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
+                        <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
+                        <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#444444" />
+                        <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
                     </TextBox.Resources>
                 </TextBox>
 
@@ -1833,10 +1843,15 @@
                         </Grid.ColumnDefinitions>
                         <TextBox Grid.Column="0" x:Name="AiRewriteAdjustInput" Height="28" PlaceholderText="例: もっと短く、箇条書きにして、など" FontSize="12" Background="{StaticResource DialogInputBgBrush}" BorderThickness="1" BorderBrush="#333333" CornerRadius="4" KeyDown="AiRewriteAdjustInput_KeyDown">
                             <TextBox.Resources>
-                                <SolidColorBrush x:Key="TextControlBackground" Color="#2b3245" />
-                                <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#343c52" />
-                                <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2b3245" />
+                                <SolidColorBrush x:Key="TextControlBackground" Color="#121212" Opacity="0.40" />
+                                <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#121212" Opacity="0.55" />
+                                <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#121212" Opacity="0.40" />
                                 <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                                <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
+                                <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
+                                <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
+                                <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#444444" />
+                                <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
                             </TextBox.Resources>
                         </TextBox>
                         <Button Grid.Column="1" Content="適用" Height="28" Padding="12,0" Click="AiRewriteAdjustSubmit_Click" CornerRadius="4">
@@ -1874,13 +1889,14 @@
                         </Button>
 
                         <!-- 調整 -->
-                        <Button x:Name="AiRewriteAdjustButton" Click="AiRewriteAdjust_Click" CornerRadius="4" Padding="12,6" Height="32" Background="Transparent" BorderThickness="1" BorderBrush="#4c566a">
+                        <Button x:Name="AiRewriteAdjustButton" Click="AiRewriteAdjust_Click" CornerRadius="4" Padding="12,6" Height="32" Background="Transparent" BorderThickness="1" BorderBrush="#333333">
                             <Button.Resources>
                                 <SolidColorBrush x:Key="ButtonBackground" Color="Transparent" />
                                 <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="White" Opacity="0.08" />
                                 <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="White" Opacity="0.14" />
-                                <SolidColorBrush x:Key="ButtonForeground" Color="#e0e6f0" />
-                                <SolidColorBrush x:Key="ButtonBorderBrush" Color="#4c566a" />
+                                <SolidColorBrush x:Key="ButtonForeground" Color="#ffffff" />
+                                <SolidColorBrush x:Key="ButtonBorderBrush" Color="#333333" />
+                                <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#444444" />
                             </Button.Resources>
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <TextBlock Text="&#xE70F;" FontFamily="Segoe Fluent Icons" VerticalAlignment="Center" FontSize="12" />
@@ -1889,13 +1905,14 @@
                         </Button>
 
                         <!-- 再生成 -->
-                        <Button x:Name="AiRewriteRegenButton" Click="AiRewriteRegen_Click" CornerRadius="4" Width="32" Height="32" Padding="0" ToolTipService.ToolTip="再生成" Background="Transparent" BorderThickness="1" BorderBrush="#4c566a">
+                        <Button x:Name="AiRewriteRegenButton" Click="AiRewriteRegen_Click" CornerRadius="4" Width="32" Height="32" Padding="0" ToolTipService.ToolTip="再生成" Background="Transparent" BorderThickness="1" BorderBrush="#333333">
                             <Button.Resources>
                                 <SolidColorBrush x:Key="ButtonBackground" Color="Transparent" />
                                 <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="White" Opacity="0.08" />
                                 <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="White" Opacity="0.14" />
-                                <SolidColorBrush x:Key="ButtonForeground" Color="#e0e6f0" />
-                                <SolidColorBrush x:Key="ButtonBorderBrush" Color="#4c566a" />
+                                <SolidColorBrush x:Key="ButtonForeground" Color="#ffffff" />
+                                <SolidColorBrush x:Key="ButtonBorderBrush" Color="#333333" />
+                                <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#444444" />
                             </Button.Resources>
                             <TextBlock Text="&#xE72C;" FontFamily="Segoe Fluent Icons" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Button>
@@ -1920,12 +1937,16 @@
         </Grid>
 
         <!-- AIで実行ダイアログのオーバーレイ -->
-        <Grid x:Name="AiRunDialogOverlay" Grid.RowSpan="3" Background="#80000000" Visibility="Collapsed" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <Grid x:Name="AiRunDialogOverlay" Grid.RowSpan="3" Background="#40000000" Visibility="Collapsed" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
             <Grid.Resources>
-                <SolidColorBrush x:Key="DialogBgBrush" Color="#1f2430" />
-                <SolidColorBrush x:Key="DialogInputBgBrush" Color="#2b3245" />
+                <!-- アクリル透過背景ブラシ -->
+                <AcrylicBrush x:Key="DialogBgBrush"
+                              TintColor="#1f1f1f"
+                              TintOpacity="0.55"
+                              FallbackColor="#1f1f1f" />
+                <SolidColorBrush x:Key="DialogInputBgBrush" Color="#121212" Opacity="0.40" />
             </Grid.Resources>
-            <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Width="550" Background="{StaticResource DialogBgBrush}" CornerRadius="12" BorderThickness="1" BorderBrush="#3b4252" Padding="16">
+            <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Width="550" Background="{StaticResource DialogBgBrush}" CornerRadius="12" BorderThickness="1" BorderBrush="#2d2d2d" Padding="16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" /> <!-- ヘッダー -->
                     <RowDefinition Height="Auto" /> <!-- プロンプト入力 -->
@@ -1956,10 +1977,15 @@
                     </Grid.ColumnDefinitions>
                     <TextBox Grid.Column="0" x:Name="AiRunPromptInputTextBox" Height="60" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="AIへの指示を入力してください（例：日本語に翻訳して、箇条書きでまとめて、など）" FontSize="12" Background="{StaticResource DialogInputBgBrush}" Foreground="#ffffff" BorderThickness="1" BorderBrush="#333333" CornerRadius="6" KeyDown="AiRunPromptInputTextBox_KeyDown">
                         <TextBox.Resources>
-                            <SolidColorBrush x:Key="TextControlBackground" Color="#2b3245" />
-                            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#343c52" />
-                            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2b3245" />
+                            <SolidColorBrush x:Key="TextControlBackground" Color="#121212" Opacity="0.40" />
+                            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#121212" Opacity="0.55" />
+                            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#121212" Opacity="0.40" />
                             <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                            <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
+                            <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
+                            <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
+                            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#444444" />
+                            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
                         </TextBox.Resources>
                     </TextBox>
                     <Button Grid.Column="1" x:Name="AiRunExecuteButton" Content="実行" Height="60" Padding="16,0" Click="AiRunExecuteButton_Click" CornerRadius="6" VerticalAlignment="Stretch">
@@ -1973,14 +1999,17 @@
                 </Grid>
 
                 <!-- テキストボックス (結果) -->
-                <TextBox Grid.Row="2" x:Name="AiRunResultTextBox" Height="200" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto" Background="{StaticResource DialogInputBgBrush}" Foreground="#e0e6f0" BorderThickness="0" CornerRadius="8" Padding="12" FontSize="13">
+                <TextBox Grid.Row="2" x:Name="AiRunResultTextBox" Height="200" AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto" Background="{StaticResource DialogInputBgBrush}" Foreground="#ffffff" BorderThickness="1" BorderBrush="#333333" CornerRadius="8" Padding="12" FontSize="13">
                     <TextBox.Resources>
-                        <SolidColorBrush x:Key="TextControlBackground" Color="#2b3245" />
-                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#343c52" />
-                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#2b3245" />
-                        <SolidColorBrush x:Key="TextControlForeground" Color="#e0e6f0" />
-                        <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#e0e6f0" />
-                        <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#e0e6f0" />
+                        <SolidColorBrush x:Key="TextControlBackground" Color="#121212" Opacity="0.40" />
+                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#121212" Opacity="0.55" />
+                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#121212" Opacity="0.40" />
+                        <SolidColorBrush x:Key="TextControlForeground" Color="#ffffff" />
+                        <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#ffffff" />
+                        <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#ffffff" />
+                        <SolidColorBrush x:Key="TextControlBorderBrush" Color="#333333" />
+                        <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#444444" />
+                        <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#0078d4" />
                     </TextBox.Resources>
                 </TextBox>
 
@@ -2027,12 +2056,16 @@
         </Grid>
 
         <!-- AIタスク生成ダイアログのオーバーレイ -->
-        <Grid x:Name="AiTaskGenDialogOverlay" Grid.RowSpan="3" Background="#80000000" Visibility="Collapsed" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <Grid x:Name="AiTaskGenDialogOverlay" Grid.RowSpan="3" Background="#40000000" Visibility="Collapsed" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
             <Grid.Resources>
-                <SolidColorBrush x:Key="DialogBgBrush" Color="#1f2430" />
-                <SolidColorBrush x:Key="DialogInputBgBrush" Color="#2b3245" />
+                <!-- アクリル透過背景ブラシ -->
+                <AcrylicBrush x:Key="DialogBgBrush"
+                              TintColor="#1f1f1f"
+                              TintOpacity="0.55"
+                              FallbackColor="#1f1f1f" />
+                <SolidColorBrush x:Key="DialogInputBgBrush" Color="#121212" Opacity="0.40" />
             </Grid.Resources>
-            <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Width="550" Background="{StaticResource DialogBgBrush}" CornerRadius="12" BorderThickness="1" BorderBrush="#3b4252" Padding="16">
+            <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Width="550" Background="{StaticResource DialogBgBrush}" CornerRadius="12" BorderThickness="1" BorderBrush="#2d2d2d" Padding="16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" /> <!-- ヘッダー -->
                     <RowDefinition Height="*" />    <!-- プレビューリスト -->
@@ -2055,7 +2088,7 @@
                 </Grid>
 
                 <!-- プレビューリスト -->
-                <ListView Grid.Row="1" x:Name="AiTaskGenPreviewListView" Height="240" Background="{StaticResource DialogInputBgBrush}" CornerRadius="8" Padding="6" SelectionMode="None">
+                <ListView Grid.Row="1" x:Name="AiTaskGenPreviewListView" Height="240" Background="{StaticResource DialogInputBgBrush}" BorderThickness="1" BorderBrush="#333333" CornerRadius="8" Padding="6" SelectionMode="None">
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="local:TaskPreviewItem">
                             <Grid Padding="4,2" ColumnSpacing="8">

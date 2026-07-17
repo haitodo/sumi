@@ -206,22 +206,24 @@ namespace sumi
             SystemSettingsPanel.Visibility = category == "System" ? Visibility.Visible : Visibility.Collapsed;
             AiSettingsPanel.Visibility = category == "Ai" ? Visibility.Visible : Visibility.Collapsed;
 
-            // ナビゲーションボタンの背景更新
-            HighlightNavButton(NavEditorButton, category == "Editor");
-            HighlightNavButton(NavWindowButton, category == "Window");
-            HighlightNavButton(NavSystemButton, category == "System");
-            HighlightNavButton(NavAiButton, category == "Ai");
+            // ナビゲーションボタンとインジケータの更新
+            HighlightNavButton(NavEditorButton, NavEditorIndicator, category == "Editor");
+            HighlightNavButton(NavWindowButton, NavWindowIndicator, category == "Window");
+            HighlightNavButton(NavSystemButton, NavSystemIndicator, category == "System");
+            HighlightNavButton(NavAiButton, NavAiIndicator, category == "Ai");
         }
 
-        private void HighlightNavButton(Button btn, bool isSelected)
+        private void HighlightNavButton(Button btn, Border indicator, bool isSelected)
         {
             if (isSelected)
             {
                 btn.Background = new SolidColorBrush(ColorHelper.FromArgb(24, 255, 255, 255));
+                indicator.Visibility = Visibility.Visible;
             }
             else
             {
                 btn.Background = new SolidColorBrush(Colors.Transparent);
+                indicator.Visibility = Visibility.Collapsed;
             }
         }
         #endregion

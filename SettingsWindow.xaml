@@ -10,7 +10,14 @@
         <DesktopAcrylicBackdrop />
     </Window.SystemBackdrop>
 
-    <Grid x:Name="RootGrid" Background="#ee141414">
+    <Grid x:Name="RootGrid" Background="#99141414">
+        <Grid.Resources>
+            <!-- テキスト入力コントロールのフォーカス枠線を上下左右均等（1px）に統一する設定 -->
+            <Thickness x:Key="TextControlBorderThemeThickness">1</Thickness>
+            <Thickness x:Key="TextControlBorderThemeThicknessFocused">1</Thickness>
+            <!-- オプションカードの半透明背景 -->
+            <SolidColorBrush x:Key="CardBackgroundBrush" Color="#141414" Opacity="0.60" />
+        </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" /> <!-- タイトルバー -->
             <RowDefinition Height="*" />    <!-- メインコンテンツ -->
@@ -41,39 +48,67 @@
             </Grid.ColumnDefinitions>
 
             <!-- 左ナビゲーション -->
-            <Grid Grid.Column="0" Background="#00000000" Padding="4,8,4,8">
+            <Grid Grid.Column="0" Background="#00000000" Padding="2,8,4,8">
                 <StackPanel Spacing="4">
                     <!-- Editor -->
-                    <Button x:Name="NavEditorButton" Click="NavButton_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Height="40" Padding="10,0" Background="Transparent" BorderThickness="0" CornerRadius="6">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <FontIcon Glyph="&#xE8D2;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="#ffffff" />
-                            <TextBlock Text="Editor" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="3" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border x:Name="NavEditorIndicator" Grid.Column="0" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Visible" />
+                        <Button x:Name="NavEditorButton" Grid.Column="1" Click="NavButton_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Height="40" Padding="10,0" Background="Transparent" BorderThickness="0" CornerRadius="6" Margin="4,0,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <FontIcon Glyph="&#xE8D2;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="#ffffff" />
+                                <TextBlock Text="Editor" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
 
                     <!-- Window -->
-                    <Button x:Name="NavWindowButton" Click="NavButton_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Height="40" Padding="10,0" Background="Transparent" BorderThickness="0" CornerRadius="6">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <FontIcon Glyph="&#xE7B5;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="#ffffff" />
-                            <TextBlock Text="Window" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="3" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border x:Name="NavWindowIndicator" Grid.Column="0" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
+                        <Button x:Name="NavWindowButton" Grid.Column="1" Click="NavButton_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Height="40" Padding="10,0" Background="Transparent" BorderThickness="0" CornerRadius="6" Margin="4,0,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <FontIcon Glyph="&#xE7B5;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="#ffffff" />
+                                <TextBlock Text="Window" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
 
                     <!-- System -->
-                    <Button x:Name="NavSystemButton" Click="NavButton_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Height="40" Padding="10,0" Background="Transparent" BorderThickness="0" CornerRadius="6">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <FontIcon Glyph="&#xE765;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="#ffffff" />
-                            <TextBlock Text="System" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="3" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border x:Name="NavSystemIndicator" Grid.Column="0" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
+                        <Button x:Name="NavSystemButton" Grid.Column="1" Click="NavButton_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Height="40" Padding="10,0" Background="Transparent" BorderThickness="0" CornerRadius="6" Margin="4,0,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <FontIcon Glyph="&#xE765;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="#ffffff" />
+                                <TextBlock Text="System" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
 
                     <!-- AI -->
-                    <Button x:Name="NavAiButton" Click="NavButton_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Height="40" Padding="10,0" Background="Transparent" BorderThickness="0" CornerRadius="6">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <FontIcon Glyph="&#xE9D9;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="#ffffff" />
-                            <TextBlock Text="AI" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="3" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border x:Name="NavAiIndicator" Grid.Column="0" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
+                        <Button x:Name="NavAiButton" Grid.Column="1" Click="NavButton_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Height="40" Padding="10,0" Background="Transparent" BorderThickness="0" CornerRadius="6" Margin="4,0,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <FontIcon Glyph="&#xE9D9;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="#ffffff" />
+                                <TextBlock Text="AI" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
                 </StackPanel>
             </Grid>
 
@@ -89,7 +124,7 @@
                             <TextBlock Text="Editor Settings" FontSize="18" FontWeight="Bold" Foreground="#ffffff" Margin="0,0,0,8" />
                             
                             <!-- Font Family -->
-                            <Grid Padding="16,12" Background="#141414" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -108,7 +143,7 @@
                             </Grid>
 
                             <!-- Font Weight -->
-                            <Grid Padding="16,12" Background="#141414" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -127,7 +162,7 @@
                             </Grid>
 
                             <!-- Font Size -->
-                            <Grid Padding="16,12" Background="#141414" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -145,7 +180,7 @@
                             </Grid>
 
                             <!-- Line Spacing -->
-                            <Grid Padding="16,12" Background="#141414" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -169,7 +204,7 @@
                             </Grid>
 
                             <!-- Paragraph Spacing -->
-                            <Grid Padding="16,12" Background="#141414" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -200,7 +235,7 @@
                             <TextBlock Text="Window Settings" FontSize="18" FontWeight="Bold" Foreground="#ffffff" Margin="0,0,0,8" />
 
                             <!-- Opacity -->
-                            <Grid Padding="16,12" Background="#141414" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -218,7 +253,7 @@
                             </Grid>
 
                             <!-- Show Delete Button -->
-                            <Grid Padding="16,12" Background="#141414" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -231,7 +266,7 @@
                             </Grid>
 
                             <!-- Recent Notes Count -->
-                            <Grid Padding="16,12" Background="#141414" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -254,7 +289,7 @@
                             <TextBlock Text="System Settings" FontSize="18" FontWeight="Bold" Foreground="#ffffff" Margin="0,0,0,8" />
 
                             <!-- Launch Hotkey -->
-                            <Grid Padding="16,12" Background="#141414" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -286,7 +321,7 @@
                             </Grid>
 
                             <!-- Quit Hotkey -->
-                            <Grid Padding="16,12" Background="#141414" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -318,7 +353,7 @@
                             </Grid>
 
                             <!-- Delete Note -->
-                            <Grid Padding="16,12" Background="#141414" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -336,7 +371,7 @@
                             <TextBlock Text="AI Settings" FontSize="18" FontWeight="Bold" Foreground="#ffffff" Margin="0,0,0,8" />
 
                             <!-- API Key -->
-                            <Grid Padding="16,12" Background="#141414" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="180" />
@@ -349,7 +384,7 @@
                             </Grid>
 
                             <!-- Model Name -->
-                            <Grid Padding="16,12" Background="#141414" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="180" />
@@ -362,7 +397,7 @@
                             </Grid>
 
                             <!-- Temperature -->
-                            <Grid Padding="16,12" Background="#141414" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
@@ -378,7 +413,7 @@
                             </Grid>
 
                             <!-- Max Tokens -->
-                            <Grid Padding="16,12" Background="#141414" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="100" />
@@ -391,13 +426,13 @@
                             </Grid>
 
                             <!-- System Prompt -->
-                            <StackPanel Padding="16,12" Background="#141414" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8" Spacing="8">
+                            <StackPanel Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8" Spacing="8">
                                 <TextBlock Text="System Prompt" FontSize="14" FontWeight="SemiBold" Foreground="#ffffff" />
                                 <TextBox x:Name="AiSystemPromptBox" Height="80" FontSize="12" TextWrapping="Wrap" AcceptsReturn="True" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4" LostFocus="AiSystemPromptBox_LostFocus" Padding="8,6" />
                             </StackPanel>
 
                             <!-- AI Rewrite Prompts -->
-                            <StackPanel Padding="16,12" Background="#141414" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8" Spacing="8">
+                            <StackPanel Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8" Spacing="8">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
