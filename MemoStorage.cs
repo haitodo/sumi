@@ -21,6 +21,8 @@ namespace sumi
         public bool IsPinned { get; set; }
         public DateTime LastOpened { get; set; }
         public string Content { get; set; } = string.Empty;
+        public string RtfContent { get; set; } = string.Empty;
+        public bool IsRtfLoaded { get; set; }
         public string Title { get; set; } = string.Empty;
         public int CharCount { get; set; }
         public int UncompletedTaskCount { get; set; }
@@ -416,10 +418,11 @@ namespace sumi
                         string rtfFile = Path.Combine(NotesFolderPath, $"note_{latest.Id}.rtf");
                         string txtFile = Path.Combine(NotesFolderPath, $"note_{latest.Id}.txt");
                         string content = string.Empty;
+                        string rtfData = string.Empty;
 
                         if (File.Exists(rtfFile))
                         {
-                            string rtfData = File.ReadAllText(rtfFile, Utf8NoBom);
+                            rtfData = File.ReadAllText(rtfFile, Utf8NoBom);
 #pragma warning disable CS0618
                             content = RtfToPlainTextConverter.ConvertRtfToPlainText(rtfData);
 #pragma warning restore CS0618
@@ -441,7 +444,9 @@ namespace sumi
 
                         lock (Notes)
                         {
+                            latest.RtfContent = rtfData;
                             latest.Content = content;
+                            latest.IsRtfLoaded = true;
 
                             // 自前コンバーターでの解析結果が有効な場合のみ更新し、
                             // 解析不全（Untitled）の場合は notes.dat からロードした正しいタイトルを保護する
@@ -461,8 +466,7 @@ namespace sumi
                         // カレントメモのタスクも同期でロード
                         LoadTasksForNoteSync(latest);
 
-                        // 残りのメモはバックグラウンドで非同期にロードする
-                        _ = Task.Run(() => LoadRemainingNotesBackground());
+                        // 他のメモはオンデマンド（選択時・検索時）で遅延ロード
                     }
                 }
             }
@@ -482,67 +486,53 @@ namespace sumi
             }
         }
 
-        private static void LoadRemainingNotesBackground()
+        /// <summary>
+        /// メモの RTF およびプレーンテキストが未ロードの場合に遅延読み込みしてメモリキャッシュに格納します。
+        /// </summary>
+        public static void EnsureNoteLoaded(NoteData note)
         {
+            if (note.IsRtfLoaded) return;
+
+            string rtfFile = Path.Combine(NotesFolderPath, $"note_{note.Id}.rtf");
+            string txtFile = Path.Combine(NotesFolderPath, $"note_{note.Id}.txt");
+            string rtfData = string.Empty;
+            string plainText = string.Empty;
+
             try
             {
-                NoteData[] notesCopy;
-                string currentId;
-                lock (Notes)
+                if (File.Exists(rtfFile))
                 {
-                    notesCopy = Notes.ToArray();
-                    currentId = CurrentNoteId;
-                }
-
-                foreach (var note in notesCopy)
-                {
-                    if (note.Id == currentId) continue;
-
-                    string rtfFile = Path.Combine(NotesFolderPath, $"note_{note.Id}.rtf");
-                    string txtFile = Path.Combine(NotesFolderPath, $"note_{note.Id}.txt");
-                    string content = string.Empty;
-
-                    if (File.Exists(rtfFile))
-                    {
-                        string rtfData = File.ReadAllText(rtfFile, Utf8NoBom);
+                    rtfData = File.ReadAllText(rtfFile, Utf8NoBom);
 #pragma warning disable CS0618
-                        content = RtfToPlainTextConverter.ConvertRtfToPlainText(rtfData);
+                    plainText = RtfToPlainTextConverter.ConvertRtfToPlainText(rtfData);
 #pragma warning restore CS0618
-                    }
-                    else if (File.Exists(txtFile))
-                    {
-                        content = File.ReadAllText(txtFile, Utf8NoBom);
-                        try
-                        {
-                            File.WriteAllText(rtfFile, content, Utf8NoBom);
-                            File.Delete(txtFile);
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"[Background Migration Error] {ex.Message}");
-                        }
-                    }
-
-                    lock (Notes)
-                    {
-                        // コンテンツが未読み込み状態の場合、バックグラウンドロード結果を反映してタイトルを再構築
-                        if (string.IsNullOrEmpty(note.Content))
-                        {
-                            note.Content = content;
-                            note.Title = GetTitleFromContent(content);
-                            note.CharCount = content.Length;
-                        }
-                    }
-
-                    if (note.UncompletedTaskCount > 0)
-                    {
-                        LoadTasksForNoteSync(note);
-                    }
+                }
+                else if (File.Exists(txtFile))
+                {
+                    plainText = File.ReadAllText(txtFile, Utf8NoBom);
+                    rtfData = plainText;
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[LoadRemainingNotesBackground Error] {ex.Message}");
+                Debug.WriteLine($"[EnsureNoteLoaded Error] {ex.Message}");
+            }
+
+            lock (Notes)
+            {
+                note.RtfContent = rtfData;
+                note.Content = plainText;
+                note.IsRtfLoaded = true;
+
+                if (string.IsNullOrEmpty(note.Title) || note.Title == "Untitled")
+                {
+                    string parsedTitle = GetTitleFromContent(plainText);
+                    if (parsedTitle != "Untitled")
+                    {
+                        note.Title = parsedTitle;
+                    }
+                }
+                note.CharCount = plainText.Length > 0 ? plainText.Length : note.CharCount;
             }
         }
 
@@ -583,35 +573,42 @@ namespace sumi
         }
 
         /// <summary>
-        /// 指定されたノートの RTF テキストを読み込みます。一時的なロックに備えてリトライ処理を行います。
+        /// 指定されたノートの RTF テキストを読み込みます。メモリキャッシュが存在する場合は即座に返します。
         /// </summary>
         public static string LoadNoteRtf(string id)
         {
+            NoteData? note = null;
+            lock (Notes)
+            {
+                note = Notes.Find(n => n.Id == id);
+            }
+
+            if (note != null)
+            {
+                if (!note.IsRtfLoaded)
+                {
+                    EnsureNoteLoaded(note);
+                }
+                return note.RtfContent;
+            }
+
             string rtfFile = Path.Combine(NotesFolderPath, $"note_{id}.rtf");
             string txtFile = Path.Combine(NotesFolderPath, $"note_{id}.txt");
 
-            int maxRetries = 5;
-            int delayMs = 100;
-            for (int i = 0; i < maxRetries; i++)
+            try
             {
-                try
+                if (File.Exists(rtfFile))
                 {
-                    if (File.Exists(rtfFile))
-                    {
-                        return File.ReadAllText(rtfFile, Utf8NoBom);
-                    }
-                    else if (File.Exists(txtFile))
-                    {
-                        return File.ReadAllText(txtFile, Utf8NoBom);
-                    }
-                    return string.Empty;
+                    return File.ReadAllText(rtfFile, Utf8NoBom);
                 }
-                catch (IOException ex) when (i < maxRetries - 1)
+                else if (File.Exists(txtFile))
                 {
-                    Debug.WriteLine($"[LoadNoteRtf Retry {i + 1}] IOException: {ex.Message}");
-                    System.Threading.Thread.Sleep(delayMs);
-                    delayMs *= 2;
+                    return File.ReadAllText(txtFile, Utf8NoBom);
                 }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[LoadNoteRtf Error] {ex.Message}");
             }
             return string.Empty;
         }
@@ -629,6 +626,8 @@ namespace sumi
                     if (note != null)
                     {
                         note.Content = plainText;
+                        note.RtfContent = rtfText;
+                        note.IsRtfLoaded = true;
                         note.Title = GetTitleFromContent(plainText);
                         note.CharCount = plainText.Length;
                     }
@@ -648,16 +647,11 @@ namespace sumi
                         {
                             await writer.WriteAsync(rtfText);
                             await writer.FlushAsync();
-                            fs.Flush(true); // 物理フラッシュ
                         }
 
                         if (File.Exists(noteFile))
                         {
                             File.Replace(tempFile, noteFile, null);
-                            using (var fs = new FileStream(noteFile, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
-                            {
-                                fs.Flush(true);
-                            }
                         }
                         else
                         {
@@ -696,6 +690,8 @@ namespace sumi
                     if (note != null)
                     {
                         note.Content = plainText;
+                        note.RtfContent = rtfText;
+                        note.IsRtfLoaded = true;
                         note.Title = GetTitleFromContent(plainText);
                         note.CharCount = plainText.Length;
                     }
@@ -715,16 +711,11 @@ namespace sumi
                         {
                             writer.Write(rtfText);
                             writer.Flush();
-                            fs.Flush(true);
                         }
 
                         if (File.Exists(noteFile))
                         {
                             File.Replace(tempFile, noteFile, null);
-                            using (var fs = new FileStream(noteFile, FileMode.Open, FileAccess.Write, FileShare.ReadWrite))
-                            {
-                                fs.Flush(true);
-                            }
                         }
                         else
                         {

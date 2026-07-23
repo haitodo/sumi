@@ -279,15 +279,6 @@ namespace sumi
                     {
                         _isDirty = false;
                     }
-
-                    // ★タイピングが一段落して保存が完了したタイミングで一時オブジェクトをクリーンアップ
-                    this.DispatcherQueue.TryEnqueue(
-                        Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
-                        () =>
-                        {
-                            System.GC.Collect();
-                            System.GC.WaitForPendingFinalizers();
-                        });
                 }
             });
 
@@ -2836,6 +2827,7 @@ namespace sumi
                 {
                     if (!string.IsNullOrEmpty(query))
                     {
+                        MemoStorage.EnsureNoteLoaded(note);
                         bool matchTitle = note.Title.Contains(query, StringComparison.OrdinalIgnoreCase);
                         bool matchContent = note.Content.Contains(query, StringComparison.OrdinalIgnoreCase);
                         if (!matchTitle && !matchContent)
@@ -2938,6 +2930,7 @@ namespace sumi
                 {
                     if (!string.IsNullOrEmpty(query))
                     {
+                        MemoStorage.EnsureNoteLoaded(note);
                         bool matchTitle = note.Title.Contains(query, StringComparison.OrdinalIgnoreCase);
                         bool matchContent = note.Content.Contains(query, StringComparison.OrdinalIgnoreCase);
                         if (!matchTitle && !matchContent)
@@ -3062,6 +3055,7 @@ namespace sumi
                 {
                     if (!string.IsNullOrEmpty(query))
                     {
+                        MemoStorage.EnsureNoteLoaded(note);
                         bool matchTitle = note.Title.Contains(query, StringComparison.OrdinalIgnoreCase);
                         bool matchContent = note.Content.Contains(query, StringComparison.OrdinalIgnoreCase);
                         if (!matchTitle && !matchContent)
