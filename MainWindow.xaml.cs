@@ -906,12 +906,7 @@ namespace sumi
 
                 // 非表示にする前に、デバウンス中の座標を確定して保存
                 _windowPlacementTimer.Stop();
-                var pos = _appWindow.Position;
-                var size = _appWindow.Size;
-                if (size.Width > 100 && size.Height > 100 && pos.X > -10000 && pos.Y > -10000)
-                {
-                    MemoStorage.SaveWindowPlacementAtomic(pos.X, pos.Y, size.Width, size.Height);
-                }
+                SaveCurrentWindowPlacement();
 
                 // 現在表示しているメモIDを記録して設定に保存
                 MemoStorage.LastNoteId = MemoStorage.CurrentNoteId;
@@ -932,17 +927,37 @@ namespace sumi
             }
         }
 
-        private void WindowPlacementTimer_Tick(DispatcherQueueTimer sender, object args)
+        private void SaveCurrentWindowPlacement()
         {
-            _windowPlacementTimer.Stop();
-            if (_appWindow.IsVisible)
+            try
             {
+                if (_appWindow == null) return;
+                var presenter = _appWindow.Presenter as OverlappedPresenter;
+                if (presenter != null && presenter.State != OverlappedPresenterState.Restored)
+                {
+                    // ウィンドウが最大化または最小化されている場合は、通常表示時のサイズと位置を壊さないように保存をスキップ
+                    return;
+                }
+
                 var pos = _appWindow.Position;
                 var size = _appWindow.Size;
                 if (size.Width > 100 && size.Height > 100 && pos.X > -10000 && pos.Y > -10000)
                 {
                     MemoStorage.SaveWindowPlacementAtomic(pos.X, pos.Y, size.Width, size.Height);
                 }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SaveWindowPlacement Error] {ex.Message}");
+            }
+        }
+
+        private void WindowPlacementTimer_Tick(DispatcherQueueTimer sender, object args)
+        {
+            _windowPlacementTimer.Stop();
+            if (_appWindow.IsVisible)
+            {
+                SaveCurrentWindowPlacement();
             }
         }
 
@@ -1155,9 +1170,7 @@ namespace sumi
             MemoStorage.SaveSettings();
 
             // 2. 終了座標をアトミックに保存
-            var pos = _appWindow.Position;
-            var size = _appWindow.Size;
-            MemoStorage.SaveWindowPlacementAtomic(pos.X, pos.Y, size.Width, size.Height);
+            SaveCurrentWindowPlacement();
 
             // 3. 全てのリソース解放（タイマー・イベント・Win32APIフック）を実行
             Dispose();
@@ -4345,12 +4358,7 @@ namespace sumi
                         _scheduler?.Cancel();
 
                         // 非表示にする前に最新のウィンドウ配置を保存
-                        var pos = _appWindow.Position;
-                        var size = _appWindow.Size;
-                        if (size.Width > 100 && size.Height > 100 && pos.X > -10000 && pos.Y > -10000)
-                        {
-                            MemoStorage.SaveWindowPlacementAtomic(pos.X, pos.Y, size.Width, size.Height);
-                        }
+                        SaveCurrentWindowPlacement();
                         // 現在表示しているメモIDを記録して設定に保存
                         MemoStorage.LastNoteId = MemoStorage.CurrentNoteId;
                         MemoStorage.SaveSettings();
