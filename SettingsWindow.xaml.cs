@@ -6,7 +6,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using System;
 using System.Linq;
-using System.Runtime.InteropServices;
+using sumi.Interop;
 using Windows.Graphics;
 
 namespace sumi
@@ -14,30 +14,6 @@ namespace sumi
     public sealed partial class SettingsWindow : Window
     {
         private bool _isInitializingSettings = false;
-
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
-        private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
-
-        [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr")]
-        private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
-
-        [DllImport("user32.dll", EntryPoint = "SetWindowLong")]
-        private static extern int SetWindowLong32(IntPtr hWnd, int nIndex, int dwNewLong);
-
-        private static IntPtr SetWindowOwner(IntPtr childHwnd, IntPtr ownerHwnd)
-        {
-            const int GWL_HWNDPARENT = -8;
-            if (IntPtr.Size == 8)
-            {
-                return SetWindowLongPtr(childHwnd, GWL_HWNDPARENT, ownerHwnd);
-            }
-            else
-            {
-                return new IntPtr(SetWindowLong32(childHwnd, GWL_HWNDPARENT, ownerHwnd.ToInt32()));
-            }
-        }
-
         private bool _isOwnerSet = false;
 
         public SettingsWindow()
@@ -51,7 +27,7 @@ namespace sumi
             int useDarkMode = 1;
             try
             {
-                DwmSetWindowAttribute(hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref useDarkMode, sizeof(int));
+                NativeMethods.DwmSetWindowAttribute(hWnd, NativeMethods.DWMWA_USE_IMMERSIVE_DARK_MODE, ref useDarkMode, sizeof(int));
             }
             catch (Exception ex)
             {
@@ -62,7 +38,7 @@ namespace sumi
             SetTitleBar(TitleDragRegion);
 
             // ウィンドウサイズの初期設定
-            var windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
+            var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
             var appWindow = AppWindow.GetFromWindowId(windowId);
             if (appWindow != null)
             {
@@ -85,7 +61,7 @@ namespace sumi
                 if (mainHwnd != IntPtr.Zero)
                 {
                     // Win32 GWL_HWNDPARENT によるオーナーシップ設定（前面維持の基本）
-                    SetWindowOwner(hWnd, mainHwnd);
+                    NativeMethods.SetWindowOwner(hWnd, mainHwnd);
                 }
                 _isOwnerSet = true;
             }
