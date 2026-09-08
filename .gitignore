@@ -5,9 +5,12 @@
 [Rr]elease/
 .vs/
 *.user
-*.suo
 *.userosscache
+*.suo
+*.userprefs
 *.sln.docstates
+*.pidb
+*.booproj
 artifacts/
 
 # Build logs
@@ -15,12 +18,14 @@ artifacts/
 [Ll]ogs/
 *.log
 *.binlog
+*.svclog
 
-# Test results
+# Test results & test logs
 [Tt]est[Rr]esult*/
 *.trx
 *.coverage
 *.coveragexml
+test_result.txt
 
 # NuGet
 *.nupkg
@@ -29,9 +34,10 @@ artifacts/
 *.nuget.targets
 project.lock.json
 
-# MSIX packaging output
+# MSIX & Packaging output
 AppPackages/
 BundleArtifacts/
+PackageBackup/
 *.msix
 *.msixupload
 *.appx
@@ -48,7 +54,37 @@ _ReSharper*/
 *.DotSettings.user
 *.dotCover
 .idea/
+.vscode/
 
-# Generated files
-Generated\ Files/
+# WinUI 3 / XAML / Generated files
+[Gg]enerated [Ff]iles/
 *_wpftmp.csproj
+
+# Backup, temporary, and scratch files
+*.bak
+*.backup
+*.tmp
+*.temp
+*~
+*.swp
+stdout.txt
+stderr.txt
+
+# Crash and memory dumps
+*.dmp
+*.dump
+*.crash
+
+# OS-generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+._*
+
+# Environment and local settings
+.env
+.env.*.local
+*.local
+
