@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace sumi
@@ -18,6 +19,8 @@ namespace sumi
 
     public static partial class MemoStorage
     {
+        private static readonly SemaphoreSlim TaskSaveGate = new(1, 1);
+
         public static Action<string>? TaskChangedAction { get; set; }
 
         public static void LoadTasksForNoteSync(NoteData note)
@@ -61,10 +64,11 @@ namespace sumi
 
         public static async Task<bool> SaveTasksAtomicAsync(string id, List<TaskItem> tasks)
         {
+            await TaskSaveGate.WaitAsync().ConfigureAwait(false);
             try
             {
                 string tasksFile = Path.Combine(NotesFolderPath, $"note_{id}.tasks");
-                string tempFile = Path.Combine(NotesFolderPath, $"note_{id}.tasks.tmp");
+                string tempFile = Path.Combine(NotesFolderPath, $"note_{id}.tasks.{Guid.NewGuid():N}.tmp");
 
                 string json = JsonSerializer.Serialize(tasks, TaskJsonContext.Default.ListTaskItem);
 
@@ -112,14 +116,19 @@ namespace sumi
                 Debug.WriteLine($"[SaveTasksAtomicAsync Error] {ex.Message}");
                 return false;
             }
+            finally
+            {
+                TaskSaveGate.Release();
+            }
         }
 
         public static bool SaveTasksSync(string id, List<TaskItem> tasks)
         {
+            TaskSaveGate.Wait();
             try
             {
                 string tasksFile = Path.Combine(NotesFolderPath, $"note_{id}.tasks");
-                string tempFile = Path.Combine(NotesFolderPath, $"note_{id}.tasks.tmp");
+                string tempFile = Path.Combine(NotesFolderPath, $"note_{id}.tasks.{Guid.NewGuid():N}.tmp");
 
                 string json = JsonSerializer.Serialize(tasks, TaskJsonContext.Default.ListTaskItem);
 
@@ -165,6 +174,10 @@ namespace sumi
             {
                 Debug.WriteLine($"[SaveTasksSync Error] {ex.Message}");
                 return false;
+            }
+            finally
+            {
+                TaskSaveGate.Release();
             }
         }
     }

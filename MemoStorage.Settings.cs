@@ -4,12 +4,15 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using sumi.Interop;
 
 namespace sumi
 {
     public static partial class MemoStorage
     {
+        private static readonly SemaphoreSlim SettingsSaveGate = new(1, 1);
+
         /// <summary>
         /// 完全にアロケーションフリーなウィンドウ座標保存 (スタック上で処理) を行います。
         /// </summary>
@@ -249,6 +252,7 @@ namespace sumi
         /// </summary>
         public static void SaveSettings()
         {
+            SettingsSaveGate.Wait();
             try
             {
                 // CurrentNoteId が確定している場合は LastNoteId を常に最新に保つ
@@ -287,7 +291,7 @@ namespace sumi
                 sb.AppendLine($"AiSystemPrompt={AiSystemPrompt.Replace("\r", "").Replace("\n", "\\n")}");
                 byte[] bytes = Utf8NoBom.GetBytes(sb.ToString());
 
-                string tempPath = SettingsPath + ".tmp";
+                string tempPath = Path.Combine(FolderPath, $"settings.{Guid.NewGuid():N}.tmp");
                 using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: false))
                 {
                     fs.Write(bytes, 0, bytes.Length);
@@ -311,6 +315,10 @@ namespace sumi
             catch (Exception ex)
             {
                 Debug.WriteLine($"[SaveSettings Error] {ex.Message}");
+            }
+            finally
+            {
+                SettingsSaveGate.Release();
             }
         }
     }

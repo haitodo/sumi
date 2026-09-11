@@ -5,20 +5,20 @@ using System.Threading.Tasks;
 namespace sumi
 {
     /// <summary>
-    /// DispatcherQueueTimer を使用し、アロケーションを抑えながらキー入力の遅延保存（デバウンス）を制御するクラスです。
+    /// DispatcherQueueTimer を使った、再入防止付きのデバウンス保存スケジューラーです。
     /// </summary>
-    public class SaveScheduler : IDisposable
+    public sealed class SaveScheduler : IDisposable
     {
         private readonly DispatcherQueueTimer _timer;
-        private Func<Task>? _onSaveTriggered; // ★ readonlyを削除し、null許容型に変更
-        private readonly object _lock = new object();
-        private bool _isDisposed = false;
+        private readonly object _lock = new();
+        private Func<Task>? _onSaveTriggered;
+        private bool _isDisposed;
+        private bool _saveInProgress;
+        private bool _saveRequested;
 
         public SaveScheduler(DispatcherQueue queue, Func<Task> onSaveTriggered)
         {
-            _onSaveTriggered = onSaveTriggered;
-
-            // DispatcherQueueTimer を再利用することで、アロケーションを完全に抑制します
+            _onSaveTriggered = onSaveTriggered ?? throw new ArgumentNullException(nameof(onSaveTriggered));
             _timer = queue.CreateTimer();
             _timer.Interval = TimeSpan.FromMilliseconds(2000);
             _timer.Tick += Timer_Tick;
@@ -36,25 +36,50 @@ namespace sumi
             {
                 if (_isDisposed) return;
 
-                // タイマーを再起動（デバウンスをリセット）
-                _timer.Stop();
-                _timer.Start();
+                _saveRequested = true;
+                if (!_saveInProgress)
+                {
+                    _timer.Stop();
+                    _timer.Start();
+                }
             }
         }
 
         private async void Timer_Tick(DispatcherQueueTimer sender, object args)
         {
-            _timer.Stop();
+            Func<Task>? save;
+            lock (_lock)
+            {
+                if (_isDisposed || _saveInProgress) return;
+
+                _timer.Stop();
+                _saveRequested = false;
+                _saveInProgress = true;
+                save = _onSaveTriggered;
+            }
+
             try
             {
-                if (_onSaveTriggered != null) // ★ nullチェックを追加
+                if (save != null)
                 {
-                    await _onSaveTriggered();
+                    await save();
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[SaveScheduler Save Error] {ex.Message}");
+            }
+            finally
+            {
+                lock (_lock)
+                {
+                    _saveInProgress = false;
+                    if (!_isDisposed && _saveRequested)
+                    {
+                        _timer.Stop();
+                        _timer.Start();
+                    }
+                }
             }
         }
 
@@ -63,6 +88,7 @@ namespace sumi
             lock (_lock)
             {
                 _timer.Stop();
+                _saveRequested = false;
             }
         }
 
@@ -71,10 +97,12 @@ namespace sumi
             lock (_lock)
             {
                 if (_isDisposed) return;
+
                 _isDisposed = true;
+                _saveRequested = false;
                 _timer.Stop();
-                _timer.Tick -= Timer_Tick; // ★イベントハンドラーの登録を解除
-                _onSaveTriggered = null;   // ★ MainWindow へのラムダ強参照をクリアして解放を促す
+                _timer.Tick -= Timer_Tick;
+                _onSaveTriggered = null;
             }
         }
     }

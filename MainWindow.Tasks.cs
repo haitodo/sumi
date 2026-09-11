@@ -73,7 +73,8 @@ namespace sumi
                             });
                         }
                     }
-                    await MemoStorage.SaveTasksAtomicAsync(noteId, tasksToSave);
+                    // JSON 化とファイル I/O を UI スレッドから切り離す。
+                    await Task.Run(() => MemoStorage.SaveTasksAtomicAsync(noteId, tasksToSave));
                 }
             }
 

@@ -16,7 +16,6 @@ namespace sumi
         private static readonly string WindowDatTempPath;
         public static readonly string NotesFolderPath;
         private static readonly string NotesDatPath;
-        private static readonly string NotesDatTempPath;
         private static readonly string SettingsPath;
         private static readonly string AiPromptsPath;
 
@@ -79,7 +78,6 @@ namespace sumi
                 Directory.CreateDirectory(NotesFolderPath);
             }
             NotesDatPath = Path.Combine(FolderPath, "notes.dat");
-            NotesDatTempPath = Path.Combine(FolderPath, "notes.tmp");
             SettingsPath = Path.Combine(FolderPath, "settings.txt");
             AiPromptsPath = Path.Combine(FolderPath, "ai_prompts.json");
         }

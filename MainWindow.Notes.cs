@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -65,13 +66,21 @@ namespace sumi
 
         private void NoteSearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            PopulateNotesList(NoteSearchBox.Text);
+            _noteSearchTimer.Stop();
+            _noteSearchTimer.Start();
+        }
+        private void NoteSearchTimer_Tick(DispatcherQueueTimer sender, object args)
+        {
+            _noteSearchTimer.Stop();
+            PopulateNotesList(NoteSearchBox?.Text ?? string.Empty);
         }
 
         private void NoteSearchBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
             if (e.Key == Windows.System.VirtualKey.Enter)
             {
+                _noteSearchTimer.Stop();
+                PopulateNotesList(NoteSearchBox.Text);
                 var pinnedVMs = PinnedListView.ItemsSource as List<NoteItemViewModel>;
                 if (pinnedVMs != null && pinnedVMs.Count > 0)
                 {
@@ -92,13 +101,22 @@ namespace sumi
 
         private void SidebarNoteSearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            PopulateSidebarNotesList(SidebarNoteSearchBox.Text);
+            _sidebarNoteSearchTimer.Stop();
+            _sidebarNoteSearchTimer.Start();
+        }
+
+        private void SidebarNoteSearchTimer_Tick(DispatcherQueueTimer sender, object args)
+        {
+            _sidebarNoteSearchTimer.Stop();
+            PopulateSidebarNotesList(SidebarNoteSearchBox?.Text ?? string.Empty);
         }
 
         private void SidebarNoteSearchBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
             if (e.Key == Windows.System.VirtualKey.Enter)
             {
+                _sidebarNoteSearchTimer.Stop();
+                PopulateSidebarNotesList(SidebarNoteSearchBox.Text);
                 var pinnedVMs = SidebarPinnedListView.ItemsSource as List<NoteItemViewModel>;
                 if (pinnedVMs != null && pinnedVMs.Count > 0)
                 {
@@ -192,7 +210,7 @@ namespace sumi
                     {
                         note.IsPinned = !note.IsPinned;
                     }
-                    MemoStorage.SaveMetadata();
+                    QueueSaveSettings();
 
                     // ハイライトの開始
                     _highlightedNoteId = note.Id;
@@ -237,7 +255,8 @@ namespace sumi
                 _isDirty = false;
             }
 
-            MemoStorage.SetCurrentNote(id, updateLastOpened);
+            MemoStorage.SetCurrentNote(id, updateLastOpened, persistMetadata: false);
+            QueueSaveSettings();
 
             NoteData? note = null;
             lock (MemoStorage.Notes)
@@ -371,6 +390,48 @@ namespace sumi
             return notes.ConvertAll(n => n.Id);
         }
 
+        private List<NoteData> GetFilteredNotes(string filter, string tagFilter = "")
+        {
+            string query = filter.Trim();
+            List<NoteData> notes;
+            lock (MemoStorage.Notes)
+            {
+                notes = new List<NoteData>(MemoStorage.Notes);
+            }
+
+            var filteredNotes = new List<NoteData>(notes.Count);
+            foreach (var note in notes)
+            {
+                if (string.IsNullOrEmpty(query))
+                {
+                    if (!string.IsNullOrEmpty(tagFilter))
+                    {
+                        if (tagFilter == "Untagged" && note.Tags.Count > 0) continue;
+                        if (tagFilter != "Untagged" && !note.Tags.Contains(tagFilter, StringComparer.OrdinalIgnoreCase)) continue;
+                    }
+                    filteredNotes.Add(note);
+                    continue;
+                }
+                // ファイル I/O は Notes のロック外で行い、検索中に保存処理を止めない。
+                MemoStorage.EnsureNoteLoaded(note);
+                if (!note.Title.Contains(query, StringComparison.OrdinalIgnoreCase) &&
+                    !note.Content.Contains(query, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(tagFilter))
+                {
+                    if (tagFilter == "Untagged" && note.Tags.Count > 0) continue;
+                    if (tagFilter != "Untagged" && !note.Tags.Contains(tagFilter, StringComparer.OrdinalIgnoreCase)) continue;
+                }
+
+                filteredNotes.Add(note);
+            }
+
+            return filteredNotes;
+        }
+
         private void PopulateNotesList(string filter = "")
         {
             var query = filter.Trim();
@@ -378,24 +439,7 @@ namespace sumi
             var normalVMs = new List<NoteItemViewModel>();
             var recentVMs = new List<NoteItemViewModel>();
 
-            List<NoteData> filteredNotes = new List<NoteData>();
-            lock (MemoStorage.Notes)
-            {
-                foreach (var note in MemoStorage.Notes)
-                {
-                    if (!string.IsNullOrEmpty(query))
-                    {
-                        MemoStorage.EnsureNoteLoaded(note);
-                        bool matchTitle = note.Title.Contains(query, StringComparison.OrdinalIgnoreCase);
-                        bool matchContent = note.Content.Contains(query, StringComparison.OrdinalIgnoreCase);
-                        if (!matchTitle && !matchContent)
-                        {
-                            continue;
-                        }
-                    }
-                    filteredNotes.Add(note);
-                }
-            }
+            List<NoteData> filteredNotes = GetFilteredNotes(query);
 
             // Pinned/Notes 用に作成日時（Id）の数値降順でソート（順番が変わらないようにするため）
             filteredNotes.Sort((a, b) =>
@@ -481,41 +525,7 @@ namespace sumi
             var normalVMs = new List<NoteItemViewModel>();
             var recentVMs = new List<NoteItemViewModel>();
 
-            List<NoteData> filteredNotes = new List<NoteData>();
-            lock (MemoStorage.Notes)
-            {
-                foreach (var note in MemoStorage.Notes)
-                {
-                    if (!string.IsNullOrEmpty(query))
-                    {
-                        MemoStorage.EnsureNoteLoaded(note);
-                        bool matchTitle = note.Title.Contains(query, StringComparison.OrdinalIgnoreCase);
-                        bool matchContent = note.Content.Contains(query, StringComparison.OrdinalIgnoreCase);
-                        if (!matchTitle && !matchContent)
-                        {
-                            continue;
-                        }
-                    }
-                    if (!string.IsNullOrEmpty(_activeLeftTagFilter))
-                    {
-                        if (_activeLeftTagFilter == "Untagged")
-                        {
-                            if (note.Tags.Count > 0)
-                            {
-                                continue;
-                            }
-                        }
-                        else
-                        {
-                            if (!note.Tags.Contains(_activeLeftTagFilter, StringComparer.OrdinalIgnoreCase))
-                            {
-                                continue;
-                            }
-                        }
-                    }
-                    filteredNotes.Add(note);
-                }
-            }
+            List<NoteData> filteredNotes = GetFilteredNotes(query, _activeLeftTagFilter);
 
             // Pinned/Notes 用に作成日時（Id）の数値降順でソート（順番が変わらないようにするため）
             filteredNotes.Sort((a, b) =>
@@ -606,41 +616,7 @@ namespace sumi
             var normalVMs = new List<NoteItemViewModel>();
             var recentVMs = new List<NoteItemViewModel>();
 
-            List<NoteData> filteredNotes = new List<NoteData>();
-            lock (MemoStorage.Notes)
-            {
-                foreach (var note in MemoStorage.Notes)
-                {
-                    if (!string.IsNullOrEmpty(query))
-                    {
-                        MemoStorage.EnsureNoteLoaded(note);
-                        bool matchTitle = note.Title.Contains(query, StringComparison.OrdinalIgnoreCase);
-                        bool matchContent = note.Content.Contains(query, StringComparison.OrdinalIgnoreCase);
-                        if (!matchTitle && !matchContent)
-                        {
-                            continue;
-                        }
-                    }
-                    if (!string.IsNullOrEmpty(_activeRightTagFilter))
-                    {
-                        if (_activeRightTagFilter == "Untagged")
-                        {
-                            if (note.Tags.Count > 0)
-                            {
-                                continue;
-                            }
-                        }
-                        else
-                        {
-                            if (!note.Tags.Contains(_activeRightTagFilter, StringComparer.OrdinalIgnoreCase))
-                            {
-                                continue;
-                            }
-                        }
-                    }
-                    filteredNotes.Add(note);
-                }
-            }
+            List<NoteData> filteredNotes = GetFilteredNotes(query, _activeRightTagFilter);
 
             // Pinned/Notes 用に作成日時（Id）の数値降順でソート（順番が変わらないようにするため）
             filteredNotes.Sort((a, b) =>
@@ -719,13 +695,22 @@ namespace sumi
 
         private void RightSidebarNoteSearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            PopulateRightSidebarNotesList(RightSidebarNoteSearchBox.Text);
+            _rightSidebarNoteSearchTimer.Stop();
+            _rightSidebarNoteSearchTimer.Start();
+        }
+
+        private void RightSidebarNoteSearchTimer_Tick(DispatcherQueueTimer sender, object args)
+        {
+            _rightSidebarNoteSearchTimer.Stop();
+            PopulateRightSidebarNotesList(RightSidebarNoteSearchBox?.Text ?? string.Empty);
         }
 
         private void RightSidebarNoteSearchBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
             if (e.Key == Windows.System.VirtualKey.Enter)
             {
+                _rightSidebarNoteSearchTimer.Stop();
+                PopulateRightSidebarNotesList(RightSidebarNoteSearchBox.Text);
                 var pinnedVMs = RightSidebarPinnedListView.ItemsSource as List<NoteItemViewModel>;
                 if (pinnedVMs != null && pinnedVMs.Count > 0)
                 {

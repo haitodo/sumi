@@ -373,7 +373,7 @@ namespace sumi
                     if (!currentNote.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase))
                     {
                         currentNote.Tags.Add(tag);
-                        MemoStorage.SaveMetadata();
+                        QueueSaveSettings();
                         UpdateHeaderTags();
                         RefreshAllTagsViews();
                     }
@@ -384,7 +384,7 @@ namespace sumi
                     if (currentNote.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase))
                     {
                         currentNote.Tags.Remove(tag);
-                        MemoStorage.SaveMetadata();
+                        QueueSaveSettings();
                         UpdateHeaderTags();
                         RefreshAllTagsViews();
                     }
@@ -440,7 +440,7 @@ namespace sumi
                             note.Tags.Remove(tag);
                         }
                     }
-                    MemoStorage.SaveMetadata();
+                    QueueSaveSettings();
                     UpdateHeaderTags();
                     PopulateManageTagsList();
                     RefreshAllTagsViews();
@@ -492,7 +492,7 @@ namespace sumi
                     if (!currentNote.Tags.Contains(text, StringComparer.OrdinalIgnoreCase))
                     {
                         currentNote.Tags.Add(text);
-                        MemoStorage.SaveMetadata();
+                        QueueSaveSettings();
                         UpdateHeaderTags();
                         RefreshAllTagsViews();
                     }

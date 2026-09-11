@@ -74,7 +74,10 @@ namespace sumi
 
         private ScrollViewer? _memoScrollViewer;
         private readonly DispatcherQueueTimer _windowPlacementTimer;
-        private readonly DispatcherQueueTimer _settingsSaveTimer;
+        private readonly SaveScheduler _settingsSaveScheduler;
+        private readonly DispatcherQueueTimer _noteSearchTimer;
+        private readonly DispatcherQueueTimer _sidebarNoteSearchTimer;
+        private readonly DispatcherQueueTimer _rightSidebarNoteSearchTimer;
 
         // AI fields
         private static readonly HttpClient _aiHttpClient = AiService.HttpClient;
@@ -110,10 +113,27 @@ namespace sumi
             _windowPlacementTimer.Interval = TimeSpan.FromMilliseconds(500);
             _windowPlacementTimer.Tick += WindowPlacementTimer_Tick;
 
+            _noteSearchTimer = this.DispatcherQueue.CreateTimer();
+            _noteSearchTimer.Interval = TimeSpan.FromMilliseconds(150);
+            _noteSearchTimer.Tick += NoteSearchTimer_Tick;
+
+            _sidebarNoteSearchTimer = this.DispatcherQueue.CreateTimer();
+            _sidebarNoteSearchTimer.Interval = TimeSpan.FromMilliseconds(150);
+            _sidebarNoteSearchTimer.Tick += SidebarNoteSearchTimer_Tick;
+
+            _rightSidebarNoteSearchTimer = this.DispatcherQueue.CreateTimer();
+            _rightSidebarNoteSearchTimer.Interval = TimeSpan.FromMilliseconds(150);
+            _rightSidebarNoteSearchTimer.Tick += RightSidebarNoteSearchTimer_Tick;
+
             // 設定保存のデバウンスタイマー (500ms)
-            _settingsSaveTimer = this.DispatcherQueue.CreateTimer();
-            _settingsSaveTimer.Interval = TimeSpan.FromMilliseconds(500);
-            _settingsSaveTimer.Tick += SettingsSaveTimer_Tick;
+            _settingsSaveScheduler = new SaveScheduler(
+                this.DispatcherQueue,
+                () => Task.Run(() =>
+                {
+                    MemoStorage.SaveSettings();
+                    MemoStorage.SaveMetadata();
+                }));
+            _settingsSaveScheduler.Interval = TimeSpan.FromMilliseconds(500);
 
             // 1. ウィンドウハンドルと AppWindow の解決
             _hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -198,7 +218,7 @@ namespace sumi
 
                 rtfText = TrimTrailingRtfPar(rtfText);
 
-                bool success = await Task.Run(async () => await MemoStorage.SaveNoteTextAtomicAsync(MemoStorage.CurrentNoteId, plainText, rtfText));
+                bool success = await Task.Run(() => MemoStorage.SaveNoteTextAtomicAsync(MemoStorage.CurrentNoteId, plainText, rtfText));
                 if (success)
                 {
                     _savedRevision = currentRevision;
@@ -537,16 +557,9 @@ namespace sumi
             }
         }
 
-        private void SettingsSaveTimer_Tick(DispatcherQueueTimer sender, object args)
-        {
-            _settingsSaveTimer.Stop();
-            MemoStorage.SaveSettings();
-        }
-
         public void QueueSaveSettings()
         {
-            _settingsSaveTimer.Stop();
-            _settingsSaveTimer.Start();
+            _settingsSaveScheduler.Schedule();
         }
 
         private void MarkAsDirty()
@@ -807,6 +820,8 @@ namespace sumi
                     _scheduler?.Dispose();
                     _taskSaveScheduler?.Cancel();
                     _taskSaveScheduler?.Dispose();
+                    _settingsSaveScheduler?.Cancel();
+                    _settingsSaveScheduler?.Dispose();
 
                     if (_windowPlacementTimer != null)
                     {
@@ -814,11 +829,12 @@ namespace sumi
                         _windowPlacementTimer.Tick -= WindowPlacementTimer_Tick;
                     }
 
-                    if (_settingsSaveTimer != null)
-                    {
-                        _settingsSaveTimer.Stop();
-                        _settingsSaveTimer.Tick -= SettingsSaveTimer_Tick;
-                    }
+                    _noteSearchTimer.Stop();
+                    _noteSearchTimer.Tick -= NoteSearchTimer_Tick;
+                    _sidebarNoteSearchTimer.Stop();
+                    _sidebarNoteSearchTimer.Tick -= SidebarNoteSearchTimer_Tick;
+                    _rightSidebarNoteSearchTimer.Stop();
+                    _rightSidebarNoteSearchTimer.Tick -= RightSidebarNoteSearchTimer_Tick;
 
                     if (_highlightTimer != null)
                     {

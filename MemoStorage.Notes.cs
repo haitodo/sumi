@@ -3,12 +3,16 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace sumi
 {
     public static partial class MemoStorage
     {
+        private static readonly SemaphoreSlim NoteSaveGate = new(1, 1);
+        private static readonly SemaphoreSlim MetadataSaveGate = new(1, 1);
+
         /// <summary>
         /// メモ一覧とメタデータの初期化および移行を行います。
         /// </summary>
@@ -379,6 +383,7 @@ namespace sumi
         /// </summary>
         public static async Task<bool> SaveNoteTextAtomicAsync(string id, string plainText, string rtfText)
         {
+            await NoteSaveGate.WaitAsync().ConfigureAwait(false);
             try
             {
                 lock (Notes)
@@ -395,7 +400,7 @@ namespace sumi
                 }
 
                 string noteFile = Path.Combine(NotesFolderPath, $"note_{id}.rtf");
-                string tempFile = Path.Combine(NotesFolderPath, $"note_{id}.tmp");
+                string tempFile = Path.Combine(NotesFolderPath, $"note_{id}.{Guid.NewGuid():N}.tmp");
 
                 int maxRetries = 5;
                 int delayMs = 100;
@@ -436,6 +441,10 @@ namespace sumi
                 Debug.WriteLine($"[SaveNoteText Error] {ex.Message}");
                 return false;
             }
+            finally
+            {
+                NoteSaveGate.Release();
+            }
         }
 
         /// <summary>
@@ -443,6 +452,7 @@ namespace sumi
         /// </summary>
         public static bool SaveNoteTextSync(string id, string plainText, string rtfText)
         {
+            NoteSaveGate.Wait();
             try
             {
                 lock (Notes)
@@ -459,7 +469,7 @@ namespace sumi
                 }
 
                 string noteFile = Path.Combine(NotesFolderPath, $"note_{id}.rtf");
-                string tempFile = Path.Combine(NotesFolderPath, $"note_{id}.tmp");
+                string tempFile = Path.Combine(NotesFolderPath, $"note_{id}.{Guid.NewGuid():N}.tmp");
 
                 int maxRetries = 5;
                 int delayMs = 100;
@@ -500,6 +510,10 @@ namespace sumi
                 Debug.WriteLine($"[SaveNoteTextSync Error] {ex.Message}");
                 return false;
             }
+            finally
+            {
+                NoteSaveGate.Release();
+            }
         }
 
         /// <summary>
@@ -507,6 +521,7 @@ namespace sumi
         /// </summary>
         public static void SaveMetadata()
         {
+            MetadataSaveGate.Wait();
             try
             {
                 var sb = new StringBuilder();
@@ -529,8 +544,9 @@ namespace sumi
                     }
                 }
                 byte[] bytes = Utf8NoBom.GetBytes(sb.ToString());
+                string metadataTempPath = Path.Combine(FolderPath, $"notes.{Guid.NewGuid():N}.tmp");
 
-                using (var fs = new FileStream(NotesDatTempPath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: false))
+                using (var fs = new FileStream(metadataTempPath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: false))
                 {
                     fs.Write(bytes, 0, bytes.Length);
                     fs.Flush();
@@ -539,16 +555,20 @@ namespace sumi
 
                 if (File.Exists(NotesDatPath))
                 {
-                    File.Replace(NotesDatTempPath, NotesDatPath, null);
+                    File.Replace(metadataTempPath, NotesDatPath, null);
                 }
                 else
                 {
-                    File.Move(NotesDatTempPath, NotesDatPath);
+                    File.Move(metadataTempPath, NotesDatPath);
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[SaveMetadata Error] {ex.Message}");
+            }
+            finally
+            {
+                MetadataSaveGate.Release();
             }
         }
 
@@ -586,6 +606,10 @@ namespace sumi
         /// </summary>
         public static void DeleteNote(string id)
         {
+            NoteSaveGate.Wait();
+            TaskSaveGate.Wait();
+            try
+            {
             bool removed = false;
             lock (Notes)
             {
@@ -600,11 +624,15 @@ namespace sumi
             if (removed)
             {
                 string noteFile = Path.Combine(NotesFolderPath, $"note_{id}.rtf");
+                string legacyTextFile = Path.Combine(NotesFolderPath, $"note_{id}.txt");
+                string tasksFile = Path.Combine(NotesFolderPath, $"note_{id}.tasks");
                 string tempFile = Path.Combine(NotesFolderPath, $"note_{id}.tmp");
 
                 try
                 {
                     if (File.Exists(noteFile)) File.Delete(noteFile);
+                    if (File.Exists(legacyTextFile)) File.Delete(legacyTextFile);
+                    if (File.Exists(tasksFile)) File.Delete(tasksFile);
                     if (File.Exists(tempFile)) File.Delete(tempFile);
                 }
                 catch (Exception ex)
@@ -614,12 +642,18 @@ namespace sumi
 
                 SaveMetadata();
             }
+            }
+            finally
+            {
+                TaskSaveGate.Release();
+                NoteSaveGate.Release();
+            }
         }
 
         /// <summary>
         /// アクティブなメモを切り替え、最終開封日時を更新します。
         /// </summary>
-        public static void SetCurrentNote(string id, bool updateLastOpened = true)
+        public static void SetCurrentNote(string id, bool updateLastOpened = true, bool persistMetadata = true)
         {
             lock (Notes)
             {
@@ -631,7 +665,10 @@ namespace sumi
                     CurrentNoteId = id;
                 }
             }
-            SaveMetadata();
+            if (persistMetadata)
+            {
+                SaveMetadata();
+            }
         }
     }
 }
