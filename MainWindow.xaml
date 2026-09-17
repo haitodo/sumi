@@ -1484,9 +1484,10 @@
                                 </Button.Flyout>
                             </Button>
 
-                            <!-- 空行削除用セパレータとボタン -->
+                            <!-- 空行削除・スペース改行統合用セパレータとボタン -->
                             <Border Width="1" Height="16" Background="#333333" Margin="4,0" />
                             <Button x:Name="RemoveEmptyLinesHeaderButton" Content="&#xED60;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="空行を削除" Click="RemoveEmptyLines_Click" />
+                            <Button x:Name="RemoveWhitespaceAndNewlinesHeaderButton" Content="&#xE16F;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="スペース・改行を削除して統合" Click="RemoveWhitespaceAndNewlines_Click" />
 
                             <!-- AIリライト用セパレータとボタン -->
                             <Border Width="1" Height="16" Background="#333333" Margin="4,0" />

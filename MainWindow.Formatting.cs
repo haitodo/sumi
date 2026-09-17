@@ -763,6 +763,55 @@ namespace sumi
             MemoTextBox.Focus(FocusState.Programmatic);
         }
 
+        private void RemoveWhitespaceAndNewlines_Click(object sender, RoutedEventArgs e)
+        {
+            if (MemoTextBox == null || MemoTextBox.IsReadOnly) return;
+
+            var selection = MemoTextBox.Document.Selection;
+            if (selection == null || selection.StartPosition == selection.EndPosition) return;
+
+            var doc = MemoTextBox.Document;
+            int start = selection.StartPosition;
+
+            doc.BatchDisplayUpdates();
+            try
+            {
+                string originalText = selection.Text;
+                if (!string.IsNullOrEmpty(originalText))
+                {
+                    string mergedText = RemoveWhitespaceAndNewlines(originalText);
+                    selection.SetText(TextSetOptions.None, mergedText);
+                    selection.SetRange(start, start + mergedText.Length);
+                }
+            }
+            finally
+            {
+                doc.ApplyDisplayUpdates();
+            }
+
+            ApplyGlobalThemeToEditor();
+
+            UpdateFormatButtonStates();
+            MarkAsDirty();
+            MemoTextBox.Focus(FocusState.Programmatic);
+        }
+
+        private static string RemoveWhitespaceAndNewlines(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return string.Empty;
+
+            var sb = new StringBuilder(text.Length);
+            foreach (char c in text)
+            {
+                // 空白文字（半角スペース、全角スペース、タブ、改行\r\nなどUnicode空白）およびゼロ幅文字を除外
+                if (!char.IsWhiteSpace(c) && c != '\u200B' && c != '\uFEFF')
+                {
+                    sb.Append(c);
+                }
+            }
+            return sb.ToString();
+        }
+
         private static string TrimTrailingRtfPar(string rtf)
         {
             if (string.IsNullOrEmpty(rtf)) return rtf;
@@ -980,6 +1029,14 @@ namespace sumi
                 };
                 removeEmptyLinesItem.Click += RemoveEmptyLines_Click;
                 menu.Items.Add(removeEmptyLinesItem);
+
+                var removeWhitespaceAndNewlinesItem = new MenuFlyoutItem
+                {
+                    Text = "選択範囲のスペース・改行を削除して統合",
+                    Icon = new FontIcon { Glyph = "\xE16F", FontFamily = new FontFamily("Segoe Fluent Icons") }
+                };
+                removeWhitespaceAndNewlinesItem.Click += RemoveWhitespaceAndNewlines_Click;
+                menu.Items.Add(removeWhitespaceAndNewlinesItem);
             }
         }
 
