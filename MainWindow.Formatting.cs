@@ -41,8 +41,16 @@ namespace sumi
 
                 if (!preserveFormatting)
                 {
-                    range.CharacterFormat.Name = MemoStorage.FontFamily;
-                    range.CharacterFormat.Size = (float)MemoStorage.FontSize;
+                    if (isPlainText)
+                    {
+                        range.CharacterFormat.Name = MemoStorage.FontFamily;
+                        range.CharacterFormat.Size = (float)MemoStorage.FontSize;
+                    }
+                    else
+                    {
+                        // 通常文字だけを既定値へ戻し、H1/H2 のサイズは維持する。
+                        ApplyDefaultFontToNonHeadingRuns(doc, 0, range.Length);
+                    }
 
                     ushort defaultWeight = GetDefaultFontWeight();
                     ushort boldWeight = GetBoldFontWeight();
@@ -73,21 +81,9 @@ namespace sumi
                 }
                 else
                 {
-                    // 【修正 2】RTFロード時（装飾保護モード）は、一番最後の隠し改行文字とカーソル位置のみをターゲットにする
-                    int endPos = range.Length;
-                    if (endPos > 0)
-                    {
-                        // 最後の1文字（自動生成された改行）を取得し、フォント名とサイズだけを設定値に合わせる
-                        // ※太字(Weight)や色には触れないため、直前の文字の装飾が消えることはありません
-                        var endRange = doc.GetRange(endPos - 1, endPos);
-                        endRange.CharacterFormat.Name = MemoStorage.FontFamily;
-                        endRange.CharacterFormat.Size = (float)MemoStorage.FontSize;
-
-                        // 末尾のカーソル位置（0文字幅）に対しても適用
-                        var endPointRange = doc.GetRange(endPos, endPos);
-                        endPointRange.CharacterFormat.Name = MemoStorage.FontFamily;
-                        endPointRange.CharacterFormat.Size = (float)MemoStorage.FontSize;
-                    }
+                    // RTFの太字・色・下線などは残しつつ、通常文字のフォントだけを補正する。
+                    // 以前は末尾の1文字しか補正していなかったため、RTF内の小さい文字が残っていた。
+                    ApplyDefaultFontToNonHeadingRuns(doc, 0, range.Length);
                 }
 
                 float lineSpacing = (float)MemoStorage.LineSpacing;
@@ -148,6 +144,69 @@ namespace sumi
             {
                 doc.ApplyDisplayUpdates();
             }
+        }
+
+        /// <summary>
+        /// 見出し以外の文字範囲を現在のエディタ既定フォントへそろえます。
+        /// RTF由来の装飾（太字、色、下線など）は変更しません。
+        /// </summary>
+        private void ApplyDefaultFontToNonHeadingRuns(RichEditTextDocument doc, int start, int end)
+        {
+            if (start >= end) return;
+
+            var rangesToProcess = new Stack<(int Start, int End)>();
+            rangesToProcess.Push((start, end));
+
+            while (rangesToProcess.Count > 0)
+            {
+                var (currentStart, currentEnd) = rangesToProcess.Pop();
+                if (currentStart >= currentEnd) continue;
+
+                var range = doc.GetRange(currentStart, currentEnd);
+                float size = range.CharacterFormat.Size;
+
+                if (!float.IsNaN(size) && size > 0)
+                {
+                    range.CharacterFormat.Name = MemoStorage.FontFamily;
+                    if (!IsHeadingFontSize(size))
+                    {
+                        range.CharacterFormat.Size = (float)MemoStorage.FontSize;
+                    }
+                    continue;
+                }
+
+                // サイズが混在する範囲は分割して、見出しと通常文字を個別に判定する。
+                if (currentEnd - currentStart <= 1)
+                {
+                    range.CharacterFormat.Name = MemoStorage.FontFamily;
+                    range.CharacterFormat.Size = (float)MemoStorage.FontSize;
+                    continue;
+                }
+
+                int middle = currentStart + (currentEnd - currentStart) / 2;
+                rangesToProcess.Push((middle, currentEnd));
+                rangesToProcess.Push((currentStart, middle));
+            }
+
+            // 貼り付けやRTF読み込み直後の次の入力が、小さい書式を引き継がないようにする。
+            var selection = doc.Selection;
+            if (selection != null)
+            {
+                var caretRange = doc.GetRange(selection.StartPosition, selection.StartPosition);
+                float caretSize = caretRange.CharacterFormat.Size;
+                if (float.IsNaN(caretSize) || !IsHeadingFontSize(caretSize))
+                {
+                    caretRange.CharacterFormat.Name = MemoStorage.FontFamily;
+                    caretRange.CharacterFormat.Size = (float)MemoStorage.FontSize;
+                }
+            }
+        }
+
+        private bool IsHeadingFontSize(float size)
+        {
+            // 既定サイズを18/24に設定している場合、そのサイズの通常文字を見出し扱いしない。
+            if (Math.Abs(size - (float)MemoStorage.FontSize) < 0.01f) return false;
+            return Math.Abs(size - 18.0f) < 0.01f || Math.Abs(size - 24.0f) < 0.01f;
         }
 
         private void UpdateRangeWeight(RichEditTextDocument doc, int start, int end, ushort defaultWeight, ushort boldWeight)
@@ -341,6 +400,11 @@ namespace sumi
                     e.Handled = true;
                 }
                 // 見出し1 (Ctrl + 1)
+                else if (e.Key == Windows.System.VirtualKey.V)
+                {
+                    PasteWithEditorDefaults();
+                    e.Handled = true;
+                }
                 else if (e.Key == Windows.System.VirtualKey.Number1)
                 {
                     FormatHeading1_Click(null, null);
@@ -363,6 +427,16 @@ namespace sumi
                     }
                 }
             }
+        }
+
+        private void PasteWithEditorDefaults()
+        {
+            var selection = MemoTextBox.Document.Selection;
+            if (selection == null) return;
+
+            selection.Paste(0);
+            ApplyGlobalThemeToEditor();
+            MarkAsDirty();
         }
 
         private void FormatBold_Click(object sender, RoutedEventArgs e)
@@ -961,7 +1035,7 @@ namespace sumi
             copyItem.IsEnabled = hasSelection;
 
             var pasteItem = new MenuFlyoutItem { Text = "貼り付け", Icon = new SymbolIcon(Symbol.Paste) };
-            pasteItem.Click += (s, args) => selection?.Paste(0);
+            pasteItem.Click += (s, args) => PasteWithEditorDefaults();
             pasteItem.IsEnabled = !MemoTextBox.IsReadOnly;
 
             var selectAllItem = new MenuFlyoutItem { Text = "すべて選択", Icon = new SymbolIcon(Symbol.SelectAll) };

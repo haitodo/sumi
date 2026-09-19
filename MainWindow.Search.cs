@@ -342,6 +342,7 @@ namespace sumi
             if (selection.Text != null && selection.Text.Equals(FindTextBox.Text, StringComparison.CurrentCultureIgnoreCase))
             {
                 selection.SetText(Microsoft.UI.Text.TextSetOptions.None, ReplaceTextBox.Text);
+                ApplyGlobalThemeToEditor();
                 MarkAsDirty();
                 RecalculateMatches();
             }
@@ -371,6 +372,7 @@ namespace sumi
 
                 if (count > 0)
                 {
+                    ApplyGlobalThemeToEditor();
                     MarkAsDirty();
                     RecalculateMatches();
                     FindStatusTextBlock.Text = $"{count} 件を置換しました";

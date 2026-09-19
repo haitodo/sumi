@@ -13,7 +13,7 @@ namespace sumi
         private static readonly Brush PinForegroundUnpinned = new SolidColorBrush(ColorHelper.FromArgb(255, 204, 204, 204));
         private static readonly Brush BackgroundBrushHighlighted = new SolidColorBrush(ColorHelper.FromArgb(30, 255, 176, 0));
         private static readonly Brush BackgroundBrushTransparent = new SolidColorBrush(Colors.Transparent);
-        private static readonly Brush BackgroundBrushCurrent = new SolidColorBrush(ColorHelper.FromArgb(32, 255, 255, 255));
+        private static readonly Brush BackgroundBrushCurrent = new SolidColorBrush(ColorHelper.FromArgb(28, 138, 184, 245));
 
         public string Id { get; }
         public string Title { get; }

@@ -9,10 +9,23 @@
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
-            <!-- Other app resources here -->
-            <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#1c1c1c" />
-            <SolidColorBrush x:Key="FlyoutBackgroundBrush" Color="#1f1f1f" />
-            <SolidColorBrush x:Key="OpaqueFlyoutBackgroundBrush" Color="#1f1f1f" />
+            <!-- Shared surfaces and type hierarchy for the dark workspace. -->
+            <SolidColorBrush x:Key="WorkspaceBackgroundBrush" Color="#F2181A1D" />
+            <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#202226" />
+            <SolidColorBrush x:Key="FlyoutBackgroundBrush" Color="#26292E" />
+            <SolidColorBrush x:Key="OpaqueFlyoutBackgroundBrush" Color="#26292E" />
+            <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#34383E" />
+            <SolidColorBrush x:Key="PrimaryTextBrush" Color="#EDEEF0" />
+            <SolidColorBrush x:Key="SecondaryTextBrush" Color="#A4ABB5" />
+            <SolidColorBrush x:Key="MutedTextBrush" Color="#9099A5" />
+            <SolidColorBrush x:Key="NavigationAccentBrush" Color="#8AB8F5" />
+            <Style x:Key="SectionLabelStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="CharacterSpacing" Value="80" />
+                <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+                <Setter Property="Margin" Value="12,12,0,6" />
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

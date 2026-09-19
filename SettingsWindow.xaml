@@ -10,13 +10,13 @@
         <DesktopAcrylicBackdrop />
     </Window.SystemBackdrop>
 
-    <Grid x:Name="RootGrid" Background="#99141414">
+    <Grid x:Name="RootGrid" Background="{StaticResource WorkspaceBackgroundBrush}">
         <Grid.Resources>
             <!-- テキスト入力コントロールのフォーカス枠線を上下左右均等（1px）に統一する設定 -->
             <Thickness x:Key="TextControlBorderThemeThickness">1</Thickness>
             <Thickness x:Key="TextControlBorderThemeThicknessFocused">1</Thickness>
             <!-- オプションカードの半透明背景 -->
-            <SolidColorBrush x:Key="CardBackgroundBrush" Color="#141414" Opacity="0.60" />
+            <SolidColorBrush x:Key="CardBackgroundBrush" Color="#23262B" />
         </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" /> <!-- タイトルバー -->
@@ -24,7 +24,7 @@
         </Grid.RowDefinitions>
 
         <!-- 1. カスタムタイトルバー -->
-        <Grid Grid.Row="0" Height="36" BorderBrush="#2d2d2d" BorderThickness="0,0,0,1">
+        <Grid Grid.Row="0" Height="36" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="0,0,0,1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />    <!-- ドラッグ領域 (タイトル) -->
                 <ColumnDefinition Width="Auto" /> <!-- 右側システムボタン用プレースホルダー -->
@@ -32,7 +32,7 @@
 
             <!-- ドラッグ検出領域 -->
             <Grid Grid.Column="0" x:Name="TitleDragRegion" Background="Transparent">
-                <TextBlock Text="環境設定" VerticalAlignment="Center" Margin="16,0,0,0" FontSize="12" Foreground="#ffffff" FontWeight="SemiBold" />
+                <TextBlock Text="環境設定" VerticalAlignment="Center" Margin="16,0,0,0" FontSize="12" Foreground="{StaticResource PrimaryTextBrush}" FontWeight="SemiBold" />
             </Grid>
 
             <!-- システムボタン（最小化・最大化・閉じる）用のスペースを確保 -->
@@ -48,7 +48,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- 左ナビゲーション -->
-            <Grid Grid.Column="0" Background="#00000000" Padding="2,8,4,8">
+            <Grid Grid.Column="0" Background="{StaticResource SidebarBackgroundBrush}" Padding="6,20,8,16">
                 <StackPanel Spacing="4">
                     <!-- Editor -->
                     <Grid>
@@ -56,11 +56,11 @@
                             <ColumnDefinition Width="3" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <Border x:Name="NavEditorIndicator" Grid.Column="0" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Visible" />
+                        <Border x:Name="NavEditorIndicator" Grid.Column="0" Width="3" Height="16" Background="{StaticResource NavigationAccentBrush}" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Visible" />
                         <Button x:Name="NavEditorButton" Grid.Column="1" Click="NavButton_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Height="40" Padding="10,0" Background="Transparent" BorderThickness="0" CornerRadius="6" Margin="4,0,0,0">
                             <StackPanel Orientation="Horizontal" Spacing="10">
-                                <FontIcon Glyph="&#xE8D2;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="#ffffff" />
-                                <TextBlock Text="Editor" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                                <FontIcon Glyph="&#xE8D2;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="{StaticResource PrimaryTextBrush}" />
+                                <TextBlock Text="Editor" FontSize="13" Foreground="{StaticResource PrimaryTextBrush}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -71,11 +71,11 @@
                             <ColumnDefinition Width="3" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <Border x:Name="NavWindowIndicator" Grid.Column="0" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
+                        <Border x:Name="NavWindowIndicator" Grid.Column="0" Width="3" Height="16" Background="{StaticResource NavigationAccentBrush}" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
                         <Button x:Name="NavWindowButton" Grid.Column="1" Click="NavButton_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Height="40" Padding="10,0" Background="Transparent" BorderThickness="0" CornerRadius="6" Margin="4,0,0,0">
                             <StackPanel Orientation="Horizontal" Spacing="10">
-                                <FontIcon Glyph="&#xE7B5;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="#ffffff" />
-                                <TextBlock Text="Window" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                                <FontIcon Glyph="&#xE7B5;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="{StaticResource PrimaryTextBrush}" />
+                                <TextBlock Text="Window" FontSize="13" Foreground="{StaticResource PrimaryTextBrush}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -86,11 +86,11 @@
                             <ColumnDefinition Width="3" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <Border x:Name="NavSystemIndicator" Grid.Column="0" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
+                        <Border x:Name="NavSystemIndicator" Grid.Column="0" Width="3" Height="16" Background="{StaticResource NavigationAccentBrush}" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
                         <Button x:Name="NavSystemButton" Grid.Column="1" Click="NavButton_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Height="40" Padding="10,0" Background="Transparent" BorderThickness="0" CornerRadius="6" Margin="4,0,0,0">
                             <StackPanel Orientation="Horizontal" Spacing="10">
-                                <FontIcon Glyph="&#xE765;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="#ffffff" />
-                                <TextBlock Text="System" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                                <FontIcon Glyph="&#xE765;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="{StaticResource PrimaryTextBrush}" />
+                                <TextBlock Text="System" FontSize="13" Foreground="{StaticResource PrimaryTextBrush}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -101,11 +101,11 @@
                             <ColumnDefinition Width="3" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <Border x:Name="NavAiIndicator" Grid.Column="0" Width="3" Height="16" Background="#0078d4" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
+                        <Border x:Name="NavAiIndicator" Grid.Column="0" Width="3" Height="16" Background="{StaticResource NavigationAccentBrush}" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
                         <Button x:Name="NavAiButton" Grid.Column="1" Click="NavButton_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Height="40" Padding="10,0" Background="Transparent" BorderThickness="0" CornerRadius="6" Margin="4,0,0,0">
                             <StackPanel Orientation="Horizontal" Spacing="10">
-                                <FontIcon Glyph="&#xE9D9;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="#ffffff" />
-                                <TextBlock Text="AI" FontSize="13" Foreground="#ffffff" VerticalAlignment="Center" />
+                                <FontIcon Glyph="&#xE9D9;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="{StaticResource PrimaryTextBrush}" />
+                                <TextBlock Text="AI" FontSize="13" Foreground="{StaticResource PrimaryTextBrush}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -113,25 +113,25 @@
             </Grid>
 
             <!-- 区切り線 -->
-            <Border Grid.Column="1" Background="#2d2d2d" />
+            <Border Grid.Column="1" Background="{StaticResource SurfaceBorderBrush}" />
 
             <!-- 右コンテンツ -->
-            <Grid Grid.Column="2" Padding="20,16">
+            <Grid Grid.Column="2" Padding="24,24">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <Grid>
                         <!-- Editor Settings -->
                         <StackPanel x:Name="EditorSettingsPanel" Spacing="12" Visibility="Visible">
-                            <TextBlock Text="Editor Settings" FontSize="18" FontWeight="Bold" Foreground="#ffffff" Margin="0,0,0,8" />
+                            <TextBlock Text="Editor Settings" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" Margin="0,0,0,12" />
                             
                             <!-- Font Family -->
-                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock Text="Font Family" FontSize="14" FontWeight="SemiBold" Foreground="#ffffff" />
-                                    <TextBlock Text="エディタのフォントを設定します。" FontSize="12" Foreground="#888888" />
+                                <StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,12,0">
+                                    <TextBlock Text="Font Family" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock Text="エディタのフォントを設定します。" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <ComboBox Grid.Column="1" x:Name="FontComboBox" Width="160" Height="32" SelectionChanged="FontComboBox_SelectionChanged" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4">
                                     <x:String>Noto Sans JP</x:String>
@@ -143,14 +143,14 @@
                             </Grid>
 
                             <!-- Font Weight -->
-                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock Text="Font Weight" FontSize="14" FontWeight="SemiBold" Foreground="#ffffff" />
-                                    <TextBlock Text="文字の太さを設定します。" FontSize="12" Foreground="#888888" />
+                                <StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,12,0">
+                                    <TextBlock Text="Font Weight" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock Text="文字の太さを設定します。" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <ComboBox Grid.Column="1" x:Name="FontWeightComboBox" Width="160" Height="32" SelectionChanged="FontWeightComboBox_SelectionChanged" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4">
                                     <x:String>Light</x:String>
@@ -162,14 +162,14 @@
                             </Grid>
 
                             <!-- Font Size -->
-                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock Text="Font Size" FontSize="14" FontWeight="SemiBold" Foreground="#ffffff" />
-                                    <TextBlock Text="文字のサイズを設定します。" FontSize="12" Foreground="#888888" />
+                                <StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,12,0">
+                                    <TextBlock Text="Font Size" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock Text="文字のサイズを設定します。" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                     <Button x:Name="FontSizeDecreaseButton" Content="&#xE108;" FontFamily="Segoe Fluent Icons" Width="32" Height="32" FontSize="10" Click="FontSizeDecreaseButton_Click" Background="#252525" BorderBrush="#333333" BorderThickness="1" CornerRadius="4"/>
@@ -180,14 +180,14 @@
                             </Grid>
 
                             <!-- Line Spacing -->
-                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock Text="Line Spacing" FontSize="14" FontWeight="SemiBold" Foreground="#ffffff" />
-                                    <TextBlock Text="行間を設定します。" FontSize="12" Foreground="#888888" />
+                                <StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,12,0">
+                                    <TextBlock Text="Line Spacing" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock Text="行間を設定します。" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <ComboBox Grid.Column="1" x:Name="LineSpacingComboBox" 
                                           Width="160" Height="32"
@@ -204,14 +204,14 @@
                             </Grid>
 
                             <!-- Paragraph Spacing -->
-                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock Text="Paragraph Spacing" FontSize="14" FontWeight="SemiBold" Foreground="#ffffff" />
-                                    <TextBlock Text="段落後のスペースを設定します。" FontSize="12" Foreground="#888888" />
+                                <StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,12,0">
+                                    <TextBlock Text="Paragraph Spacing" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock Text="段落後のスペースを設定します。" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <ComboBox Grid.Column="1" x:Name="ParagraphSpacingComboBox" 
                                           Width="160" Height="32"
@@ -232,17 +232,17 @@
 
                         <!-- Window Settings -->
                         <StackPanel x:Name="WindowSettingsPanel" Spacing="12" Visibility="Collapsed">
-                            <TextBlock Text="Window Settings" FontSize="18" FontWeight="Bold" Foreground="#ffffff" Margin="0,0,0,8" />
+                            <TextBlock Text="Window Settings" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" Margin="0,0,0,12" />
 
                             <!-- Opacity -->
-                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock Text="Opacity" FontSize="14" FontWeight="SemiBold" Foreground="#ffffff" />
-                                    <TextBlock Text="ウィンドウの不透明度を設定します。" FontSize="12" Foreground="#888888" />
+                                <StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,12,0">
+                                    <TextBlock Text="Opacity" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock Text="ウィンドウの不透明度を設定します。" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                     <Button x:Name="OpacityDecreaseButton" Content="&#xE108;" FontFamily="Segoe Fluent Icons" Width="32" Height="32" FontSize="10" Click="OpacityDecreaseButton_Click" Background="#252525" BorderBrush="#333333" BorderThickness="1" CornerRadius="4"/>
@@ -253,27 +253,27 @@
                             </Grid>
 
                             <!-- Show Delete Button -->
-                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock Text="Show Delete Button" FontSize="14" FontWeight="SemiBold" Foreground="#ffffff" />
-                                    <TextBlock Text="メモ一覧に削除ボタンを表示するかどうか設定します。" FontSize="12" Foreground="#888888" />
+                                <StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,12,0">
+                                    <TextBlock Text="Show Delete Button" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock Text="メモ一覧に削除ボタンを表示するかどうか設定します。" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="1" x:Name="ShowDeleteButtonToggle" OnContent="" OffContent="" MinWidth="0" VerticalAlignment="Center" Toggled="ShowDeleteButtonToggle_Toggled" />
                             </Grid>
 
                             <!-- Recent Notes Count -->
-                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock Text="Recent Notes Count" FontSize="14" FontWeight="SemiBold" Foreground="#ffffff" />
-                                    <TextBlock Text="サイドバーに表示する「最近開いたメモ」の最大件数を設定します。" FontSize="12" Foreground="#888888" />
+                                <StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,12,0">
+                                    <TextBlock Text="Recent Notes Count" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock Text="サイドバーに表示する「最近開いたメモ」の最大件数を設定します。" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                     <Button x:Name="RecentNotesCountDecreaseButton" Content="&#xE108;" FontFamily="Segoe Fluent Icons" Width="32" Height="32" FontSize="10" Click="RecentNotesCountDecreaseButton_Click" Background="#252525" BorderBrush="#333333" BorderThickness="1" CornerRadius="4"/>
@@ -286,17 +286,17 @@
 
                         <!-- System Settings -->
                         <StackPanel x:Name="SystemSettingsPanel" Spacing="12" Visibility="Collapsed">
-                            <TextBlock Text="System Settings" FontSize="18" FontWeight="Bold" Foreground="#ffffff" Margin="0,0,0,8" />
+                            <TextBlock Text="System Settings" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" Margin="0,0,0,12" />
 
                             <!-- Launch Hotkey -->
-                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock Text="Launch Hotkey" FontSize="14" FontWeight="SemiBold" Foreground="#ffffff" />
-                                    <TextBlock Text="アプリを表示・非表示にするグローバルショートカットキー。" FontSize="12" Foreground="#888888" />
+                                <StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,12,0">
+                                    <TextBlock Text="Launch Hotkey" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock Text="アプリを表示・非表示にするグローバルショートカットキー。" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <Button Grid.Column="1" x:Name="LaunchHotKeyButton" Width="140" Height="32" Content="None" Background="#252525" BorderBrush="#333333" BorderThickness="1" CornerRadius="4">
                                     <Button.Flyout>
@@ -321,14 +321,14 @@
                             </Grid>
 
                             <!-- Quit Hotkey -->
-                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock Text="Quit Hotkey" FontSize="14" FontWeight="SemiBold" Foreground="#ffffff" />
-                                    <TextBlock Text="アプリを完全に終了するグローバルショートカットキー。" FontSize="12" Foreground="#888888" />
+                                <StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,12,0">
+                                    <TextBlock Text="Quit Hotkey" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock Text="アプリを完全に終了するグローバルショートカットキー。" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <Button Grid.Column="1" x:Name="QuitHotKeyButton" Width="140" Height="32" Content="None" Background="#252525" BorderBrush="#333333" BorderThickness="1" CornerRadius="4">
                                     <Button.Flyout>
@@ -356,43 +356,43 @@
 
                         <!-- AI Settings -->
                         <StackPanel x:Name="AiSettingsPanel" Spacing="12" Visibility="Collapsed">
-                            <TextBlock Text="AI Settings" FontSize="18" FontWeight="Bold" Foreground="#ffffff" Margin="0,0,0,8" />
+                            <TextBlock Text="AI Settings" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" Margin="0,0,0,12" />
 
                             <!-- API Key -->
-                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="180" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock Text="API Key" FontSize="14" FontWeight="SemiBold" Foreground="#ffffff" />
-                                    <TextBlock Text="AI機能を利用するためのAPIキー。" FontSize="12" Foreground="#888888" />
+                                <StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,12,0">
+                                    <TextBlock Text="API Key" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock Text="AI機能を利用するためのAPIキー。" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <PasswordBox Grid.Column="1" x:Name="AiApiKeyBox" Height="32" PasswordChar="*" PasswordRevealMode="Peek" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4" LostFocus="AiApiKeyBox_LostFocus" />
                             </Grid>
 
                             <!-- Model Name -->
-                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="180" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock Text="Model Name" FontSize="14" FontWeight="SemiBold" Foreground="#ffffff" />
-                                    <TextBlock Text="使用するAIモデル名を設定します。" FontSize="12" Foreground="#888888" />
+                                <StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,12,0">
+                                    <TextBlock Text="Model Name" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock Text="使用するAIモデル名を設定します。" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <TextBox Grid.Column="1" x:Name="AiModelNameBox" Height="32" FontSize="13" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4" LostFocus="AiModelNameBox_LostFocus" Padding="6,4" />
                             </Grid>
 
                             <!-- Temperature -->
-                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock Text="Temperature" FontSize="14" FontWeight="SemiBold" Foreground="#ffffff" />
-                                    <TextBlock Text="出力の多様性（創造性）を設定します。" FontSize="12" Foreground="#888888" />
+                                <StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,12,0">
+                                    <TextBlock Text="Temperature" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock Text="出力の多様性（創造性）を設定します。" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                     <Slider x:Name="AiTemperatureSlider" Minimum="0" Maximum="2" StepFrequency="0.1" Width="120" ValueChanged="AiTemperatureSlider_ValueChanged" VerticalAlignment="Center" />
@@ -401,32 +401,32 @@
                             </Grid>
 
                             <!-- Max Tokens -->
-                            <Grid Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8">
+                            <Grid Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="100" />
                                 </Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock Text="Max Tokens" FontSize="14" FontWeight="SemiBold" Foreground="#ffffff" />
-                                    <TextBlock Text="応答の最大トークン数を設定します。" FontSize="12" Foreground="#888888" />
+                                <StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,12,0">
+                                    <TextBlock Text="Max Tokens" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock Text="応答の最大トークン数を設定します。" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <TextBox Grid.Column="1" x:Name="AiMaxTokensBox" Height="32" FontSize="13" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4" LostFocus="AiMaxTokensBox_LostFocus" Padding="6,4" InputScope="Number" />
                             </Grid>
 
                             <!-- System Prompt -->
-                            <StackPanel Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8" Spacing="8">
-                                <TextBlock Text="System Prompt" FontSize="14" FontWeight="SemiBold" Foreground="#ffffff" />
+                            <StackPanel Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8" Spacing="8">
+                                <TextBlock Text="System Prompt" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
                                 <TextBox x:Name="AiSystemPromptBox" Height="80" FontSize="12" TextWrapping="Wrap" AcceptsReturn="True" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4" LostFocus="AiSystemPromptBox_LostFocus" Padding="8,6" />
                             </StackPanel>
 
                             <!-- AI Rewrite Prompts -->
-                            <StackPanel Padding="16,12" Background="{StaticResource CardBackgroundBrush}" BorderBrush="#2d2d2d" BorderThickness="1" CornerRadius="8" Spacing="8">
+                            <StackPanel Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8" Spacing="8">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="リライトプロンプト" FontSize="14" FontWeight="SemiBold" Foreground="#ffffff" VerticalAlignment="Center" />
+                                    <TextBlock Text="リライトプロンプト" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" VerticalAlignment="Center" />
                                     <Button Grid.Column="1" FontSize="12" Height="32" Padding="12,0" Click="AddAiPrompt_Click" CornerRadius="4" Background="#252525" BorderBrush="#333333" BorderThickness="1">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <FontIcon Glyph="&#xE710;" FontFamily="Segoe Fluent Icons" FontSize="12" />

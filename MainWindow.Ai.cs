@@ -228,6 +228,7 @@ namespace sumi
             _aiRewriteCts?.Cancel();
             string newText = AiRewriteResultTextBox.Text;
             MemoTextBox.Document.Selection.SetText(Microsoft.UI.Text.TextSetOptions.None, newText);
+            ApplyGlobalThemeToEditor();
             AiRewriteDialogOverlay.Visibility = Visibility.Collapsed;
         }
 
@@ -497,6 +498,7 @@ namespace sumi
             _aiRunCts?.Cancel();
             string newText = AiRunResultTextBox.Text;
             MemoTextBox.Document.Selection.SetText(Microsoft.UI.Text.TextSetOptions.None, newText);
+            ApplyGlobalThemeToEditor();
             AiRunDialogOverlay.Visibility = Visibility.Collapsed;
         }
 
