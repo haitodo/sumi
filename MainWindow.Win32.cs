@@ -13,6 +13,7 @@ namespace sumi
     public sealed partial class MainWindow : Window, IDisposable
     {
         private static readonly uint WM_SHOWME = NativeMethods.RegisterWindowMessage("SUMI_SHOW_ME_MESSAGE");
+        public string? LastHotKeyError { get; private set; }
 
         private void InitializeTrayAndHotKeys()
         {
@@ -24,17 +25,27 @@ namespace sumi
             UpdateTrayIconAndHotKeys();
         }
 
-        private void UpdateTrayIconAndHotKeys()
+        private bool UpdateTrayIconAndHotKeys()
         {
+            LastHotKeyError = null;
+            bool success = true;
             NativeMethods.UnregisterHotKey(_hWnd, NativeMethods.HOTKEY_ID_QUIT);
             NativeMethods.UnregisterHotKey(_hWnd, NativeMethods.HOTKEY_ID_LAUNCH);
             if (TryParseHotKey(MemoStorage.QuitHotKey, out uint quitMod, out uint quitVk))
             {
-                NativeMethods.RegisterHotKey(_hWnd, NativeMethods.HOTKEY_ID_QUIT, quitMod, quitVk);
+                if (!NativeMethods.RegisterHotKey(_hWnd, NativeMethods.HOTKEY_ID_QUIT, quitMod, quitVk))
+                {
+                    success = false;
+                    LastHotKeyError = $"終了ショートカットを登録できませんでした: {MemoStorage.QuitHotKey}";
+                }
             }
             if (TryParseHotKey(MemoStorage.LaunchHotKey, out uint launchMod, out uint launchVk))
             {
-                NativeMethods.RegisterHotKey(_hWnd, NativeMethods.HOTKEY_ID_LAUNCH, launchMod, launchVk);
+                if (!NativeMethods.RegisterHotKey(_hWnd, NativeMethods.HOTKEY_ID_LAUNCH, launchMod, launchVk))
+                {
+                    success = false;
+                    LastHotKeyError ??= $"表示ショートカットを登録できませんでした: {MemoStorage.LaunchHotKey}";
+                }
             }
 
             bool needTray = !string.IsNullOrEmpty(MemoStorage.LaunchHotKey);
@@ -46,6 +57,8 @@ namespace sumi
             {
                 RemoveTrayIcon();
             }
+
+            return success;
         }
 
         public void UnregisterMainWindowHotKeys()
@@ -54,9 +67,9 @@ namespace sumi
             NativeMethods.UnregisterHotKey(_hWnd, NativeMethods.HOTKEY_ID_LAUNCH);
         }
 
-        public void UpdateMainWindowHotKeys()
+        public bool UpdateMainWindowHotKeys()
         {
-            UpdateTrayIconAndHotKeys();
+            return UpdateTrayIconAndHotKeys();
         }
 
         private void AddOrModifyTrayIcon()
@@ -134,8 +147,14 @@ namespace sumi
                     if (string.IsNullOrEmpty(MemoStorage.LaunchHotKey))
                     {
                         _isQuitting = true;
-                        OnShutdown();
-                        Close();
+                        if (OnShutdown())
+                        {
+                            Close();
+                        }
+                        else
+                        {
+                            ShowAndActivateWindow();
+                        }
                     }
                     else
                     {
@@ -150,8 +169,14 @@ namespace sumi
                                 if (plainText.EndsWith("\r") || plainText.EndsWith("\n"))
                                     plainText = plainText.Substring(0, plainText.Length - 1);
                                 rtfText = TrimTrailingRtfPar(rtfText);
-                                MemoStorage.SaveNoteTextSync(MemoStorage.CurrentNoteId, plainText, rtfText);
-                                _isDirty = false;
+                                if (MemoStorage.SaveNoteTextSync(MemoStorage.CurrentNoteId, plainText, rtfText))
+                                {
+                                    _isDirty = false;
+                                }
+                                else
+                                {
+                                    ShowSaveFailure("メモを保存できませんでした。編集内容を保持しています。");
+                                }
                             }
                             catch (Exception ex)
                             {
@@ -243,8 +268,14 @@ namespace sumi
             else if (selected == 2)
             {
                 _isQuitting = true;
-                OnShutdown();
-                Close();
+                if (OnShutdown())
+                {
+                    Close();
+                }
+                else
+                {
+                    ShowAndActivateWindow();
+                }
             }
         }
 

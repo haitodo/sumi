@@ -252,6 +252,19 @@
                                 </StackPanel>
                             </Grid>
 
+                            <!-- Always on top -->
+                            <Grid Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,12,0">
+                                    <TextBlock Text="常に手前に表示" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock Text="他のウィンドウより前面に表示します。" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" x:Name="AlwaysOnTopToggle" OnContent="" OffContent="" MinWidth="0" VerticalAlignment="Center" Toggled="AlwaysOnTopToggle_Toggled" />
+                            </Grid>
+
                             <!-- Show Delete Button -->
                             <Grid Padding="16,16" Background="{StaticResource CardBackgroundBrush}" BorderBrush="{StaticResource SurfaceBorderBrush}" BorderThickness="1" CornerRadius="8">
                                 <Grid.ColumnDefinitions>
@@ -303,7 +316,8 @@
                                         <Flyout x:Name="LaunchHotKeyFlyout" Opened="HotKeyFlyout_Opened" Closed="HotKeyFlyout_Closed">
                                             <StackPanel Spacing="8" Width="180">
                                                 <TextBlock Text="キーの組み合わせを入力:" FontSize="12" Foreground="#cccccc" />
-                                                <TextBox x:Name="LaunchHotKeyInput" Height="32" IsReadOnly="True" KeyDown="HotKeyInput_KeyDown" TextAlignment="Center" FontSize="13" VerticalContentAlignment="Center" Background="#252525" BorderBrush="#333333"/>
+                                                 <TextBox x:Name="LaunchHotKeyInput" Height="32" IsReadOnly="True" KeyDown="HotKeyInput_KeyDown" TextAlignment="Center" FontSize="13" VerticalContentAlignment="Center" Background="#252525" BorderBrush="#333333"/>
+                                                 <TextBlock x:Name="LaunchHotKeyErrorText" TextWrapping="Wrap" FontSize="11" Foreground="#FFB4A3" Visibility="Collapsed" />
                                                 <Grid ColumnSpacing="4">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*" />
@@ -335,7 +349,8 @@
                                         <Flyout x:Name="QuitHotKeyFlyout" Opened="HotKeyFlyout_Opened" Closed="HotKeyFlyout_Closed">
                                             <StackPanel Spacing="8" Width="180">
                                                 <TextBlock Text="キーの組み合わせを入力:" FontSize="12" Foreground="#cccccc" />
-                                                <TextBox x:Name="QuitHotKeyInput" Height="32" IsReadOnly="True" KeyDown="HotKeyInput_KeyDown" TextAlignment="Center" FontSize="13" VerticalContentAlignment="Center" Background="#252525" BorderBrush="#333333"/>
+                                                 <TextBox x:Name="QuitHotKeyInput" Height="32" IsReadOnly="True" KeyDown="HotKeyInput_KeyDown" TextAlignment="Center" FontSize="13" VerticalContentAlignment="Center" Background="#252525" BorderBrush="#333333"/>
+                                                 <TextBlock x:Name="QuitHotKeyErrorText" TextWrapping="Wrap" FontSize="11" Foreground="#FFB4A3" Visibility="Collapsed" />
                                                 <Grid ColumnSpacing="4">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*" />
@@ -366,6 +381,7 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel VerticalAlignment="Center" Spacing="6" Margin="0,0,12,0">
                                     <TextBlock Text="API Key" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryTextBrush}" />
+                                    <TextBlock Text="AI機能では選択した本文がOpenRouterへ送信されます。機密情報は送信前に確認してください。" FontSize="12" Foreground="#FFB4A3" TextWrapping="Wrap" />
                                     <TextBlock Text="AI機能を利用するためのAPIキー。" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                                 <PasswordBox Grid.Column="1" x:Name="AiApiKeyBox" Height="32" PasswordChar="*" PasswordRevealMode="Peek" BorderThickness="1" BorderBrush="#333333" Background="#252525" CornerRadius="4" LostFocus="AiApiKeyBox_LostFocus" />

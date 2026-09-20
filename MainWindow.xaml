@@ -88,6 +88,7 @@
                     <Border x:Name="HoverOverlay" Background="White" Opacity="0.06" CornerRadius="8" Visibility="Collapsed" IsHitTestVisible="False" />
 
                     <Button x:Name="NoteButton"
+                AutomationProperties.Name="メモを開く"
                 HorizontalAlignment="Stretch" 
                 HorizontalContentAlignment="Stretch" 
                 Background="#002D2D2D" 
@@ -121,9 +122,10 @@
                     VerticalAlignment="Center" 
                     Spacing="2" 
                     Padding="8,0,8,0" 
-                    Visibility="Collapsed">
+                     Visibility="Visible">
                         <Button Style="{StaticResource IconButtonStyle}" 
                                 Width="28" Height="28"
+                                AutomationProperties.Name="{x:Bind PinToolTip}"
                                 ToolTipService.ToolTip="{x:Bind PinToolTip}"
                                 Loaded="PinItemButton_Loaded"
                                 Unloaded="PinItemButton_Unloaded">
@@ -144,6 +146,7 @@
                         <Button Content="&#xE74D;" 
                                 Style="{StaticResource IconButtonStyle}" 
                                 Width="28" Height="28" FontSize="11"
+                                AutomationProperties.Name="メモを削除"
                                 ToolTipService.ToolTip="削除"
                                 Visibility="{x:Bind DeleteButtonVisibility}"
                                 Loaded="DeleteItemButton_Loaded"
@@ -170,10 +173,11 @@
             <!-- 操作ボタン群 (ドラッグ無効) -->
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0" Spacing="4">
                 <!-- 設定ボタン -->
-                <Button x:Name="PlayButton" Content="&#xE713;" Style="{StaticResource IconButtonStyle}" ToolTipService.ToolTip="設定" Click="PlayButton_Click" />
+                <Button x:Name="PlayButton" Content="&#xE713;" Style="{StaticResource IconButtonStyle}" AutomationProperties.Name="設定" ToolTipService.ToolTip="設定" Click="PlayButton_Click" />
 
                 <!-- 左右サイドバーの表示・非表示切り替えボタン -->
                 <Button x:Name="ToggleSidebarsButton" 
+                        AutomationProperties.Name="左右のサイドバーを切り替え"
                         Content="&#xF57C;" 
                         Style="{StaticResource IconButtonStyle}" 
                         ToolTipService.ToolTip="両方表示" 
@@ -222,6 +226,7 @@
                         </Grid.RowDefinitions>
 
                         <Button x:Name="HamburgerButton"
+                                AutomationProperties.Name="ナビゲーションを開閉"
                                 Grid.Row="0"
                                 Content="&#xE700;"
                                 Style="{StaticResource IconButtonStyle}"
@@ -240,6 +245,7 @@
                                 </Grid.ColumnDefinitions>
                                 <Border x:Name="NotesActiveIndicator" Grid.Column="0" Width="3" Height="16" Background="{StaticResource NavigationAccentBrush}" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Visible" />
                                 <Button x:Name="NotesMenuButton"
+                                        AutomationProperties.Name="メモ一覧"
                                         Grid.Column="1"
                                         Content="&#xEE40;"
                                         Style="{StaticResource IconButtonStyle}"
@@ -257,6 +263,7 @@
                                 </Grid.ColumnDefinitions>
                                 <Border x:Name="TasksActiveIndicator" Grid.Column="0" Width="3" Height="16" Background="{StaticResource NavigationAccentBrush}" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
                                 <Button x:Name="TasksMenuButton"
+                                        AutomationProperties.Name="現在のタスク"
                                         Grid.Column="1"
                                         Content="&#xE73E;"
                                         Style="{StaticResource IconButtonStyle}"
@@ -274,6 +281,7 @@
                                 </Grid.ColumnDefinitions>
                                 <Border x:Name="AllTasksActiveIndicator" Grid.Column="0" Width="3" Height="16" Background="{StaticResource NavigationAccentBrush}" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
                                 <Button x:Name="AllTasksMenuButton"
+                                        AutomationProperties.Name="すべてのタスク"
                                         Grid.Column="1"
                                         Content="&#xE9D5;"
                                         Style="{StaticResource IconButtonStyle}"
@@ -291,6 +299,7 @@
                                 </Grid.ColumnDefinitions>
                                 <Border x:Name="JustDoItActiveIndicator" Grid.Column="0" Width="3" Height="16" Background="{StaticResource NavigationAccentBrush}" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
                                 <Button x:Name="JustDoItMenuButton"
+                                        AutomationProperties.Name="すぐやる"
                                         Grid.Column="1"
                                         Content="&#xE945;"
                                         Style="{StaticResource IconButtonStyle}"
@@ -308,6 +317,7 @@
                                 </Grid.ColumnDefinitions>
                                 <Border x:Name="TagsActiveIndicator" Grid.Column="0" Width="3" Height="16" Background="{StaticResource NavigationAccentBrush}" CornerRadius="1.5" VerticalAlignment="Center" Visibility="Collapsed" />
                                 <Button x:Name="TagsMenuButton"
+                                        AutomationProperties.Name="タグ"
                                         Grid.Column="1"
                                         Content="&#xE8EC;"
                                         Style="{StaticResource IconButtonStyle}"
@@ -399,7 +409,7 @@
                             
                             <TextBox x:Name="SidebarNoteSearchBox" 
                                      Grid.Row="0"
-                                     PlaceholderText="Search for notes..."
+                                     PlaceholderText="メモを検索..."
                                      HorizontalAlignment="Stretch"
                                      TextChanged="SidebarNoteSearchBox_TextChanged"
                                      KeyDown="SidebarNoteSearchBox_KeyDown">
@@ -536,11 +546,12 @@
                                                 </Grid>
                                                 
                                                 <!-- すぐやるトグルボタン -->
-                                                <Button x:Name="JustDoItTaskButton"
-                                                        Grid.Column="2"
+                                                        <Button x:Name="JustDoItTaskButton"
+                                                                 AutomationProperties.Name="すぐやるに追加または解除"
+                                                                 Grid.Column="2"
                                                         Style="{StaticResource IconButtonStyle}"
                                                         Width="28" Height="28"
-                                                        Visibility="{x:Bind local:MainWindow.BoolToVisibility(IsJustDoIt), Mode=OneWay}"
+                                                                 Visibility="Visible"
                                                         Loaded="JustDoItTaskButton_Loaded"
                                                         Unloaded="JustDoItTaskButton_Unloaded"
                                                         ToolTipService.ToolTip="すぐやるに追加/解除">
@@ -552,8 +563,9 @@
                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                 </Button>
                                                 
-                                                <Button x:Name="DeleteTaskButton"
-                                                        Grid.Column="3" Content="&#xE74D;"
+                                                         <Button x:Name="DeleteTaskButton"
+                                                                 AutomationProperties.Name="タスクを削除"
+                                                                 Grid.Column="3" Content="&#xE74D;"
                                                         Style="{StaticResource IconButtonStyle}"
                                                         Width="28" Height="28" FontSize="11"
                                                         Foreground="#FF453A"
@@ -569,7 +581,7 @@
 
                             <TextBox x:Name="AddTaskBox"
                                      Grid.Row="1"
-                                     PlaceholderText="Add task..."
+                                     PlaceholderText="タスクを追加..."
                                      BorderThickness="0,1,0,0"
                                      CornerRadius="0"
                                      Padding="4,8"
@@ -638,7 +650,7 @@
                                                                         Grid.Column="2"
                                                                         Style="{StaticResource IconButtonStyle}"
                                                                         Width="28" Height="28"
-                                                                        Visibility="{x:Bind local:MainWindow.BoolToVisibility(IsJustDoIt), Mode=OneWay}"
+                                                                 Visibility="Visible"
                                                                         Loaded="AllJustDoItButton_Loaded"
                                                                         Unloaded="AllJustDoItButton_Unloaded"
                                                                         ToolTipService.ToolTip="すぐやるに追加/解除">
@@ -742,7 +754,7 @@
                             
                             <TextBox x:Name="SidebarTagSearchBox" 
                                      Grid.Row="0"
-                                     PlaceholderText="Search tags..."
+                                     PlaceholderText="タグを検索..."
                                      HorizontalAlignment="Stretch"
                                      TextChanged="SidebarTagSearchBox_TextChanged">
                                 <TextBox.Resources>
@@ -865,7 +877,7 @@
                                     
                                     <TextBox x:Name="RightSidebarNoteSearchBox" 
                                              Grid.Row="0"
-                                             PlaceholderText="Search for notes..."
+                                             PlaceholderText="メモを検索..."
                                              HorizontalAlignment="Stretch"
                                              TextChanged="RightSidebarNoteSearchBox_TextChanged"
                                              KeyDown="RightSidebarNoteSearchBox_KeyDown">
@@ -1001,11 +1013,12 @@
                                                              </TextBox>
                                                          </Grid>
                                                         
-                                                        <Button x:Name="JustDoItTaskButton"
-                                                                Grid.Column="2"
+                                                         <Button x:Name="JustDoItTaskButton"
+                                                                 AutomationProperties.Name="すぐやるに追加または解除"
+                                                                 Grid.Column="2"
                                                                 Style="{StaticResource IconButtonStyle}"
                                                                 Width="28" Height="28"
-                                                                Visibility="{x:Bind local:MainWindow.BoolToVisibility(IsJustDoIt), Mode=OneWay}"
+                                                                 Visibility="Visible"
                                                                 Loaded="JustDoItTaskButton_Loaded"
                                                                 Unloaded="JustDoItTaskButton_Unloaded"
                                                                 ToolTipService.ToolTip="すぐやるに追加/解除">
@@ -1017,8 +1030,9 @@
                                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                         </Button>
                                                         
-                                                        <Button x:Name="DeleteTaskButton"
-                                                                Grid.Column="3" Content="&#xE74D;"
+                                                         <Button x:Name="DeleteTaskButton"
+                                                                 AutomationProperties.Name="タスクを削除"
+                                                                 Grid.Column="3" Content="&#xE74D;"
                                                                 Style="{StaticResource IconButtonStyle}"
                                                                 Width="28" Height="28" FontSize="11"
                                                                 Foreground="#FF453A"
@@ -1034,7 +1048,7 @@
 
                                     <TextBox x:Name="RightAddTaskBox"
                                              Grid.Row="1"
-                                             PlaceholderText="Add task..."
+                                             PlaceholderText="タスクを追加..."
                                              BorderThickness="0,1,0,0"
                                              CornerRadius="0"
                                              Padding="4,8"
@@ -1102,7 +1116,7 @@
                                                                         <Button x:Name="AllJustDoItButton"
                                                                                 Style="{StaticResource IconButtonStyle}"
                                                                                 Width="28" Height="28"
-                                                                                Visibility="{x:Bind local:MainWindow.BoolToVisibility(IsJustDoIt), Mode=OneWay}"
+                                                                 Visibility="Visible"
                                                                                 Loaded="AllJustDoItButton_Loaded"
                                                                                 Unloaded="AllJustDoItButton_Unloaded"
                                                                                 ToolTipService.ToolTip="すぐやるに追加/解除">
@@ -1205,7 +1219,7 @@
                                     
                                     <TextBox x:Name="RightSidebarTagSearchBox" 
                                              Grid.Row="0"
-                                             PlaceholderText="Search tags..."
+                                             PlaceholderText="タグを検索..."
                                              HorizontalAlignment="Stretch"
                                              TextChanged="RightSidebarTagSearchBox_TextChanged">
                                         <TextBox.Resources>
@@ -1377,7 +1391,7 @@
                                             <!-- 検索ボックス -->
                                             <TextBox x:Name="NoteSearchBox" 
                                                      Grid.Row="0"
-                                                     PlaceholderText="Search for notes..."
+                                                     PlaceholderText="メモを検索..."
                                                      Width="260"
                                                      HorizontalAlignment="Stretch"
                                                      TextChanged="NoteSearchBox_TextChanged"
@@ -1531,7 +1545,7 @@
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
-                                                <TextBox x:Name="NewTagTextBox" PlaceholderText="New tag..." Height="28" Padding="6,2" VerticalContentAlignment="Center" KeyDown="NewTagTextBox_KeyDown" />
+                                                <TextBox x:Name="NewTagTextBox" PlaceholderText="新しいタグ..." Height="28" Padding="6,2" VerticalContentAlignment="Center" KeyDown="NewTagTextBox_KeyDown" />
                                                 <Button Grid.Column="1" Content="Add" Click="AddTag_Click" Height="28" Padding="12,0" FontSize="11" CornerRadius="4" />
                                             </Grid>
                                             
@@ -1593,7 +1607,7 @@
                         
                         <TextBlock
                             x:Name="PlaceholderTextBlock"
-                            Text="Start writing..."
+                            Text="ここに入力してください..."
                             Foreground="{StaticResource MutedTextBrush}"
                             FontSize="14"
                             FontFamily="Noto Sans JP, Yu Gothic UI"
@@ -1719,12 +1733,20 @@
                         <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0" Spacing="12">
                             <TextBlock 
                                 x:Name="CharCountTextBlock"
-                                Text="0 characters"
+                                Text="0 文字"
                                 VerticalAlignment="Center"
                                 FontSize="11.5"
                                 Foreground="{StaticResource MutedTextBrush}"
                                 TextTrimming="CharacterEllipsis" />
-                            
+                            <TextBlock
+                                x:Name="SaveStatusTextBlock"
+                                Visibility="Collapsed"
+                                MaxWidth="420"
+                                TextTrimming="CharacterEllipsis"
+                                VerticalAlignment="Center"
+                                FontSize="11"
+                                Foreground="#FFB4A3" />
+
                             <!-- タグ表示領域 -->
                         </StackPanel>
 
@@ -1879,7 +1901,7 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <TextBox Grid.Column="0" x:Name="AiRewriteAdjustInput" Height="28" PlaceholderText="例: もっと短く、箇条書きにして、など" FontSize="12" Background="{StaticResource DialogInputBgBrush}" BorderThickness="1" BorderBrush="#333333" CornerRadius="4" KeyDown="AiRewriteAdjustInput_KeyDown">
+                        <TextBox Grid.Column="0" x:Name="AiRewriteAdjustInput" Height="28" MaxLength="4000" PlaceholderText="例: もっと短く、箇条書きにして、など" FontSize="12" Background="{StaticResource DialogInputBgBrush}" BorderThickness="1" BorderBrush="#333333" CornerRadius="4" KeyDown="AiRewriteAdjustInput_KeyDown">
                             <TextBox.Resources>
                                 <SolidColorBrush x:Key="TextControlBackground" Color="#121212" Opacity="0.40" />
                                 <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#121212" Opacity="0.55" />
@@ -2013,7 +2035,7 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBox Grid.Column="0" x:Name="AiRunPromptInputTextBox" Height="60" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="AIへの指示を入力してください（例：日本語に翻訳して、箇条書きでまとめて、など）" FontSize="12" Background="{StaticResource DialogInputBgBrush}" Foreground="{StaticResource PrimaryTextBrush}" BorderThickness="1" BorderBrush="#333333" CornerRadius="6" KeyDown="AiRunPromptInputTextBox_KeyDown">
+                    <TextBox Grid.Column="0" x:Name="AiRunPromptInputTextBox" Height="60" MaxLength="4000" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="AIへの指示を入力してください（例：日本語に翻訳して、箇条書きでまとめて、など）" FontSize="12" Background="{StaticResource DialogInputBgBrush}" Foreground="{StaticResource PrimaryTextBrush}" BorderThickness="1" BorderBrush="#333333" CornerRadius="6" KeyDown="AiRunPromptInputTextBox_KeyDown">
                         <TextBox.Resources>
                             <SolidColorBrush x:Key="TextControlBackground" Color="#121212" Opacity="0.40" />
                             <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#121212" Opacity="0.55" />

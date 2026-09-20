@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using sumi.Interop;
 using sumi.Services;
@@ -102,6 +103,7 @@ namespace sumi
             Instance = this;
             MemoStorage.TaskChangedAction = OnTaskChanged;
             this.InitializeComponent();
+            ApplyAccessibilityNames();
             AiTaskGenPreviewListView.ItemsSource = _aiTaskGenPreviewItems;
 
             _highlightTimer = new DispatcherTimer();
@@ -163,7 +165,7 @@ namespace sumi
                 var presenter = _appWindow.Presenter.As<OverlappedPresenter>();
                 if (presenter != null)
                 {
-                    presenter.IsAlwaysOnTop = true;
+                    presenter.IsAlwaysOnTop = MemoStorage.IsAlwaysOnTop;
                 }
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[AlwaysOnTop Setup Error] {ex.Message}"); }
@@ -209,6 +211,7 @@ namespace sumi
             _scheduler = new SaveScheduler(this.DispatcherQueue, async () =>
             {
                 long currentRevision = _revision;
+                string noteId = MemoStorage.CurrentNoteId;
 
                 MemoTextBox.Document.GetText(Microsoft.UI.Text.TextGetOptions.UseLf, out string plainText);
                 MemoTextBox.Document.GetText(Microsoft.UI.Text.TextGetOptions.FormatRtf, out string rtfText);
@@ -218,14 +221,23 @@ namespace sumi
 
                 rtfText = TrimTrailingRtfPar(rtfText);
 
-                bool success = await Task.Run(() => MemoStorage.SaveNoteTextAtomicAsync(MemoStorage.CurrentNoteId, plainText, rtfText));
+                bool success = await Task.Run(() => MemoStorage.SaveNoteTextAtomicAsync(noteId, plainText, rtfText));
                 if (success)
                 {
                     _savedRevision = currentRevision;
-                    if (_savedRevision == _revision)
+                    if (noteId == MemoStorage.CurrentNoteId && _savedRevision == _revision)
                     {
                         _isDirty = false;
+                        if (SaveStatusTextBlock != null)
+                        {
+                            SaveStatusTextBlock.Visibility = Visibility.Collapsed;
+                        }
                     }
+                }
+                else
+                {
+                    _isDirty = true;
+                    ShowSaveFailure("メモを保存できませんでした。ディスク容量やアクセス権を確認してください。");
                 }
             });
 
@@ -251,6 +263,40 @@ namespace sumi
                 () => InitializeTrayAndHotKeys());
 
             _isInitializing = false;
+
+            // Load note bodies off the UI thread so the first full-text search does not
+            // perform all disk I/O during a keystroke.
+            _ = Task.Run(PreloadNoteContentForSearch);
+        }
+
+        private void ApplyAccessibilityNames()
+        {
+            AutomationProperties.SetName(PlayButton, "設定");
+            AutomationProperties.SetName(ToggleSidebarsButton, "左右のサイドバーを切り替え");
+            AutomationProperties.SetName(HamburgerButton, "左ナビゲーションを開閉");
+            AutomationProperties.SetName(RightHamburgerButton, "右ナビゲーションを開閉");
+            AutomationProperties.SetName(NotesButton, "メモ一覧を開く");
+            AutomationProperties.SetName(NewButton, "新しいメモ");
+            AutomationProperties.SetName(DeleteCurrentNoteButton, "現在のメモを削除");
+            AutomationProperties.SetName(RemoveEmptyLinesHeaderButton, "空行を削除");
+            AutomationProperties.SetName(RemoveWhitespaceAndNewlinesHeaderButton, "スペースと改行を削除");
+            AutomationProperties.SetName(AiRewriteButton, "AIでリライト");
+            AutomationProperties.SetName(AiRunButton, "AIで実行");
+            AutomationProperties.SetName(AiTaskGenButton, "AIでタスクを生成");
+            AutomationProperties.SetName(ManageTagsButton, "タグを管理");
+            AutomationProperties.SetName(NotesMenuButton, "メモ一覧");
+            AutomationProperties.SetName(TasksMenuButton, "現在のタスク");
+            AutomationProperties.SetName(AllTasksMenuButton, "すべてのタスク");
+            AutomationProperties.SetName(JustDoItMenuButton, "すぐやる");
+            AutomationProperties.SetName(TagsMenuButton, "タグ");
+            AutomationProperties.SetName(RightNotesMenuButton, "右側のメモ一覧");
+            AutomationProperties.SetName(RightTasksMenuButton, "右側の現在のタスク");
+            AutomationProperties.SetName(RightAllTasksMenuButton, "右側のすべてのタスク");
+            AutomationProperties.SetName(RightJustDoItMenuButton, "右側のすぐやる");
+            AutomationProperties.SetName(RightTagsMenuButton, "右側のタグ");
+            AutomationProperties.SetName(AiRewriteDialogOverlay, "AIリライト");
+            AutomationProperties.SetName(AiRunDialogOverlay, "AI実行");
+            AutomationProperties.SetName(AiTaskGenDialogOverlay, "AIタスク生成");
         }
 
         public void ApplySettings()
@@ -287,6 +333,11 @@ namespace sumi
             if (App.Current.Resources.TryGetValue("FlyoutBackgroundBrush", out object? flBrushObj) && flBrushObj is Microsoft.UI.Xaml.Media.SolidColorBrush flBrush)
             {
                 flBrush.Opacity = currentOpacity;
+            }
+
+            if (_appWindow?.Presenter is OverlappedPresenter presenter)
+            {
+                presenter.IsAlwaysOnTop = MemoStorage.IsAlwaysOnTop;
             }
 
             _activeLeftTagFilter = MemoStorage.LastSelectedTag;
@@ -474,7 +525,10 @@ namespace sumi
         {
             if (_isQuitting || string.IsNullOrEmpty(MemoStorage.LaunchHotKey))
             {
-                OnShutdown();
+                if (!OnShutdown())
+                {
+                    args.Cancel = true;
+                }
             }
             else
             {
@@ -489,8 +543,14 @@ namespace sumi
                         if (plainText.EndsWith("\r") || plainText.EndsWith("\n"))
                             plainText = plainText.Substring(0, plainText.Length - 1);
                         rtfText = TrimTrailingRtfPar(rtfText);
-                        MemoStorage.SaveNoteTextSync(MemoStorage.CurrentNoteId, plainText, rtfText);
-                        _isDirty = false;
+                        if (MemoStorage.SaveNoteTextSync(MemoStorage.CurrentNoteId, plainText, rtfText))
+                        {
+                            _isDirty = false;
+                        }
+                        else
+                        {
+                            ShowSaveFailure("メモを保存できませんでした。編集内容を保持しています。");
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -560,6 +620,14 @@ namespace sumi
         public void QueueSaveSettings()
         {
             _settingsSaveScheduler.Schedule();
+        }
+
+        private void ShowSaveFailure(string message)
+        {
+            if (SaveStatusTextBlock == null) return;
+
+            SaveStatusTextBlock.Text = message;
+            SaveStatusTextBlock.Visibility = Visibility.Visible;
         }
 
         private void MarkAsDirty()
@@ -647,11 +715,12 @@ namespace sumi
             }
         }
 
-        private void OnShutdown()
+        private bool OnShutdown()
         {
             // 二重呼び出しを防止（AppWindow_Closing が複数回発火するケースへの対策）
-            if (_isShutdownCalled) return;
-            _isShutdownCalled = true;
+            if (_isShutdownCalled) return true;
+
+            bool allSaved = true;
 
             // デバウンス保存タイマーを即座にキャンセルし、終了処理中の非同期保存コールバックと競合させない
             _scheduler?.Cancel();
@@ -681,15 +750,21 @@ namespace sumi
                                         Id = t.Id,
                                         Title = t.Title,
                                         IsCompleted = t.IsCompleted,
+                                        IsJustDoIt = t.IsJustDoIt,
                                         CreatedAt = t.CreatedAt
                                     });
                                 }
                             }
-                            MemoStorage.SaveTasksSync(noteId, tasksToSave);
+                            if (!MemoStorage.SaveTasksSync(noteId, tasksToSave))
+                            {
+                                allSaved = false;
+                            }
                         }
                     }
-                    _dirtyTaskNoteIds.Clear();
-                    MemoStorage.SaveMetadata();
+                    if (allSaved)
+                    {
+                        _dirtyTaskNoteIds.Clear();
+                    }
                 }
             }
 
@@ -718,19 +793,39 @@ namespace sumi
 
                 if (gotText)
                 {
-                    MemoStorage.SaveNoteTextSync(MemoStorage.CurrentNoteId, plainText, rtfText);
+                    if (!MemoStorage.SaveNoteTextSync(MemoStorage.CurrentNoteId, plainText, rtfText))
+                    {
+                        allSaved = false;
+                    }
                 }
                 else
                 {
                     System.Diagnostics.Debug.WriteLine("[Shutdown Fallback] GetText failed; skipping save to preserve existing RTF.");
+                    allSaved = false;
                 }
             }
 
             // 終了直前に「現在表示しているメモ」の最終閲覧日時を最新に更新し、確実に記録する
+            if (!allSaved)
+            {
+                ShowSaveFailure("保存に失敗したため終了できません。編集内容を保持しています。");
+                _isQuitting = false;
+                return false;
+            }
+
             if (!string.IsNullOrEmpty(MemoStorage.CurrentNoteId))
             {
-                MemoStorage.SetCurrentNote(MemoStorage.CurrentNoteId, updateLastOpened: true);
+                MemoStorage.SetCurrentNote(MemoStorage.CurrentNoteId, updateLastOpened: true, persistMetadata: false);
             }
+
+            if (!MemoStorage.SaveMetadata() || !MemoStorage.SaveSettings())
+            {
+                ShowSaveFailure("設定またはメモ一覧の保存に失敗したため終了できません。編集内容を保持しています。");
+                _isQuitting = false;
+                return false;
+            }
+
+            _isShutdownCalled = true;
 
             // 保留中の設定変更を即座に書き込み
             MemoStorage.SaveSettings();
@@ -740,6 +835,7 @@ namespace sumi
 
             // 3. 全てのリソース解放（タイマー・イベント・Win32APIフック）を実行
             Dispose();
+            return true;
         }
 
         private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush SettingItemHoverBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(20, 255, 255, 255));

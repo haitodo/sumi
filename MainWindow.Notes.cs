@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -9,6 +10,29 @@ namespace sumi
 {
     public sealed partial class MainWindow : Window, IDisposable
     {
+        private void PreloadNoteContentForSearch()
+        {
+            List<NoteData> notes;
+            string currentNoteId = MemoStorage.CurrentNoteId;
+            lock (MemoStorage.Notes)
+            {
+                notes = new List<NoteData>(MemoStorage.Notes);
+            }
+
+            foreach (var note in notes)
+            {
+                // The editor owns the current note's live cache while it is open.
+                if (note.Id != currentNoteId)
+                {
+                    MemoStorage.EnsureNoteLoaded(note);
+                }
+            }
+
+            this.DispatcherQueue.TryEnqueue(
+                Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                RefreshAllNotesLists);
+        }
+
         private void HighlightTimer_Tick(object? sender, object e)
         {
             _highlightTimer.Stop();
@@ -166,7 +190,8 @@ namespace sumi
             {
                 // アクションボタンを非表示
                 var actionsPanel = grid.FindName("ActionsPanel") as UIElement;
-                if (actionsPanel != null) actionsPanel.Visibility = Visibility.Collapsed;
+                // Actions remain visible so keyboard and touch users can discover them.
+                if (actionsPanel != null) actionsPanel.Visibility = Visibility.Visible;
 
                 // ホバー専用レイヤーを非表示
                 var hoverOverlay = grid.FindName("HoverOverlay") as UIElement;
@@ -251,8 +276,15 @@ namespace sumi
 
                 rtfText = TrimTrailingRtfPar(rtfText);
 
-                MemoStorage.SaveNoteTextSync(MemoStorage.CurrentNoteId, plainText, rtfText);
-                _isDirty = false;
+                if (MemoStorage.SaveNoteTextSync(MemoStorage.CurrentNoteId, plainText, rtfText))
+                {
+                    _isDirty = false;
+                }
+                else
+                {
+                    ShowSaveFailure("メモを保存できませんでした。編集内容を保持しています。");
+                    return;
+                }
             }
 
             MemoStorage.SetCurrentNote(id, updateLastOpened, persistMetadata: false);
@@ -820,8 +852,15 @@ namespace sumi
 
                 rtfText = TrimTrailingRtfPar(rtfText);
 
-                MemoStorage.SaveNoteTextSync(MemoStorage.CurrentNoteId, plainText, rtfText);
-                _isDirty = false;
+                if (MemoStorage.SaveNoteTextSync(MemoStorage.CurrentNoteId, plainText, rtfText))
+                {
+                    _isDirty = false;
+                }
+                else
+                {
+                    ShowSaveFailure("メモを保存できませんでした。編集内容を保持しています。");
+                    return;
+                }
             }
 
             var newNote = MemoStorage.CreateNewNote();
@@ -969,7 +1008,7 @@ namespace sumi
 
         private void UpdateCharCount(int length)
         {
-            CharCountTextBlock.Text = $"{length} characters";
+            CharCountTextBlock.Text = $"{length} 文字";
         }
     }
 }

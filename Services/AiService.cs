@@ -52,7 +52,10 @@ namespace sumi.Services
     /// </summary>
     public static class AiService
     {
-        private static readonly HttpClient _httpClient = new();
+        private static readonly HttpClient _httpClient = new()
+        {
+            Timeout = System.TimeSpan.FromMinutes(5)
+        };
 
         public static HttpClient HttpClient => _httpClient;
     }

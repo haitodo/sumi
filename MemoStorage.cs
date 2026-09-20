@@ -16,6 +16,7 @@ namespace sumi
         private static readonly string WindowDatTempPath;
         public static readonly string NotesFolderPath;
         private static readonly string NotesDatPath;
+        private static readonly string NotesJsonPath;
         private static readonly string SettingsPath;
         private static readonly string AiPromptsPath;
 
@@ -33,6 +34,7 @@ namespace sumi
         public static double LineSpacing { get; set; } = 0.9;
         public static double ParagraphSpacing { get; set; } = 6.0; // 段落間の余白（pt単位）
         public static double Opacity { get; set; } = 50.0; // 0 to 100
+        public static bool IsAlwaysOnTop { get; set; } = true;
         public static string LaunchHotKey { get; set; } = string.Empty;
         public static string QuitHotKey { get; set; } = "Alt+Q";
         public static string LastNoteId { get; set; } = string.Empty;
@@ -78,6 +80,7 @@ namespace sumi
                 Directory.CreateDirectory(NotesFolderPath);
             }
             NotesDatPath = Path.Combine(FolderPath, "notes.dat");
+            NotesJsonPath = Path.Combine(FolderPath, "notes.json");
             SettingsPath = Path.Combine(FolderPath, "settings.txt");
             AiPromptsPath = Path.Combine(FolderPath, "ai_prompts.json");
         }

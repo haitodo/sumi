@@ -14,6 +14,8 @@ namespace sumi
 {
     public sealed partial class MainWindow : Window, IDisposable
     {
+        private const int MaxAiInputCharacters = 20000;
+
         private void AiRewriteMenuFlyout_Opened(object sender, object e)
         {
             if (AiRewriteMenuFlyout == null) return;
@@ -64,6 +66,18 @@ namespace sumi
             string selectedText = MemoTextBox.Document.Selection.Text;
             if (string.IsNullOrEmpty(selectedText))
             {
+                return;
+            }
+
+            if (selectedText.Length > MaxAiInputCharacters)
+            {
+                AiRewriteDialogStatusText.Text = "入力が長すぎます";
+                AiRewriteResultTextBox.Text = $"AIに送信できる選択範囲は {MaxAiInputCharacters:N0} 文字までです。範囲を短くして再試行してください。";
+                AiRewriteDialogOverlay.Visibility = Visibility.Visible;
+                AiRewriteStopButton.Visibility = Visibility.Collapsed;
+                AiRewriteReplaceButton.IsEnabled = false;
+                AiRewriteAdjustButton.IsEnabled = false;
+                AiRewriteRegenButton.IsEnabled = false;
                 return;
             }
 
@@ -335,6 +349,14 @@ namespace sumi
             string promptText = AiRunPromptInputTextBox.Text.Trim();
             if (string.IsNullOrEmpty(promptText)) return;
 
+            if (_lastSelectedTextForRun.Length > MaxAiInputCharacters)
+            {
+                AiRunDialogStatusText.Text = "入力が長すぎます";
+                AiRunResultTextBox.Text = $"AIに送信できる選択範囲は {MaxAiInputCharacters:N0} 文字までです。範囲を短くして再試行してください。";
+                AiRunReplaceButton.IsEnabled = false;
+                return;
+            }
+
             if (string.IsNullOrWhiteSpace(MemoStorage.AiApiKey))
             {
                 AiRunDialogStatusText.Text = "エラー";
@@ -529,6 +551,21 @@ namespace sumi
                 AiTaskGenDialogStatusText.Text = "テキストを選択してください";
                 _aiTaskGenPreviewItems.Clear();
                 _aiTaskGenPreviewItems.Add(new TaskPreviewItem { Title = "【警告】テキストを選択して実行してください", IsSelected = false });
+                AiTaskGenConfirmButton.IsEnabled = false;
+                AiTaskGenStopButton.Visibility = Visibility.Collapsed;
+                AiTaskGenDialogOverlay.Visibility = Visibility.Visible;
+                return;
+            }
+
+            if (selectedText.Length > MaxAiInputCharacters)
+            {
+                AiTaskGenDialogStatusText.Text = "入力が長すぎます";
+                _aiTaskGenPreviewItems.Clear();
+                _aiTaskGenPreviewItems.Add(new TaskPreviewItem
+                {
+                    Title = $"選択範囲は {MaxAiInputCharacters:N0} 文字以内にしてください。",
+                    IsSelected = false
+                });
                 AiTaskGenConfirmButton.IsEnabled = false;
                 AiTaskGenStopButton.Visibility = Visibility.Collapsed;
                 AiTaskGenDialogOverlay.Visibility = Visibility.Visible;

@@ -3,15 +3,128 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace sumi
 {
+    internal sealed class NoteMetadataRecord
+    {
+        public string Id { get; set; } = string.Empty;
+        public bool IsPinned { get; set; }
+        public long LastOpenedTicks { get; set; }
+        public string Title { get; set; } = "Untitled";
+        public int CharCount { get; set; }
+        public int UncompletedTaskCount { get; set; }
+        public List<string> Tags { get; set; } = new();
+    }
+
+    [JsonSerializable(typeof(List<NoteMetadataRecord>))]
+    internal partial class NoteMetadataJsonContext : JsonSerializerContext
+    {
+    }
+
     public static partial class MemoStorage
     {
         private static readonly SemaphoreSlim NoteSaveGate = new(1, 1);
         private static readonly SemaphoreSlim MetadataSaveGate = new(1, 1);
+
+        private static string EscapeLegacyMetadataField(string value)
+        {
+            return value.Replace("%", "%25").Replace("|", "%7C").Replace("\r", "%0D").Replace("\n", "%0A");
+        }
+
+        private static string UnescapeLegacyMetadataField(string value)
+        {
+            return value.Replace("%0A", "\n").Replace("%0D", "\r").Replace("%7C", "|").Replace("%25", "%");
+        }
+
+        private static bool TryLoadJsonMetadata()
+        {
+            try
+            {
+                if (!File.Exists(NotesJsonPath)) return false;
+
+                string json = File.ReadAllText(NotesJsonPath, Utf8NoBom);
+                var records = JsonSerializer.Deserialize(json, NoteMetadataJsonContext.Default.ListNoteMetadataRecord);
+                if (records == null) return false;
+
+                lock (Notes)
+                {
+                    foreach (var record in records)
+                    {
+                        DateTime lastOpened;
+                        try
+                        {
+                            lastOpened = new DateTime(record.LastOpenedTicks, DateTimeKind.Utc);
+                        }
+                        catch (ArgumentOutOfRangeException)
+                        {
+                            lastOpened = DateTime.UtcNow;
+                        }
+
+                        Notes.Add(new NoteData
+                        {
+                            Id = record.Id,
+                            IsPinned = record.IsPinned,
+                            LastOpened = lastOpened,
+                            Content = string.Empty,
+                            Title = string.IsNullOrWhiteSpace(record.Title) ? "Untitled" : record.Title,
+                            CharCount = Math.Max(0, record.CharCount),
+                            UncompletedTaskCount = Math.Max(0, record.UncompletedTaskCount),
+                            Tags = record.Tags ?? new List<string>()
+                        });
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[LoadJsonMetadata Error] {ex.Message}");
+                return false;
+            }
+        }
+
+        private static void SaveJsonMetadataAtomic()
+        {
+            try
+            {
+                List<NoteMetadataRecord> records;
+                lock (Notes)
+                {
+                    records = Notes.ConvertAll(note => new NoteMetadataRecord
+                    {
+                        Id = note.Id,
+                        IsPinned = note.IsPinned,
+                        LastOpenedTicks = note.LastOpened.Ticks,
+                        Title = note.Title,
+                        CharCount = note.CharCount,
+                        UncompletedTaskCount = note.UncompletedTaskCount,
+                        Tags = new List<string>(note.Tags)
+                    });
+                }
+
+                string json = JsonSerializer.Serialize(records, NoteMetadataJsonContext.Default.ListNoteMetadataRecord);
+                string tempPath = Path.Combine(FolderPath, $"notes.{Guid.NewGuid():N}.json.tmp");
+                File.WriteAllText(tempPath, json, Utf8NoBom);
+
+                if (File.Exists(NotesJsonPath))
+                {
+                    File.Replace(tempPath, NotesJsonPath, null);
+                }
+                else
+                {
+                    File.Move(tempPath, NotesJsonPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SaveJsonMetadata Error] {ex.Message}");
+            }
+        }
 
         /// <summary>
         /// メモ一覧とメタデータの初期化および移行を行います。
@@ -26,6 +139,36 @@ namespace sumi
 
             try
             {
+                if (TryLoadJsonMetadata())
+                {
+                    bool hasNotes;
+                    lock (Notes)
+                    {
+                        hasNotes = Notes.Count > 0;
+                    }
+
+                    if (hasNotes)
+                    {
+                        NoteData latest;
+                        lock (Notes)
+                        {
+                            latest = string.IsNullOrEmpty(LastNoteId)
+                                ? Notes[0]
+                                : Notes.Find(n => n.Id == LastNoteId) ?? Notes[0];
+                            CurrentNoteId = latest.Id;
+                        }
+
+                        EnsureNoteLoaded(latest);
+                        LoadTasksForNoteSync(latest);
+                        return;
+                    }
+
+                    lock (Notes)
+                    {
+                        Notes.Clear();
+                    }
+                }
+
                 // 1. メタデータファイルが存在しない場合
                 if (!File.Exists(NotesDatPath))
                 {
@@ -83,33 +226,43 @@ namespace sumi
                             if (parts.Length >= 3)
                             {
                                 string id = parts[0];
-                                bool isPinned = bool.Parse(parts[1]);
-                                long ticks = long.Parse(parts[2]);
-                                var lastOpened = new DateTime(ticks, DateTimeKind.Utc);
+                                if (!bool.TryParse(parts[1], out bool isPinned) || !long.TryParse(parts[2], out long ticks))
+                                {
+                                    continue;
+                                }
+                                DateTime lastOpened;
+                                try
+                                {
+                                    lastOpened = new DateTime(ticks, DateTimeKind.Utc);
+                                }
+                                catch (ArgumentOutOfRangeException)
+                                {
+                                    lastOpened = DateTime.UtcNow;
+                                }
 
                                 // 後方互換性に配慮しつつ、保存済みのTitle、CharCount、UncompletedTaskCount、Tagsをパース
                                 string title = "Untitled";
                                 int charCount = 0;
                                 int uncompletedTaskCount = 0;
                                 var tags = new List<string>();
-                                if (parts.Length >= 5)
+                                if (parts.Length >= 7)
                                 {
-                                    title = parts[3];
-                                    if (int.TryParse(parts[4], out int count))
+                                    // The title is variable-length for backward compatibility with old
+                                    // unescaped notes.dat files. The final three fields are stable.
+                                    int countIndex = parts.Length - 3;
+                                    int taskCountIndex = parts.Length - 2;
+                                    int tagsIndex = parts.Length - 1;
+                                    int titleFieldCount = Math.Max(1, countIndex - 3);
+                                    title = UnescapeLegacyMetadataField(string.Join("|", parts, 3, titleFieldCount));
+                                    if (int.TryParse(parts[countIndex], out int count))
                                     {
                                         charCount = count;
                                     }
-                                }
-                                if (parts.Length >= 6)
-                                {
-                                    if (int.TryParse(parts[5], out int taskCount))
+                                    if (int.TryParse(parts[taskCountIndex], out int taskCount))
                                     {
                                         uncompletedTaskCount = taskCount;
                                     }
-                                }
-                                if (parts.Length >= 7)
-                                {
-                                    var tagPart = parts[6];
+                                    var tagPart = parts[tagsIndex];
                                     if (!string.IsNullOrWhiteSpace(tagPart))
                                     {
                                         var tagArray = tagPart.Split(',');
@@ -121,6 +274,18 @@ namespace sumi
                                                 tags.Add(trimmed);
                                             }
                                         }
+                                    }
+                                }
+                                else if (parts.Length >= 5)
+                                {
+                                    title = UnescapeLegacyMetadataField(parts[3]);
+                                    if (int.TryParse(parts[4], out int count))
+                                    {
+                                        charCount = count;
+                                    }
+                                    if (parts.Length >= 6 && int.TryParse(parts[5], out int taskCount))
+                                    {
+                                        uncompletedTaskCount = taskCount;
                                     }
                                 }
 
@@ -519,7 +684,7 @@ namespace sumi
         /// <summary>
         /// メタデータ一覧をアトミックに物理保存します。
         /// </summary>
-        public static void SaveMetadata()
+        public static bool SaveMetadata()
         {
             MetadataSaveGate.Wait();
             try
@@ -540,7 +705,7 @@ namespace sumi
                                 sanitizedTags.Add(s);
                             }
                         }
-                        sb.AppendLine($"{note.Id}|{note.IsPinned}|{note.LastOpened.Ticks}|{note.Title}|{note.CharCount}|{note.UncompletedTaskCount}|{string.Join(",", sanitizedTags)}");
+                        sb.AppendLine($"{note.Id}|{note.IsPinned}|{note.LastOpened.Ticks}|{EscapeLegacyMetadataField(note.Title)}|{note.CharCount}|{note.UncompletedTaskCount}|{string.Join(",", sanitizedTags)}");
                     }
                 }
                 byte[] bytes = Utf8NoBom.GetBytes(sb.ToString());
@@ -561,10 +726,15 @@ namespace sumi
                 {
                     File.Move(metadataTempPath, NotesDatPath);
                 }
+
+                // Keep a structured copy so titles and tags can contain any character.
+                SaveJsonMetadataAtomic();
+                return true;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[SaveMetadata Error] {ex.Message}");
+                return false;
             }
             finally
             {

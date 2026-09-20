@@ -1,6 +1,7 @@
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
@@ -19,6 +20,7 @@ namespace sumi
         public SettingsWindow()
         {
             this.InitializeComponent();
+            ApplyAccessibilityNames();
 
             this.Activated += SettingsWindow_Activated;
 
@@ -50,6 +52,18 @@ namespace sumi
 
             // 初期ナビゲーション選択（Editor）
             UpdateNavSelection("Editor");
+        }
+
+        private void ApplyAccessibilityNames()
+        {
+            AutomationProperties.SetName(FontSizeDecreaseButton, "フォントサイズを小さくする");
+            AutomationProperties.SetName(FontSizeIncreaseButton, "フォントサイズを大きくする");
+            AutomationProperties.SetName(OpacityDecreaseButton, "不透明度を下げる");
+            AutomationProperties.SetName(OpacityIncreaseButton, "不透明度を上げる");
+            AutomationProperties.SetName(RecentNotesCountDecreaseButton, "最近のメモ表示数を減らす");
+            AutomationProperties.SetName(RecentNotesCountIncreaseButton, "最近のメモ表示数を増やす");
+            AutomationProperties.SetName(AlwaysOnTopToggle, "常に手前に表示");
+            AutomationProperties.SetName(ShowDeleteButtonToggle, "メモ一覧に削除ボタンを表示");
         }
 
         private void SettingsWindow_Activated(object sender, WindowActivatedEventArgs args)
@@ -139,6 +153,7 @@ namespace sumi
                 // ウィンドウ
                 OpacitySlider.Value = MemoStorage.Opacity;
                 OpacityValueText.Text = $"{(int)MemoStorage.Opacity}%";
+                AlwaysOnTopToggle.IsOn = MemoStorage.IsAlwaysOnTop;
 
                 RecentNotesCountSlider.Value = MemoStorage.RecentNotesCount;
                 RecentNotesCountValueText.Text = MemoStorage.RecentNotesCount.ToString();
@@ -416,6 +431,17 @@ namespace sumi
             OpacitySlider.Value = Math.Min(OpacitySlider.Maximum, OpacitySlider.Value + 5);
         }
 
+        private void AlwaysOnTopToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializingSettings) return;
+            if (sender is ToggleSwitch toggle)
+            {
+                MemoStorage.IsAlwaysOnTop = toggle.IsOn;
+                MainWindow.Instance?.ApplySettings();
+                MainWindow.Instance?.QueueSaveSettings();
+            }
+        }
+
         private void ShowDeleteButtonToggle_Toggled(object sender, RoutedEventArgs e)
         {
             if (_isInitializingSettings) return;
@@ -464,11 +490,15 @@ namespace sumi
                 if (flyout == LaunchHotKeyFlyout)
                 {
                     LaunchHotKeyInput.Text = MemoStorage.LaunchHotKey;
+                    LaunchHotKeyErrorText.Text = string.Empty;
+                    LaunchHotKeyErrorText.Visibility = Visibility.Collapsed;
                     LaunchHotKeyInput.Focus(FocusState.Programmatic);
                 }
                 else if (flyout == QuitHotKeyFlyout)
                 {
                     QuitHotKeyInput.Text = MemoStorage.QuitHotKey;
+                    QuitHotKeyErrorText.Text = string.Empty;
+                    QuitHotKeyErrorText.Visibility = Visibility.Collapsed;
                     QuitHotKeyInput.Focus(FocusState.Programmatic);
                 }
             }
@@ -590,7 +620,16 @@ namespace sumi
         private void SaveLaunchHotKey()
         {
             string val = LaunchHotKeyInput.Text;
+            string previous = MemoStorage.LaunchHotKey;
             MemoStorage.LaunchHotKey = val;
+            if (MainWindow.Instance != null && !MainWindow.Instance.UpdateMainWindowHotKeys())
+            {
+                MemoStorage.LaunchHotKey = previous;
+                LaunchHotKeyErrorText.Text = MainWindow.Instance.LastHotKeyError ?? "ショートカットを登録できませんでした。";
+                LaunchHotKeyErrorText.Visibility = Visibility.Visible;
+                MainWindow.Instance.UpdateMainWindowHotKeys();
+                return;
+            }
             MemoStorage.SaveSettings();
             LaunchHotKeyButton.Content = string.IsNullOrEmpty(val) ? "None" : val;
             LaunchHotKeyFlyout.Hide();
@@ -599,7 +638,16 @@ namespace sumi
         private void SaveQuitHotKey()
         {
             string val = QuitHotKeyInput.Text;
+            string previous = MemoStorage.QuitHotKey;
             MemoStorage.QuitHotKey = val;
+            if (MainWindow.Instance != null && !MainWindow.Instance.UpdateMainWindowHotKeys())
+            {
+                MemoStorage.QuitHotKey = previous;
+                QuitHotKeyErrorText.Text = MainWindow.Instance.LastHotKeyError ?? "ショートカットを登録できませんでした。";
+                QuitHotKeyErrorText.Visibility = Visibility.Visible;
+                MainWindow.Instance.UpdateMainWindowHotKeys();
+                return;
+            }
             MemoStorage.SaveSettings();
             QuitHotKeyButton.Content = string.IsNullOrEmpty(val) ? "None" : val;
             QuitHotKeyFlyout.Hide();

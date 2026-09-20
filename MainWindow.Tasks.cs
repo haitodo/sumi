@@ -69,12 +69,21 @@ namespace sumi
                                 Id = t.Id,
                                 Title = t.Title,
                                 IsCompleted = t.IsCompleted,
+                                IsJustDoIt = t.IsJustDoIt,
                                 CreatedAt = t.CreatedAt
                             });
                         }
                     }
                     // JSON 化とファイル I/O を UI スレッドから切り離す。
-                    await Task.Run(() => MemoStorage.SaveTasksAtomicAsync(noteId, tasksToSave));
+                    bool saved = await Task.Run(() => MemoStorage.SaveTasksAtomicAsync(noteId, tasksToSave));
+                    if (!saved)
+                    {
+                        // Keep the note dirty so a later edit or shutdown can retry the save.
+                        lock (_dirtyTaskNoteIds)
+                        {
+                            _dirtyTaskNoteIds.Add(noteId);
+                        }
+                    }
                 }
             }
 
@@ -395,7 +404,7 @@ namespace sumi
             }
         }
 
-        private void DeleteTaskButton_Click(object sender, RoutedEventArgs e)
+        private async void DeleteTaskButton_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.DataContext is TaskItemViewModel vm)
             {
@@ -406,6 +415,20 @@ namespace sumi
                 }
                 if (note != null)
                 {
+                    var dialog = new ContentDialog
+                    {
+                        Title = "タスクを削除しますか？",
+                        Content = vm.Title,
+                        PrimaryButtonText = "削除",
+                        CloseButtonText = "キャンセル",
+                        DefaultButton = ContentDialogButton.Close,
+                        XamlRoot = RootGrid.XamlRoot
+                    };
+                    if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+                    {
+                        return;
+                    }
+
                     lock (note.Tasks)
                     {
                         note.Tasks.Remove(vm);

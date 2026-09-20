@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using sumi.Interop;
+using sumi.Services;
 
 namespace sumi
 {
@@ -142,6 +143,7 @@ namespace sumi
         /// </summary>
         public static void LoadSettings()
         {
+            bool legacyApiKeyFound = false;
             try
             {
                 if (File.Exists(SettingsPath))
@@ -164,16 +166,19 @@ namespace sumi
                                     FontWeight = val;
                                     break;
                                 case "FontSize":
-                                    if (double.TryParse(val, out double fs)) FontSize = fs;
+                                    if (double.TryParse(val, out double fs) && double.IsFinite(fs)) FontSize = Math.Clamp(fs, 10, 36);
                                     break;
                                 case "LineSpacing":
-                                    if (double.TryParse(val, out double ls)) LineSpacing = Math.Clamp(ls, 0.5, 4.0);
+                                    if (double.TryParse(val, out double ls) && double.IsFinite(ls)) LineSpacing = Math.Clamp(ls, 0.5, 4.0);
                                     break;
                                 case "ParagraphSpacing":
-                                    if (double.TryParse(val, out double ps)) ParagraphSpacing = ps;
+                                    if (double.TryParse(val, out double ps) && double.IsFinite(ps)) ParagraphSpacing = Math.Clamp(ps, 0, 100);
                                     break;
                                 case "Opacity":
-                                    if (double.TryParse(val, out double op)) Opacity = op;
+                                    if (double.TryParse(val, out double op) && double.IsFinite(op)) Opacity = Math.Clamp(op, 0, 100);
+                                    break;
+                                case "IsAlwaysOnTop":
+                                    if (bool.TryParse(val, out bool alwaysOnTop)) IsAlwaysOnTop = alwaysOnTop;
                                     break;
                                 case "QuitHotKey":
                                     QuitHotKey = val;
@@ -191,7 +196,7 @@ namespace sumi
                                     if (bool.TryParse(val, out bool open)) IsSidebarOpen = open;
                                     break;
                                 case "SidebarWidth":
-                                    if (double.TryParse(val, out double w)) SidebarWidth = Math.Clamp(w, 200, 600);
+                                    if (double.TryParse(val, out double w) && double.IsFinite(w)) SidebarWidth = Math.Clamp(w, 200, 600);
                                     break;
                                 case "IsRightSidebarPinned":
                                     if (bool.TryParse(val, out bool rpinned)) IsRightSidebarPinned = rpinned;
@@ -200,7 +205,7 @@ namespace sumi
                                     if (bool.TryParse(val, out bool ropen)) IsRightSidebarOpen = ropen;
                                     break;
                                 case "RightSidebarWidth":
-                                    if (double.TryParse(val, out double rw)) RightSidebarWidth = Math.Clamp(rw, 200, 600);
+                                    if (double.TryParse(val, out double rw) && double.IsFinite(rw)) RightSidebarWidth = Math.Clamp(rw, 200, 600);
                                     break;
                                 case "LastSidebarView":
                                     LastSidebarView = val;
@@ -215,22 +220,31 @@ namespace sumi
                                     LastSelectedRightTag = val;
                                     break;
                                 case "RecentNotesCount":
-                                    if (int.TryParse(val, out int rnc)) RecentNotesCount = Math.Max(0, rnc);
+                                    if (int.TryParse(val, out int rnc)) RecentNotesCount = Math.Clamp(rnc, 0, 10);
                                     break;
                                 case "ShowDeleteButton":
                                     if (bool.TryParse(val, out bool sdb)) ShowDeleteButton = sdb;
                                     break;
+                                case "AiApiKeyProtected":
+                                    AiApiKey = SecretProtection.Unprotect(val);
+                                    break;
                                 case "AiApiKey":
-                                    AiApiKey = val;
+                                    // Legacy plaintext setting. It is read for migration only;
+                                    // all subsequent writes use DPAPI-protected storage.
+                                    if (string.IsNullOrEmpty(AiApiKey))
+                                    {
+                                        AiApiKey = val;
+                                        legacyApiKeyFound = !string.IsNullOrWhiteSpace(val);
+                                    }
                                     break;
                                 case "AiModelName":
                                     AiModelName = val;
                                     break;
                                 case "AiTemperature":
-                                    if (double.TryParse(val, out double temp)) AiTemperature = temp;
+                                    if (double.TryParse(val, out double temp) && double.IsFinite(temp)) AiTemperature = Math.Clamp(temp, 0, 2);
                                     break;
                                 case "AiMaxTokens":
-                                    if (int.TryParse(val, out int tokens)) AiMaxTokens = tokens;
+                                    if (int.TryParse(val, out int tokens)) AiMaxTokens = Math.Clamp(tokens, 1, 32768);
                                     break;
                                 case "AiSystemPrompt":
                                     AiSystemPrompt = val.Replace("\\n", "\n");
@@ -244,13 +258,20 @@ namespace sumi
             {
                 Debug.WriteLine($"[LoadSettings Error] {ex.Message}");
             }
+
+            if (legacyApiKeyFound)
+            {
+                // Rewrite the legacy plaintext key immediately so it is not left on disk.
+                SaveSettings();
+            }
+
             LoadAiPrompts();
         }
 
         /// <summary>
         /// 設定をアトミックに保存します。
         /// </summary>
-        public static void SaveSettings()
+        public static bool SaveSettings()
         {
             SettingsSaveGate.Wait();
             try
@@ -269,6 +290,7 @@ namespace sumi
                 sb.AppendLine($"LineSpacing={LineSpacing}");
                 sb.AppendLine($"ParagraphSpacing={ParagraphSpacing}");
                 sb.AppendLine($"Opacity={Opacity}");
+                sb.AppendLine($"IsAlwaysOnTop={IsAlwaysOnTop}");
                 sb.AppendLine($"QuitHotKey={QuitHotKey}");
                 sb.AppendLine($"LaunchHotKey={LaunchHotKey}");
                 sb.AppendLine($"LastNoteId={LastNoteId}");
@@ -284,7 +306,7 @@ namespace sumi
                 sb.AppendLine($"LastSelectedRightTag={LastSelectedRightTag}");
                 sb.AppendLine($"RecentNotesCount={RecentNotesCount}");
                 sb.AppendLine($"ShowDeleteButton={ShowDeleteButton}");
-                sb.AppendLine($"AiApiKey={AiApiKey}");
+                sb.AppendLine($"AiApiKeyProtected={SecretProtection.Protect(AiApiKey)}");
                 sb.AppendLine($"AiModelName={AiModelName}");
                 sb.AppendLine($"AiTemperature={AiTemperature}");
                 sb.AppendLine($"AiMaxTokens={AiMaxTokens}");
@@ -311,10 +333,12 @@ namespace sumi
                 {
                     File.Move(tempPath, SettingsPath);
                 }
+                return true;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[SaveSettings Error] {ex.Message}");
+                return false;
             }
             finally
             {
