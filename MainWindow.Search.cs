@@ -301,10 +301,7 @@ namespace sumi
 
             if (matchLength > 0)
             {
-                selection.SetRange(searchRange.StartPosition, searchRange.EndPosition);
-                selection.ScrollIntoView(Microsoft.UI.Text.PointOptions.None);
-                UpdateCurrentMatchIndex();
-                UpdateStatusText(null);
+                SelectFindMatch(selection, searchRange.StartPosition, searchRange.EndPosition, null);
             }
             else
             {
@@ -315,11 +312,8 @@ namespace sumi
                 int wrapMatchLength = wrapRange.FindText(target, wrapSearchLength, Microsoft.UI.Text.FindOptions.None);
                 if (wrapMatchLength > 0)
                 {
-                    selection.SetRange(wrapRange.StartPosition, wrapRange.EndPosition);
-                    selection.ScrollIntoView(Microsoft.UI.Text.PointOptions.None);
-                    UpdateCurrentMatchIndex();
                     string msg = backward ? "先頭に達したため末尾から検索しました" : "末尾に達したため先頭から検索しました";
-                    UpdateStatusText(msg);
+                    SelectFindMatch(selection, wrapRange.StartPosition, wrapRange.EndPosition, msg);
                 }
                 else
                 {
@@ -327,6 +321,18 @@ namespace sumi
                     UpdateStatusText("見つかりませんでした");
                 }
             }
+        }
+
+        private void SelectFindMatch(
+            Microsoft.UI.Text.ITextSelection selection,
+            int startPosition,
+            int endPosition,
+            string? statusMessage)
+        {
+            selection.SetRange(startPosition, endPosition);
+            selection.ScrollIntoView(Microsoft.UI.Text.PointOptions.None);
+            UpdateCurrentMatchIndex();
+            UpdateStatusText(statusMessage);
         }
 
         private void Replace_Click(object sender, RoutedEventArgs e) 

@@ -293,20 +293,15 @@ namespace sumi
                 }
                 
                 // 選択アイテムとテキストボックスを整合させる
-                bool matched = false;
-                foreach (var item in LineSpacingComboBox.Items)
+                string? matchingItem = FindMatchingSpacingOption(LineSpacingComboBox, ls, 0.01);
+                if (matchingItem != null)
                 {
-                    if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - ls) < 0.01)
+                    if (!object.ReferenceEquals(LineSpacingComboBox.SelectedItem, matchingItem))
                     {
-                        if (LineSpacingComboBox.SelectedItem != item)
-                        {
-                            LineSpacingComboBox.SelectedItem = item;
-                        }
-                        matched = true;
-                        break;
+                        LineSpacingComboBox.SelectedItem = matchingItem;
                     }
                 }
-                if (!matched)
+                else
                 {
                     LineSpacingComboBox.SelectedItem = null;
                     string targetText = ls.ToString("0.##");
@@ -322,16 +317,28 @@ namespace sumi
             }
         }
 
-        private void RestoreLineSpacingComboBoxSelection()
+        private static string? FindMatchingSpacingOption(ComboBox comboBox, double value, double tolerance)
         {
-            foreach (var item in LineSpacingComboBox.Items)
+            foreach (var item in comboBox.Items)
             {
-                if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - MemoStorage.LineSpacing) < 0.01)
+                if (item is string text && double.TryParse(text, out double itemValue) && Math.Abs(itemValue - value) < tolerance)
                 {
-                    LineSpacingComboBox.SelectedItem = item;
-                    return;
+                    return text;
                 }
             }
+
+            return null;
+        }
+
+        private void RestoreLineSpacingComboBoxSelection()
+        {
+            string? matchingItem = FindMatchingSpacingOption(LineSpacingComboBox, MemoStorage.LineSpacing, 0.01);
+            if (matchingItem != null)
+            {
+                LineSpacingComboBox.SelectedItem = matchingItem;
+                return;
+            }
+
             LineSpacingComboBox.SelectedItem = null;
             LineSpacingComboBox.Text = MemoStorage.LineSpacing.ToString("0.##");
         }
@@ -363,20 +370,15 @@ namespace sumi
                     MainWindow.Instance?.QueueSaveSettings();
                 }
                 
-                bool matched = false;
-                foreach (var item in ParagraphSpacingComboBox.Items)
+                string? matchingItem = FindMatchingSpacingOption(ParagraphSpacingComboBox, ps, 0.1);
+                if (matchingItem != null)
                 {
-                    if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - ps) < 0.1)
+                    if (!object.ReferenceEquals(ParagraphSpacingComboBox.SelectedItem, matchingItem))
                     {
-                        if (ParagraphSpacingComboBox.SelectedItem != item)
-                        {
-                            ParagraphSpacingComboBox.SelectedItem = item;
-                        }
-                        matched = true;
-                        break;
+                        ParagraphSpacingComboBox.SelectedItem = matchingItem;
                     }
                 }
-                if (!matched)
+                else
                 {
                     ParagraphSpacingComboBox.SelectedItem = null;
                     string targetText = ((int)ps).ToString();
@@ -394,14 +396,13 @@ namespace sumi
 
         private void RestoreParagraphSpacingComboBoxSelection()
         {
-            foreach (var item in ParagraphSpacingComboBox.Items)
+            string? matchingItem = FindMatchingSpacingOption(ParagraphSpacingComboBox, MemoStorage.ParagraphSpacing, 0.1);
+            if (matchingItem != null)
             {
-                if (item is string s && double.TryParse(s, out double itemVal) && Math.Abs(itemVal - MemoStorage.ParagraphSpacing) < 0.1)
-                {
-                    ParagraphSpacingComboBox.SelectedItem = item;
-                    return;
-                }
+                ParagraphSpacingComboBox.SelectedItem = matchingItem;
+                return;
             }
+
             ParagraphSpacingComboBox.SelectedItem = null;
             ParagraphSpacingComboBox.Text = ((int)MemoStorage.ParagraphSpacing).ToString();
         }

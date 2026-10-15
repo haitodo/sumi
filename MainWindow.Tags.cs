@@ -192,32 +192,44 @@ namespace sumi
 
         private void SetSidebarActiveTagFilterUI()
         {
-            if (SidebarActiveTagFilterGrid == null || SidebarActiveTagFilterTextBlock == null) return;
-            if (string.IsNullOrEmpty(_activeLeftTagFilter))
-            {
-                SidebarActiveTagFilterGrid.Visibility = Visibility.Collapsed;
-            }
-            else
-            {
-                SidebarActiveTagFilterGrid.Visibility = Visibility.Visible;
-                SidebarActiveTagFilterTextBlock.Text = _activeLeftTagFilter == "Untagged" ? "タグなし" : _activeLeftTagFilter;
-            }
-            PopulateSidebarNotesList(SidebarNoteSearchBox != null ? SidebarNoteSearchBox.Text : "");
+            UpdateActiveTagFilterUI(
+                SidebarActiveTagFilterGrid,
+                SidebarActiveTagFilterTextBlock,
+                _activeLeftTagFilter,
+                SidebarNoteSearchBox?.Text ?? string.Empty,
+                PopulateSidebarNotesList);
         }
 
         private void SetRightSidebarActiveTagFilterUI()
         {
-            if (RightSidebarActiveTagFilterGrid == null || RightSidebarActiveTagFilterTextBlock == null) return;
-            if (string.IsNullOrEmpty(_activeRightTagFilter))
+            UpdateActiveTagFilterUI(
+                RightSidebarActiveTagFilterGrid,
+                RightSidebarActiveTagFilterTextBlock,
+                _activeRightTagFilter,
+                RightSidebarNoteSearchBox?.Text ?? string.Empty,
+                PopulateRightSidebarNotesList);
+        }
+
+        private void UpdateActiveTagFilterUI(
+            Grid? filterGrid,
+            TextBlock? filterTextBlock,
+            string activeTagFilter,
+            string searchText,
+            Action<string> populateNotesList)
+        {
+            if (filterGrid == null || filterTextBlock == null) return;
+
+            if (string.IsNullOrEmpty(activeTagFilter))
             {
-                RightSidebarActiveTagFilterGrid.Visibility = Visibility.Collapsed;
+                filterGrid.Visibility = Visibility.Collapsed;
             }
             else
             {
-                RightSidebarActiveTagFilterGrid.Visibility = Visibility.Visible;
-                RightSidebarActiveTagFilterTextBlock.Text = _activeRightTagFilter == "Untagged" ? "タグなし" : _activeRightTagFilter;
+                filterGrid.Visibility = Visibility.Visible;
+                filterTextBlock.Text = activeTagFilter == "Untagged" ? "タグなし" : activeTagFilter;
             }
-            PopulateRightSidebarNotesList(RightSidebarNoteSearchBox != null ? RightSidebarNoteSearchBox.Text : "");
+
+            populateNotesList(searchText);
         }
 
         private void ClearSidebarActiveTagFilter_Click(object sender, RoutedEventArgs e)
