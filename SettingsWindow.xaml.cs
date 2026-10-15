@@ -559,6 +559,12 @@ namespace sumi
                 return;
             }
 
+            var sb = new System.Text.StringBuilder();
+            if (ctrl) sb.Append("Ctrl+");
+            if (alt) sb.Append("Alt+");
+            if (shift) sb.Append("Shift+");
+            if (win) sb.Append("Win+");
+
             // モディファイアキーそのものは無視
             if (key == Windows.System.VirtualKey.Control || 
                 key == Windows.System.VirtualKey.Menu || 
@@ -566,22 +572,11 @@ namespace sumi
                 key == Windows.System.VirtualKey.LeftWindows || 
                 key == Windows.System.VirtualKey.RightWindows)
             {
-                var sbTemp = new System.Text.StringBuilder();
-                if (ctrl) sbTemp.Append("Ctrl+");
-                if (alt) sbTemp.Append("Alt+");
-                if (shift) sbTemp.Append("Shift+");
-                if (win) sbTemp.Append("Win+");
-                textBox.Text = sbTemp.ToString();
+                textBox.Text = sb.ToString();
                 return;
             }
 
-            var sb = new System.Text.StringBuilder();
-            if (ctrl) sb.Append("Ctrl+");
-            if (alt) sb.Append("Alt+");
-            if (shift) sb.Append("Shift+");
-            if (win) sb.Append("Win+");
             sb.Append(key.ToString());
-
             textBox.Text = sb.ToString();
         }
 
@@ -706,6 +701,15 @@ namespace sumi
             }
         }
 
+        private static void ApplyAiTextBoxColors(TextBox textBox)
+        {
+            textBox.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 37, 37));
+            textBox.Resources["TextControlBackground"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 37, 37));
+            textBox.Resources["TextControlBackgroundPointerOver"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 45, 45, 45));
+            textBox.Resources["TextControlBackgroundFocused"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 45, 45, 45));
+            textBox.Resources["TextControlForeground"] = new SolidColorBrush(Colors.White);
+        }
+
         private void RefreshAiPromptsListUI()
         {
             if (AiPromptsListPanel == null) return;
@@ -738,13 +742,9 @@ namespace sumi
                     Padding = new Thickness(6, 4, 6, 4),
                     Margin = new Thickness(0, 0, 8, 0),
                     BorderThickness = new Thickness(0),
-                    Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 37, 37)),
                     CornerRadius = new CornerRadius(3)
                 };
-                nameBox.Resources["TextControlBackground"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 37, 37));
-                nameBox.Resources["TextControlBackgroundPointerOver"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 45, 45, 45));
-                nameBox.Resources["TextControlBackgroundFocused"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 45, 45, 45));
-                nameBox.Resources["TextControlForeground"] = new SolidColorBrush(Colors.White);
+                ApplyAiTextBoxColors(nameBox);
 
                 nameBox.LostFocus += (s, e) =>
                 {
@@ -782,13 +782,9 @@ namespace sumi
                     Margin = new Thickness(0, 6, 0, 0),
                     BorderThickness = new Thickness(1),
                     BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 51, 51)),
-                    Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 37, 37)),
                     CornerRadius = new CornerRadius(3)
                 };
-                promptBox.Resources["TextControlBackground"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 37, 37));
-                promptBox.Resources["TextControlBackgroundPointerOver"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 45, 45, 45));
-                promptBox.Resources["TextControlBackgroundFocused"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 45, 45, 45));
-                promptBox.Resources["TextControlForeground"] = new SolidColorBrush(Colors.White);
+                ApplyAiTextBoxColors(promptBox);
 
                 promptBox.LostFocus += (s, e) =>
                 {

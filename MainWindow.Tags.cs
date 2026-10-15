@@ -59,52 +59,21 @@ namespace sumi
 
         private void PopulateTagsView()
         {
-            if (LeftTagsListContainer == null) return;
-            LeftTagsListContainer.Children.Clear();
-
-            // 1. "All Notes" item
-            AddSidebarTagItem(LeftTagsListContainer, "All Notes", string.Empty, _activeLeftTagFilter == string.Empty);
-
-            // 2. "Untagged" item
-            int untaggedCount = 0;
-            lock (MemoStorage.Notes)
-            {
-                foreach (var note in MemoStorage.Notes)
-                {
-                    if (note.Tags.Count == 0) untaggedCount++;
-                }
-            }
-            AddSidebarTagItem(LeftTagsListContainer, "タグなし", "Untagged", _activeLeftTagFilter == "Untagged", untaggedCount);
-
-            // 3. Regular tags
-            var allTags = MemoStorage.GetAllTags();
-            foreach (var tag in allTags)
-            {
-                if (!string.IsNullOrEmpty(_sidebarTagQuery) && !tag.Contains(_sidebarTagQuery, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                int tagNoteCount = 0;
-                lock (MemoStorage.Notes)
-                {
-                    foreach (var note in MemoStorage.Notes)
-                    {
-                        if (note.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase)) tagNoteCount++;
-                    }
-                }
-
-                AddSidebarTagItem(LeftTagsListContainer, "# " + tag, tag, _activeLeftTagFilter == tag, tagNoteCount);
-            }
+            PopulateTagList(LeftTagsListContainer, _activeLeftTagFilter, _sidebarTagQuery, isRight: false);
         }
 
         private void PopulateRightTagsView()
         {
-            if (RightTagsListContainer == null) return;
-            RightTagsListContainer.Children.Clear();
+            PopulateTagList(RightTagsListContainer, _activeRightTagFilter, _rightSidebarTagQuery, isRight: true);
+        }
+
+        private void PopulateTagList(StackPanel? container, string activeTagFilter, string tagQuery, bool isRight)
+        {
+            if (container == null) return;
+            container.Children.Clear();
 
             // 1. "All Notes" item
-            AddSidebarTagItem(RightTagsListContainer, "All Notes", string.Empty, _activeRightTagFilter == string.Empty, isRight: true);
+            AddSidebarTagItem(container, "All Notes", string.Empty, activeTagFilter == string.Empty, isRight: isRight);
 
             // 2. "Untagged" item
             int untaggedCount = 0;
@@ -115,13 +84,13 @@ namespace sumi
                     if (note.Tags.Count == 0) untaggedCount++;
                 }
             }
-            AddSidebarTagItem(RightTagsListContainer, "タグなし", "Untagged", _activeRightTagFilter == "Untagged", untaggedCount, isRight: true);
+            AddSidebarTagItem(container, "タグなし", "Untagged", activeTagFilter == "Untagged", untaggedCount, isRight);
 
             // 3. Regular tags
             var allTags = MemoStorage.GetAllTags();
             foreach (var tag in allTags)
             {
-                if (!string.IsNullOrEmpty(_rightSidebarTagQuery) && !tag.Contains(_rightSidebarTagQuery, StringComparison.OrdinalIgnoreCase))
+                if (!string.IsNullOrEmpty(tagQuery) && !tag.Contains(tagQuery, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -135,7 +104,7 @@ namespace sumi
                     }
                 }
 
-                AddSidebarTagItem(RightTagsListContainer, "# " + tag, tag, _activeRightTagFilter == tag, tagNoteCount, isRight: true);
+                AddSidebarTagItem(container, "# " + tag, tag, activeTagFilter == tag, tagNoteCount, isRight);
             }
         }
 
