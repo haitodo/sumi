@@ -413,11 +413,7 @@ namespace sumi
             notes.Sort((a, b) =>
             {
                 if (a.IsPinned != b.IsPinned) return a.IsPinned ? -1 : 1;
-                if (long.TryParse(a.Id, out long aTicks) && long.TryParse(b.Id, out long bTicks))
-                {
-                    return bTicks.CompareTo(aTicks);
-                }
-                return string.Compare(b.Id, a.Id, StringComparison.Ordinal);
+                return CompareNotesByIdDescending(a, b);
             });
             return notes.ConvertAll(n => n.Id);
         }
@@ -485,14 +481,7 @@ namespace sumi
             List<NoteData> filteredNotes = GetFilteredNotes(query);
 
             // Pinned/Notes 用に作成日時（Id）の数値降順でソート（順番が変わらないようにするため）
-            filteredNotes.Sort((a, b) =>
-            {
-                if (long.TryParse(a.Id, out long aTicks) && long.TryParse(b.Id, out long bTicks))
-                {
-                    return bTicks.CompareTo(aTicks);
-                }
-                return string.Compare(b.Id, a.Id, StringComparison.Ordinal);
-            });
+            filteredNotes.Sort(CompareNotesByIdDescending);
 
             foreach (var note in filteredNotes)
             {
@@ -514,35 +503,9 @@ namespace sumi
                 }
             }
 
-            if (RecentListView != null)
-            {
-                var currentList = RecentListView.ItemsSource as IList<NoteItemViewModel>;
-                if (!AreNoteListsEqual(currentList, recentVMs))
-                {
-                    RecentListView.ItemsSource = null;
-                    RecentListView.ItemsSource = recentVMs;
-                }
-            }
-
-            if (PinnedListView != null)
-            {
-                var currentList = PinnedListView.ItemsSource as IList<NoteItemViewModel>;
-                if (!AreNoteListsEqual(currentList, pinnedVMs))
-                {
-                    PinnedListView.ItemsSource = null;
-                    PinnedListView.ItemsSource = pinnedVMs;
-                }
-            }
-
-            if (NotesListView != null)
-            {
-                var currentList = NotesListView.ItemsSource as IList<NoteItemViewModel>;
-                if (!AreNoteListsEqual(currentList, normalVMs))
-                {
-                    NotesListView.ItemsSource = null;
-                    NotesListView.ItemsSource = normalVMs;
-                }
-            }
+            UpdateNoteListItemsSource(RecentListView, recentVMs);
+            UpdateNoteListItemsSource(PinnedListView, pinnedVMs);
+            UpdateNoteListItemsSource(NotesListView, normalVMs);
 
             RecentSection.Visibility = (recentVMs.Count > 0 && MemoStorage.RecentNotesCount > 0) ? Visibility.Visible : Visibility.Collapsed;
             PinnedSection.Visibility = pinnedVMs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -559,14 +522,7 @@ namespace sumi
             List<NoteData> filteredNotes = GetFilteredNotes(query, _activeLeftTagFilter);
 
             // Pinned/Notes 用に作成日時（Id）の数値降順でソート（順番が変わらないようにするため）
-            filteredNotes.Sort((a, b) =>
-            {
-                if (long.TryParse(a.Id, out long aTicks) && long.TryParse(b.Id, out long bTicks))
-                {
-                    return bTicks.CompareTo(aTicks);
-                }
-                return string.Compare(b.Id, a.Id, StringComparison.Ordinal);
-            });
+            filteredNotes.Sort(CompareNotesByIdDescending);
 
             foreach (var note in filteredNotes)
             {
@@ -588,33 +544,9 @@ namespace sumi
                 }
             }
 
-            if (SidebarRecentListView != null)
-            {
-                var currentList = SidebarRecentListView.ItemsSource as IList<NoteItemViewModel>;
-                if (!AreNoteListsEqual(currentList, recentVMs))
-                {
-                    SidebarRecentListView.ItemsSource = null;
-                    SidebarRecentListView.ItemsSource = recentVMs;
-                }
-            }
-            if (SidebarPinnedListView != null)
-            {
-                var currentList = SidebarPinnedListView.ItemsSource as IList<NoteItemViewModel>;
-                if (!AreNoteListsEqual(currentList, pinnedVMs))
-                {
-                    SidebarPinnedListView.ItemsSource = null;
-                    SidebarPinnedListView.ItemsSource = pinnedVMs;
-                }
-            }
-            if (SidebarNotesListView != null)
-            {
-                var currentList = SidebarNotesListView.ItemsSource as IList<NoteItemViewModel>;
-                if (!AreNoteListsEqual(currentList, normalVMs))
-                {
-                    SidebarNotesListView.ItemsSource = null;
-                    SidebarNotesListView.ItemsSource = normalVMs;
-                }
-            }
+            UpdateNoteListItemsSource(SidebarRecentListView, recentVMs);
+            UpdateNoteListItemsSource(SidebarPinnedListView, pinnedVMs);
+            UpdateNoteListItemsSource(SidebarNotesListView, normalVMs);
 
             if (SidebarRecentSection != null) SidebarRecentSection.Visibility = (recentVMs.Count > 0 && MemoStorage.RecentNotesCount > 0) ? Visibility.Visible : Visibility.Collapsed;
             if (SidebarPinnedSection != null) SidebarPinnedSection.Visibility = pinnedVMs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -638,14 +570,7 @@ namespace sumi
             List<NoteData> filteredNotes = GetFilteredNotes(query, _activeRightTagFilter);
 
             // Pinned/Notes 用に作成日時（Id）の数値降順でソート（順番が変わらないようにするため）
-            filteredNotes.Sort((a, b) =>
-            {
-                if (long.TryParse(a.Id, out long aTicks) && long.TryParse(b.Id, out long bTicks))
-                {
-                    return bTicks.CompareTo(aTicks);
-                }
-                return string.Compare(b.Id, a.Id, StringComparison.Ordinal);
-            });
+            filteredNotes.Sort(CompareNotesByIdDescending);
 
             foreach (var note in filteredNotes)
             {
@@ -667,33 +592,9 @@ namespace sumi
                 }
             }
 
-            if (RightSidebarRecentListView != null)
-            {
-                var currentList = RightSidebarRecentListView.ItemsSource as IList<NoteItemViewModel>;
-                if (!AreNoteListsEqual(currentList, recentVMs))
-                {
-                    RightSidebarRecentListView.ItemsSource = null;
-                    RightSidebarRecentListView.ItemsSource = recentVMs;
-                }
-            }
-            if (RightSidebarPinnedListView != null)
-            {
-                var currentList = RightSidebarPinnedListView.ItemsSource as IList<NoteItemViewModel>;
-                if (!AreNoteListsEqual(currentList, pinnedVMs))
-                {
-                    RightSidebarPinnedListView.ItemsSource = null;
-                    RightSidebarPinnedListView.ItemsSource = pinnedVMs;
-                }
-            }
-            if (RightSidebarNotesListView != null)
-            {
-                var currentList = RightSidebarNotesListView.ItemsSource as IList<NoteItemViewModel>;
-                if (!AreNoteListsEqual(currentList, normalVMs))
-                {
-                    RightSidebarNotesListView.ItemsSource = null;
-                    RightSidebarNotesListView.ItemsSource = normalVMs;
-                }
-            }
+            UpdateNoteListItemsSource(RightSidebarRecentListView, recentVMs);
+            UpdateNoteListItemsSource(RightSidebarPinnedListView, pinnedVMs);
+            UpdateNoteListItemsSource(RightSidebarNotesListView, normalVMs);
 
             if (RightSidebarRecentSection != null) RightSidebarRecentSection.Visibility = (recentVMs.Count > 0 && MemoStorage.RecentNotesCount > 0) ? Visibility.Visible : Visibility.Collapsed;
             if (RightSidebarPinnedSection != null) RightSidebarPinnedSection.Visibility = pinnedVMs.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -764,6 +665,27 @@ namespace sumi
                 return $"Opened {days} day{(days > 1 ? "s" : "")} ago";
             }
             return $"Opened on {localTime:MMMM d}";
+        }
+
+        private void UpdateNoteListItemsSource(ItemsControl? listControl, List<NoteItemViewModel> items)
+        {
+            if (listControl == null) return;
+
+            var currentList = listControl.ItemsSource as IList<NoteItemViewModel>;
+            if (!AreNoteListsEqual(currentList, items))
+            {
+                listControl.ItemsSource = null;
+                listControl.ItemsSource = items;
+            }
+        }
+
+        private static int CompareNotesByIdDescending(NoteData a, NoteData b)
+        {
+            if (long.TryParse(a.Id, out long aTicks) && long.TryParse(b.Id, out long bTicks))
+            {
+                return bTicks.CompareTo(aTicks);
+            }
+            return string.Compare(b.Id, a.Id, StringComparison.Ordinal);
         }
 
         private bool AreNoteListsEqual(IList<NoteItemViewModel>? listA, List<NoteItemViewModel> listB)

@@ -268,36 +268,7 @@ namespace sumi
         {
             if (e.Key == Windows.System.VirtualKey.Enter)
             {
-                string text = AddTaskBox.Text.Trim();
-                if (!string.IsNullOrEmpty(text))
-                {
-                    NoteData? currentNote = null;
-                    lock (MemoStorage.Notes)
-                    {
-                        currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId);
-                    }
-                    if (currentNote != null)
-                    {
-                        MemoStorage.LoadTasksForNoteSync(currentNote);
-                        var newTask = new TaskItemViewModel(
-                            Guid.NewGuid().ToString(),
-                            currentNote.Id,
-                            text,
-                            false,
-                            DateTime.UtcNow,
-                            () => OnTaskChanged(currentNote.Id)
-                        );
-                        lock (currentNote.Tasks)
-                        {
-                            currentNote.Tasks.Add(newTask);
-                        }
-                        OnTaskChanged(currentNote.Id);
-
-                        AddTaskBox.Text = string.Empty;
-                        PopulateCurrentTasks();
-                        PopulateRightCurrentTasks();
-                    }
-                }
+                AddTaskFromTextBox(AddTaskBox);
                 e.Handled = true;
             }
         }
@@ -306,38 +277,41 @@ namespace sumi
         {
             if (e.Key == Windows.System.VirtualKey.Enter)
             {
-                string text = RightAddTaskBox.Text.Trim();
-                if (!string.IsNullOrEmpty(text))
-                {
-                    NoteData? currentNote = null;
-                    lock (MemoStorage.Notes)
-                    {
-                        currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId);
-                    }
-                    if (currentNote != null)
-                    {
-                        MemoStorage.LoadTasksForNoteSync(currentNote);
-                        var newTask = new TaskItemViewModel(
-                            Guid.NewGuid().ToString(),
-                            currentNote.Id,
-                            text,
-                            false,
-                            DateTime.UtcNow,
-                            () => OnTaskChanged(currentNote.Id)
-                        );
-                        lock (currentNote.Tasks)
-                        {
-                            currentNote.Tasks.Add(newTask);
-                        }
-                        OnTaskChanged(currentNote.Id);
-
-                        RightAddTaskBox.Text = string.Empty;
-                        PopulateCurrentTasks();
-                        PopulateRightCurrentTasks();
-                    }
-                }
+                AddTaskFromTextBox(RightAddTaskBox);
                 e.Handled = true;
             }
+        }
+
+        private void AddTaskFromTextBox(TextBox taskTextBox)
+        {
+            string text = taskTextBox.Text.Trim();
+            if (string.IsNullOrEmpty(text)) return;
+
+            NoteData? currentNote = null;
+            lock (MemoStorage.Notes)
+            {
+                currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId);
+            }
+            if (currentNote == null) return;
+
+            MemoStorage.LoadTasksForNoteSync(currentNote);
+            var newTask = new TaskItemViewModel(
+                Guid.NewGuid().ToString(),
+                currentNote.Id,
+                text,
+                false,
+                DateTime.UtcNow,
+                () => OnTaskChanged(currentNote.Id)
+            );
+            lock (currentNote.Tasks)
+            {
+                currentNote.Tasks.Add(newTask);
+            }
+            OnTaskChanged(currentNote.Id);
+
+            taskTextBox.Text = string.Empty;
+            PopulateCurrentTasks();
+            PopulateRightCurrentTasks();
         }
 
         private void DeleteTaskButton_Loaded(object sender, RoutedEventArgs e)
