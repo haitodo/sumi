@@ -128,6 +128,11 @@ namespace sumi
 
         private void PopulateCurrentTasks()
         {
+            PopulateCurrentTasks(CurrentTasksListView);
+        }
+
+        private void PopulateCurrentTasks(ItemsControl? tasksListView)
+        {
             NoteData? currentNote = null;
             lock (MemoStorage.Notes)
             {
@@ -137,25 +142,30 @@ namespace sumi
             if (currentNote != null)
             {
                 MemoStorage.LoadTasksForNoteSync(currentNote);
-                if (CurrentTasksListView != null)
+                if (tasksListView != null)
                 {
-                    if (CurrentTasksListView.ItemsSource != currentNote.Tasks)
+                    if (tasksListView.ItemsSource != currentNote.Tasks)
                     {
-                        CurrentTasksListView.ItemsSource = currentNote.Tasks;
+                        tasksListView.ItemsSource = currentNote.Tasks;
                     }
                 }
             }
             else
             {
-                if (CurrentTasksListView != null && CurrentTasksListView.ItemsSource != null)
+                if (tasksListView != null && tasksListView.ItemsSource != null)
                 {
-                    CurrentTasksListView.ItemsSource = null;
+                    tasksListView.ItemsSource = null;
                 }
             }
         }
 
         private void PopulateAllTasks()
         {
+            PopulateAllTasks(AllTasksGroupsControl);
+        }
+
+        private void PopulateAllTasks(ItemsControl? groupsControl)
+        {
             var groups = new List<AllTasksGroupViewModel>();
             List<NoteData> notes;
             lock (MemoStorage.Notes)
@@ -183,83 +193,25 @@ namespace sumi
                 }
             }
 
-            if (AllTasksGroupsControl != null)
+            if (groupsControl != null)
             {
-                var currentList = AllTasksGroupsControl.ItemsSource as List<AllTasksGroupViewModel>;
+                var currentList = groupsControl.ItemsSource as List<AllTasksGroupViewModel>;
                 if (!AreAllTasksGroupsEqual(currentList, groups))
                 {
-                    AllTasksGroupsControl.ItemsSource = null;
-                    AllTasksGroupsControl.ItemsSource = groups;
+                    groupsControl.ItemsSource = null;
+                    groupsControl.ItemsSource = groups;
                 }
             }
         }
 
         private void PopulateRightCurrentTasks()
         {
-            NoteData? currentNote = null;
-            lock (MemoStorage.Notes)
-            {
-                currentNote = MemoStorage.Notes.Find(n => n.Id == MemoStorage.CurrentNoteId);
-            }
-
-            if (currentNote != null)
-            {
-                MemoStorage.LoadTasksForNoteSync(currentNote);
-                if (RightCurrentTasksListView != null)
-                {
-                    if (RightCurrentTasksListView.ItemsSource != currentNote.Tasks)
-                    {
-                        RightCurrentTasksListView.ItemsSource = currentNote.Tasks;
-                    }
-                }
-            }
-            else
-            {
-                if (RightCurrentTasksListView != null && RightCurrentTasksListView.ItemsSource != null)
-                {
-                    RightCurrentTasksListView.ItemsSource = null;
-                }
-            }
+            PopulateCurrentTasks(RightCurrentTasksListView);
         }
 
         private void PopulateRightAllTasks()
         {
-            var groups = new List<AllTasksGroupViewModel>();
-            List<NoteData> notes;
-            lock (MemoStorage.Notes)
-            {
-                notes = new List<NoteData>(MemoStorage.Notes);
-            }
-
-            foreach (var note in notes)
-            {
-                MemoStorage.LoadTasksForNoteSync(note);
-                var uncompletedTasks = new ObservableCollection<TaskItemViewModel>();
-                lock (note.Tasks)
-                {
-                    foreach (var t in note.Tasks)
-                    {
-                        if (!t.IsCompleted)
-                        {
-                            uncompletedTasks.Add(t);
-                        }
-                    }
-                }
-                if (uncompletedTasks.Count > 0)
-                {
-                    groups.Add(new AllTasksGroupViewModel(note.Id, note.Title, uncompletedTasks));
-                }
-            }
-
-            if (RightAllTasksGroupsControl != null)
-            {
-                var currentList = RightAllTasksGroupsControl.ItemsSource as List<AllTasksGroupViewModel>;
-                if (!AreAllTasksGroupsEqual(currentList, groups))
-                {
-                    RightAllTasksGroupsControl.ItemsSource = null;
-                    RightAllTasksGroupsControl.ItemsSource = groups;
-                }
-            }
+            PopulateAllTasks(RightAllTasksGroupsControl);
         }
 
         private void PopulateJustDoItTasks()

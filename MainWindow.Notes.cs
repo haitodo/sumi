@@ -464,6 +464,17 @@ namespace sumi
             return filteredNotes;
         }
 
+        private NoteItemViewModel CreateNoteItemViewModel(NoteData note)
+        {
+            bool isCurrent = note.Id == MemoStorage.CurrentNoteId;
+            string subtitle = isCurrent
+                ? $"Current • {note.CharCount} characters"
+                : $"{GetRelativeTimeText(note.LastOpened)} • {note.CharCount} characters";
+            bool isHighlighted = note.Id == _highlightedNoteId;
+
+            return new NoteItemViewModel(note.Id, note.Title, subtitle, note.IsPinned, isCurrent, isHighlighted);
+        }
+
         private void PopulateNotesList(string filter = "")
         {
             var query = filter.Trim();
@@ -485,13 +496,7 @@ namespace sumi
 
             foreach (var note in filteredNotes)
             {
-                bool isCurrent = note.Id == MemoStorage.CurrentNoteId;
-                string subtitle = isCurrent
-                    ? $"Current • {note.CharCount} characters"
-                    : $"{GetRelativeTimeText(note.LastOpened)} • {note.CharCount} characters";
-
-                bool isHighlighted = note.Id == _highlightedNoteId;
-                var vm = new NoteItemViewModel(note.Id, note.Title, subtitle, note.IsPinned, isCurrent, isHighlighted);
+                var vm = CreateNoteItemViewModel(note);
 
                 if (note.IsPinned) pinnedVMs.Add(vm);
                 else normalVMs.Add(vm);
@@ -504,13 +509,7 @@ namespace sumi
                 recentNotes.Sort((a, b) => b.LastOpened.CompareTo(a.LastOpened));
                 foreach (var note in recentNotes.Take(MemoStorage.RecentNotesCount))
                 {
-                    bool isCurrent = note.Id == MemoStorage.CurrentNoteId;
-                    string subtitle = isCurrent
-                        ? $"Current • {note.CharCount} characters"
-                        : $"{GetRelativeTimeText(note.LastOpened)} • {note.CharCount} characters";
-
-                    bool isHighlighted = note.Id == _highlightedNoteId;
-                    var vm = new NoteItemViewModel(note.Id, note.Title, subtitle, note.IsPinned, isCurrent, isHighlighted);
+                    var vm = CreateNoteItemViewModel(note);
                     recentVMs.Add(vm);
                 }
             }
@@ -571,13 +570,7 @@ namespace sumi
 
             foreach (var note in filteredNotes)
             {
-                bool isCurrent = note.Id == MemoStorage.CurrentNoteId;
-                string subtitle = isCurrent
-                    ? $"Current • {note.CharCount} characters"
-                    : $"{GetRelativeTimeText(note.LastOpened)} • {note.CharCount} characters";
-
-                bool isHighlighted = note.Id == _highlightedNoteId;
-                var vm = new NoteItemViewModel(note.Id, note.Title, subtitle, note.IsPinned, isCurrent, isHighlighted);
+                var vm = CreateNoteItemViewModel(note);
 
                 if (note.IsPinned) pinnedVMs.Add(vm);
                 else normalVMs.Add(vm);
@@ -590,13 +583,7 @@ namespace sumi
                 recentNotes.Sort((a, b) => b.LastOpened.CompareTo(a.LastOpened));
                 foreach (var note in recentNotes.Take(MemoStorage.RecentNotesCount))
                 {
-                    bool isCurrent = note.Id == MemoStorage.CurrentNoteId;
-                    string subtitle = isCurrent
-                        ? $"Current • {note.CharCount} characters"
-                        : $"{GetRelativeTimeText(note.LastOpened)} • {note.CharCount} characters";
-
-                    bool isHighlighted = note.Id == _highlightedNoteId;
-                    var vm = new NoteItemViewModel(note.Id, note.Title, subtitle, note.IsPinned, isCurrent, isHighlighted);
+                    var vm = CreateNoteItemViewModel(note);
                     recentVMs.Add(vm);
                 }
             }
@@ -662,13 +649,7 @@ namespace sumi
 
             foreach (var note in filteredNotes)
             {
-                bool isCurrent = note.Id == MemoStorage.CurrentNoteId;
-                string subtitle = isCurrent
-                    ? $"Current • {note.CharCount} characters"
-                    : $"{GetRelativeTimeText(note.LastOpened)} • {note.CharCount} characters";
-
-                bool isHighlighted = note.Id == _highlightedNoteId;
-                var vm = new NoteItemViewModel(note.Id, note.Title, subtitle, note.IsPinned, isCurrent, isHighlighted);
+                var vm = CreateNoteItemViewModel(note);
 
                 if (note.IsPinned) pinnedVMs.Add(vm);
                 else normalVMs.Add(vm);
@@ -681,13 +662,7 @@ namespace sumi
                 recentNotes.Sort((a, b) => b.LastOpened.CompareTo(a.LastOpened));
                 foreach (var note in recentNotes.Take(MemoStorage.RecentNotesCount))
                 {
-                    bool isCurrent = note.Id == MemoStorage.CurrentNoteId;
-                    string subtitle = isCurrent
-                        ? $"Current • {note.CharCount} characters"
-                        : $"{GetRelativeTimeText(note.LastOpened)} • {note.CharCount} characters";
-
-                    bool isHighlighted = note.Id == _highlightedNoteId;
-                    var vm = new NoteItemViewModel(note.Id, note.Title, subtitle, note.IsPinned, isCurrent, isHighlighted);
+                    var vm = CreateNoteItemViewModel(note);
                     recentVMs.Add(vm);
                 }
             }
